@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@source './**/*.{ts,tsx}';
+
+/**
+ * Scope SDK styles under .fleetwork-root so they don't bleed into
+ * consumer apps. Consumers can also opt-in by wrapping with
+ * <FleetworkProvider /> which adds this class automatically.
+ */
+.fleetwork-root {
+  --fw-primary: #1677ff;
+  --fw-success: #10b981;
+  --fw-warning: #f59e0b;
+  --fw-danger: #ef4444;
+  --fw-radius: 12px;
+  --fw-font:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  font-family: var(--fw-font);
+  color: var(--fw-text, #0f172a);
+}
+
+.fleetwork-root *,
+.fleetwork-root *::before,
+.fleetwork-root *::after {
+  box-sizing: border-box;
+}
