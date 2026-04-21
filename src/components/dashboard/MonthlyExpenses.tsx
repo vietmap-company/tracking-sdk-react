@@ -85,7 +85,7 @@ export function MonthlyExpenses({
     <Card className={className} style={style}>
       <CardHeader>
         <CardTitle>{t('expenses.title')}</CardTitle>
-        <div className='text-xs text-slate-500'>
+        <div className='text-xs text-muted-foreground'>
           {t('expenses.subtitle')}
         </div>
       </CardHeader>

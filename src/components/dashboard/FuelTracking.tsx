@@ -63,15 +63,15 @@ export function FuelTracking({
       <CardHeader className='grid grid-cols-[1fr_auto] items-end gap-2'>
         <div>
           <CardTitle>{t('fuel.title')}</CardTitle>
-          <div className='text-xs text-slate-500'>{t('fuel.subtitle')}</div>
+          <div className='text-xs text-muted-foreground'>{t('fuel.subtitle')}</div>
         </div>
         <div className='text-right'>
           {data ? (
             <>
-              <div className='text-2xl font-semibold text-slate-900'>
+              <div className='text-2xl font-semibold text-foreground'>
                 {formatNumber(data.fuelEfficiency.value, 1)}
               </div>
-              <div className='text-xs text-slate-500'>
+              <div className='text-xs text-muted-foreground'>
                 {data.fuelEfficiency.unit} · {t('fuel.efficiency')}
               </div>
             </>

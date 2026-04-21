@@ -8,7 +8,7 @@ const VIETMAP_STYLE_SLUGS: Record<Exclude<TileType, 'satellite'>, string> = {
   terrain: 'tm',
 }
 
-export function buildTileStyle(tile: TileType, apiKey: string): unknown {
+export function buildTileStyle(tile: TileType, apiKeyTilemap: string): unknown {
   if (tile === 'satellite') {
     return {
       version: 8,
@@ -32,5 +32,5 @@ export function buildTileStyle(tile: TileType, apiKey: string): unknown {
   }
 
   const slug = VIETMAP_STYLE_SLUGS[tile]
-  return `${VIETMAP_BASE}/maps/styles/${slug}/style.json?apikey=${apiKey}`
+  return `${VIETMAP_BASE}/maps/styles/${slug}/style.json?apikey=${apiKeyTilemap}`
 }

@@ -11,6 +11,7 @@ import type { FleetworkConfig, Locale, ThemeConfig } from '@/lib/types'
 
 interface FleetworkContextValue {
   apiKey: string
+  apiKeyTilemap: string
   baseUrl: string
   locale: Locale
   theme?: ThemeConfig
@@ -30,6 +31,7 @@ const DEFAULT_BASE_URL = 'https://tracking.fleetwork.vn'
 
 export function FleetworkProvider({
   apiKey,
+  apiKeyTilemap,
   baseUrl,
   locale = 'vi',
   theme,
@@ -55,6 +57,7 @@ export function FleetworkProvider({
   const value = React.useMemo<FleetworkContextValue>(() => {
     const config: FleetworkConfig = {
       apiKey,
+      apiKeyTilemap,
       baseUrl: baseUrl ?? DEFAULT_BASE_URL,
       locale,
       theme,
@@ -63,26 +66,26 @@ export function FleetworkProvider({
     setGlobalClient(client, config)
     return {
       apiKey,
+      apiKeyTilemap,
       baseUrl: config.baseUrl!,
       locale,
       theme,
       t: createTranslator(locale),
       client,
     }
-  }, [apiKey, baseUrl, locale, theme])
+  }, [apiKey, apiKeyTilemap, baseUrl, locale, theme])
 
   const cssVars = React.useMemo<React.CSSProperties>(() => {
     const vars: Record<string, string> = {}
-    if (theme?.colors?.primary) vars['--fw-primary'] = theme.colors.primary
-    if (theme?.colors?.success) vars['--fw-success'] = theme.colors.success
-    if (theme?.colors?.warning) vars['--fw-warning'] = theme.colors.warning
-    if (theme?.colors?.danger) vars['--fw-danger'] = theme.colors.danger
-    if (theme?.colors?.background)
-      vars['--fw-background'] = theme.colors.background
-    if (theme?.colors?.text) vars['--fw-text'] = theme.colors.text
-    if (theme?.colors?.border) vars['--fw-border'] = theme.colors.border
+    // Map consumer theme overrides → shadcn CSS variables. Values are
+    // passed through verbatim so callers can use any CSS color (oklch/hex/rgb).
+    if (theme?.colors?.primary) vars['--primary'] = theme.colors.primary
+    if (theme?.colors?.destructive) vars['--destructive'] = theme.colors.destructive
+    if (theme?.colors?.background) vars['--background'] = theme.colors.background
+    if (theme?.colors?.text) vars['--foreground'] = theme.colors.text
+    if (theme?.colors?.border) vars['--border'] = theme.colors.border
     if (theme?.borderRadius != null)
-      vars['--fw-radius'] = `${theme.borderRadius}px`
+      vars['--radius'] = `${theme.borderRadius}px`
     if (theme?.fontFamily) vars['--fw-font'] = theme.fontFamily
     return vars as React.CSSProperties
   }, [theme])

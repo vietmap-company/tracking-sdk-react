@@ -6,20 +6,27 @@ export type Position = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
 export interface ThemeConfig {
   colors?: {
+    /** Maps to shadcn --primary */
     primary?: string
-    success?: string
-    warning?: string
-    danger?: string
+    /** Maps to shadcn --destructive */
+    destructive?: string
+    /** Maps to shadcn --background */
     background?: string
+    /** Maps to shadcn --foreground */
     text?: string
+    /** Maps to shadcn --border */
     border?: string
   }
+  /** Maps to shadcn --radius (in pixels) */
   borderRadius?: number
   fontFamily?: string
 }
 
 export interface FleetworkConfig {
+  /** API token for backend requests */
   apiKey: string
+  /** API key for VietMap tile styles */
+  apiKeyTilemap: string
   baseUrl?: string
   locale?: Locale
   theme?: ThemeConfig

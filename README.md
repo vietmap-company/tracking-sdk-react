@@ -22,7 +22,11 @@ import '@vietmap/fleetwork-tracking-sdk-react/styles.css'
 
 export default function App() {
   return (
-    <FleetworkProvider apiKey='YOUR_API_KEY' locale='vi'>
+    <FleetworkProvider
+      apiKey='YOUR_API_TOKEN'
+      apiKeyTilemap='YOUR_TILEMAP_API_KEY'
+      locale='vi'
+    >
       <Dashboard />
     </FleetworkProvider>
   )
@@ -36,6 +40,6 @@ pnpm install
 pnpm build
 ```
 
-Outputs `dist/fleetwork-tracking-sdk-react.{js,cjs}`, `dist/index.d.ts`, `dist/styles.css`.
+Outputs `dist/fleetwork-tracking-sdk-react.{js,cjs}`, `dist/index.d.ts`, `dist/fleetwork-tracking-sdk-react.css`.
 
 See [tracking-sdk-react.mdx](../tracking-sdk-react.mdx) for the full API reference.

@@ -21,8 +21,9 @@ export function Avatar({
 
   return (
     <div
+      data-slot='avatar'
       className={cn(
-        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-medium text-slate-600',
+        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-medium text-muted-foreground',
         className
       )}
       style={{ width: size, height: size }}

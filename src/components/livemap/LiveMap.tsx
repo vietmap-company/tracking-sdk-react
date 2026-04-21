@@ -1,9 +1,58 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
-// Imported lazily at runtime so the SDK can tree-shake when unused.
-import VietmapGL from "@vietmap/vietmap-gl-js";
-import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
 import { useMembers } from "@/hooks";
+
+// ─── VietmapGL CDN loader (mirrors dricon-sdk approach) ─────────────────────
+// We load from CDN so the SDK bundle stays lean and avoids UMD/ESM conflicts.
+const VIETMAP_JS =
+  "https://unpkg.com/@vietmap/vietmap-gl-js@6.0.1/dist/vietmap-gl.js";
+const VIETMAP_CSS =
+  "https://unpkg.com/@vietmap/vietmap-gl-js@6.0.1/dist/vietmap-gl.css";
+
+type VGL = Record<string, unknown>;
+
+let _vglPromise: Promise<VGL> | null = null;
+
+function loadVietmapGL(): Promise<VGL> {
+  if (_vglPromise) return _vglPromise;
+  _vglPromise = new Promise<VGL>((resolve, reject) => {
+    const w = window as unknown as Record<string, unknown>;
+    if (w["vietmapgl"]) {
+      resolve(w["vietmapgl"] as VGL);
+      return;
+    }
+    // Inject CSS once
+    if (!document.getElementById("_fw_vgl_css")) {
+      const link = document.createElement("link");
+      link.id = "_fw_vgl_css";
+      link.rel = "stylesheet";
+      link.href = VIETMAP_CSS;
+      document.head.appendChild(link);
+    }
+    // Inject JS once
+    const existing = document.getElementById(
+      "_fw_vgl_js",
+    ) as HTMLScriptElement | null;
+    const ok = () => {
+      const v = (window as unknown as Record<string, unknown>)["vietmapgl"];
+      v ? resolve(v as VGL) : reject(new Error("VietmapGL global not found"));
+    };
+    if (existing) {
+      existing.addEventListener("load", ok, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "_fw_vgl_js";
+    script.src = VIETMAP_JS;
+    script.onload = ok;
+    script.onerror = () => {
+      _vglPromise = null;
+      reject(new Error("Failed to load VietmapGL from CDN"));
+    };
+    document.head.appendChild(script);
+  });
+  return _vglPromise;
+}
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { cn } from "@/lib/utils";
 import { buildTileStyle } from "./tiles";
@@ -11,8 +60,10 @@ import { MemberList } from "./MemberList";
 import { Legend } from "./Legend";
 import { TileSwitcher } from "./TileSwitcher";
 import { DefaultPopup, MarkerDot } from "./Marker";
+import { HistoryPanel } from "./HistoryPanel";
+import { PlaybackControls } from "./PlaybackControls";
 import type { LiveMapProps, LiveMapRef, MapInstance } from "./types";
-import type { MemberStatus, TileType } from "@/lib/types";
+import type { GpsPoint, MemberStatus, TileType } from "@/lib/types";
 
 const DEFAULT_CENTER: [number, number] = [106.6, 10.8];
 
@@ -24,6 +75,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       zoom = 11,
       defaultTile = "terrain",
       pollInterval = 10000,
+      members: membersProp,
       showList = true,
       showLegend = true,
       legendPosition = "top-right",
@@ -40,7 +92,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       slotProps,
     } = props;
 
-    const { apiKey } = useFleetwork();
+    const { apiKeyTilemap } = useFleetwork();
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const mapRef = React.useRef<unknown>(null);
     const markersRef = React.useRef<
@@ -48,6 +100,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     >(new Map());
     const popupRef = React.useRef<unknown>(null);
     const popupContainerRef = React.useRef<HTMLDivElement | null>(null);
+    const vglRef = React.useRef<VGL | null>(null);
 
     const [tile, setTile] = React.useState<TileType>(defaultTile);
     const [activeUserId, setActiveUserId] = React.useState<string | null>(null);
@@ -61,7 +114,28 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       [],
     );
 
-    const { data: members = [], isLoading } = useMembers({ pollInterval });
+    // History / playback state
+    const [selectedMember, setSelectedMember] =
+      React.useState<MemberStatus | null>(null);
+    const [historyPoints, setHistoryPoints] = React.useState<GpsPoint[]>([]);
+    const [playIndex, setPlayIndex] = React.useState(0);
+    const [isPlaying, setIsPlaying] = React.useState(false);
+    const [playSpeed, setPlaySpeed] = React.useState<1 | 2 | 4>(1);
+    const [autoFollow, setAutoFollow] = React.useState(true);
+    const historyMarkerRef = React.useRef<unknown>(null);
+    const playTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(
+      null,
+    );
+    const historyPointsRef = React.useRef<GpsPoint[]>([]);
+    React.useEffect(() => {
+      historyPointsRef.current = historyPoints;
+    }, [historyPoints]);
+
+    const { data: apiMembers = [], isLoading: apiLoading } = useMembers({
+      pollInterval,
+    });
+    const members = membersProp ?? apiMembers;
+    const isLoading = membersProp != null ? false : apiLoading;
     const membersRef = React.useRef<MemberStatus[]>(members);
     React.useEffect(() => {
       membersRef.current = members;
@@ -81,61 +155,83 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       renderPopupRef.current = renderMarkerPopup;
     }, [renderMarkerPopup]);
 
-    // Init map
+    // Init map — load VietmapGL from CDN first, then create the map
     React.useEffect(() => {
       if (!containerRef.current) return;
+      let cancelled = false;
+      let map:
+        | (MapInstance & {
+            on: (evt: string, handler: (e: unknown) => void) => void;
+            off: (evt: string, handler: (e: unknown) => void) => void;
+          })
+        | null = null;
 
-      const map = new (
-        VietmapGL as unknown as {
-          Map: new (opts: Record<string, unknown>) => unknown;
-        }
-      ).Map({
-        container: containerRef.current,
-        style: buildTileStyle(tile, apiKey),
-        center,
-        zoom,
-      }) as MapInstance & {
-        on: (evt: string, handler: (e: unknown) => void) => void;
-        off: (evt: string, handler: (e: unknown) => void) => void;
-      };
+      loadVietmapGL()
+        .then((VGL) => {
+          if (cancelled || !containerRef.current) return;
+          vglRef.current = VGL;
 
-      mapRef.current = map;
+          map = new (
+            VGL as unknown as {
+              Map: new (opts: Record<string, unknown>) => unknown;
+            }
+          ).Map({
+            container: containerRef.current,
+            style: buildTileStyle(tile, apiKeyTilemap),
+            center,
+            zoom,
+          }) as MapInstance & {
+            on: (evt: string, handler: (e: unknown) => void) => void;
+            off: (evt: string, handler: (e: unknown) => void) => void;
+          };
 
-      const handleLoad = () => {
-        setReady(true);
-        onMapReady?.(map as MapInstance);
-      };
-      const handleClick = (e: unknown) => {
-        const ev = e as { lngLat?: { lng: number; lat: number } };
-        if (ev.lngLat) {
-          onMapClickRef.current?.([ev.lngLat.lng, ev.lngLat.lat]);
-        }
-      };
+          mapRef.current = map;
 
-      map.on("load", handleLoad);
-      map.on("click", handleClick);
+          const handleLoad = () => {
+            if (!cancelled) {
+              setReady(true);
+              onMapReady?.(map as MapInstance);
+            }
+          };
+          const handleClick = (e: unknown) => {
+            const ev = e as { lngLat?: { lng: number; lat: number } };
+            if (ev.lngLat) {
+              onMapClickRef.current?.([ev.lngLat.lng, ev.lngLat.lat]);
+            }
+          };
+
+          map.on("load", handleLoad);
+          map.on("click", handleClick);
+        })
+        .catch((err) => {
+          if (!cancelled)
+            console.error("[LiveMap] Failed to load VietmapGL:", err);
+        });
 
       return () => {
+        cancelled = true;
         markersRef.current.forEach(({ marker }) => {
           (marker as { remove: () => void }).remove();
         });
         markersRef.current.clear();
         (popupRef.current as { remove: () => void } | null)?.remove();
         popupRef.current = null;
-        map.off("load", handleLoad);
-        map.off("click", handleClick);
-        map.remove();
+        if (map) {
+          try {
+            map.remove();
+          } catch {}
+        }
         mapRef.current = null;
         setReady(false);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiKey]);
+    }, [apiKeyTilemap]);
 
     // React to tile changes
     React.useEffect(() => {
       if (!ready || !mapRef.current) return;
-      (mapRef.current as MapInstance).setStyle(buildTileStyle(tile, apiKey));
-    }, [tile, apiKey, ready]);
+      (mapRef.current as MapInstance).setStyle(buildTileStyle(tile, apiKeyTilemap));
+    }, [tile, apiKeyTilemap, ready]);
 
     // Sync markers whenever members change
     React.useEffect(() => {
@@ -168,11 +264,13 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         }
         const el = document.createElement("div");
         el.style.cursor = "pointer";
+        const VGL = vglRef.current;
+        if (!VGL) return;
         const marker = new (
-          VietmapGL as unknown as {
+          VGL as unknown as {
             Marker: new (opts: Record<string, unknown>) => unknown;
           }
-        ).Marker({ element: el, anchor: "center" });
+        ).Marker({ element: el, anchor: "bottom" });
         (
           marker as {
             setLngLat: (ll: [number, number]) => {
@@ -205,6 +303,178 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [members, ready]);
 
+    const ROUTE_SOURCE = "fw-history-route";
+    const ROUTE_LAYER_BG = "fw-history-route-bg";
+    const ROUTE_LAYER = "fw-history-route-line";
+
+    const drawHistoryRoute = React.useCallback((pts: GpsPoint[]) => {
+      const map = mapRef.current as MapInstance | null;
+      if (!map || pts.length < 2) return;
+      const coords = pts.map((p) => [p.lng, p.lat]);
+      const geojson = {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: coords },
+      };
+      try {
+        const src = map.getSource(ROUTE_SOURCE);
+        if (src) {
+          src.setData(geojson);
+        } else {
+          map.addSource(ROUTE_SOURCE, {
+            type: "geojson",
+            data: geojson,
+          } as Record<string, unknown>);
+          map.addLayer({
+            id: ROUTE_LAYER_BG,
+            type: "line",
+            source: ROUTE_SOURCE,
+            paint: {
+              "line-color": "#3b82f6",
+              "line-width": 6,
+              "line-opacity": 0.15,
+            },
+          } as Record<string, unknown>);
+          map.addLayer({
+            id: ROUTE_LAYER,
+            type: "line",
+            source: ROUTE_SOURCE,
+            paint: {
+              "line-color": "#3b82f6",
+              "line-width": 3,
+              "line-opacity": 0.85,
+            },
+          } as Record<string, unknown>);
+        }
+      } catch (e) {
+        console.warn("[LiveMap] drawHistoryRoute", e);
+      }
+    }, []);
+
+    const clearHistoryRoute = React.useCallback(() => {
+      const map = mapRef.current as MapInstance | null;
+      if (!map) return;
+      try {
+        if (map.getLayer(ROUTE_LAYER)) map.removeLayer(ROUTE_LAYER);
+        if (map.getLayer(ROUTE_LAYER_BG)) map.removeLayer(ROUTE_LAYER_BG);
+        if (map.getSource(ROUTE_SOURCE)) map.removeSource(ROUTE_SOURCE);
+      } catch {}
+      // Remove history marker
+      (historyMarkerRef.current as { remove: () => void } | null)?.remove();
+      historyMarkerRef.current = null;
+    }, []);
+
+    // Move history marker to a point index
+    const seekHistory = React.useCallback(
+      (idx: number) => {
+        const pts = historyPointsRef.current;
+        if (!pts.length) return;
+        const clamped = Math.max(0, Math.min(idx, pts.length - 1));
+        setPlayIndex(clamped);
+        const p = pts[clamped];
+        const VGL = vglRef.current;
+        const map = mapRef.current as MapInstance | null;
+        if (!VGL || !map) return;
+        if (!historyMarkerRef.current) {
+          const el = document.createElement("div");
+          el.style.cssText =
+            "width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 2px 8px rgba(59,130,246,.5);pointer-events:none;";
+          historyMarkerRef.current = new (
+            VGL as unknown as {
+              Marker: new (o: Record<string, unknown>) => {
+                setLngLat: (ll: [number, number]) => unknown;
+                addTo: (m: unknown) => unknown;
+              };
+            }
+          ).Marker({ element: el }).setLngLat([p.lng, p.lat]);
+          (historyMarkerRef.current as { addTo: (m: unknown) => void }).addTo(
+            map,
+          );
+        } else {
+          (
+            historyMarkerRef.current as {
+              setLngLat: (ll: [number, number]) => void;
+            }
+          ).setLngLat([p.lng, p.lat]);
+        }
+        // Auto-follow: pan only if the point is outside viewport
+        if (autoFollow) {
+          try {
+            const bounds = map.getBounds();
+            if (!bounds.contains([p.lng, p.lat])) {
+              map.easeTo({ center: [p.lng, p.lat], duration: 400 });
+            }
+          } catch {}
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      },
+      [autoFollow],
+    );
+
+    // Play timer
+    React.useEffect(() => {
+      if (!isPlaying) {
+        if (playTimerRef.current) {
+          clearInterval(playTimerRef.current);
+          playTimerRef.current = null;
+        }
+        return;
+      }
+      const intervalMs = Math.round(500 / playSpeed);
+      playTimerRef.current = setInterval(() => {
+        const pts = historyPointsRef.current;
+        setPlayIndex((prev) => {
+          const next = prev + 1;
+          if (next >= pts.length) {
+            setIsPlaying(false);
+            return pts.length - 1;
+          }
+          seekHistory(next);
+          return next;
+        });
+      }, intervalMs);
+      return () => {
+        if (playTimerRef.current) {
+          clearInterval(playTimerRef.current);
+          playTimerRef.current = null;
+        }
+      };
+    }, [isPlaying, playSpeed, seekHistory]);
+
+    // Draw route whenever historyPoints changes (and map is ready)
+    React.useEffect(() => {
+      if (!ready) return;
+      if (historyPoints.length >= 2) {
+        drawHistoryRoute(historyPoints);
+      } else {
+        clearHistoryRoute();
+      }
+    }, [historyPoints, ready, drawHistoryRoute, clearHistoryRoute]);
+
+    const openHistory = React.useCallback(
+      (m: MemberStatus) => {
+        setSelectedMember(m);
+        setActiveUserId(m.userId);
+        setHistoryPoints([]);
+        setPlayIndex(0);
+        setIsPlaying(false);
+        clearHistoryRoute();
+        (mapRef.current as MapInstance | null)?.flyTo({
+          center: [m.lng, m.lat],
+          zoom: 14,
+        });
+      },
+      [clearHistoryRoute],
+    );
+
+    const closeHistory = React.useCallback(() => {
+      setSelectedMember(null);
+      setHistoryPoints([]);
+      setPlayIndex(0);
+      setIsPlaying(false);
+      setActiveUserId(null);
+      clearHistoryRoute();
+    }, [clearHistoryRoute]);
+
     const openPopup = React.useCallback((m: MemberStatus) => {
       const map = mapRef.current;
       if (!map) return;
@@ -222,14 +492,16 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         remove: () => void;
         on: (evt: string, h: () => void) => void;
       };
+      const VGL = vglRef.current;
+      if (!VGL) return;
       const popup = new (
-        VietmapGL as unknown as {
+        VGL as unknown as {
           Popup: new (opts: Record<string, unknown>) => PopupInstance;
         }
       ).Popup({
-        closeButton: true,
+        closeButton: false,
         closeOnClick: false,
-        offset: 16,
+        offset: 72,
       });
 
       popup
@@ -277,16 +549,15 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       const cb = onMemberClick;
       const shouldDefault = cb ? cb(m) !== false : true;
       if (shouldDefault) {
-        setActiveUserId(m.userId);
-        (mapRef.current as MapInstance | null)?.flyTo({
-          center: [m.lng, m.lat],
-          zoom: 14,
-        });
-        openPopup(m);
+        openHistory(m);
+        // Close any open popup
+        (popupRef.current as { remove: () => void } | null)?.remove();
+        popupRef.current = null;
+        setPopupMember(null);
       }
     };
 
-    const listPosition = slotProps?.list?.position ?? "right";
+    const listPosition = slotProps?.list?.position ?? "left";
     const legendPos = slotProps?.legend?.position ?? legendPosition;
     const tilePos = slotProps?.tileSwitcher?.position ?? tileSwitcherPosition;
 
@@ -294,14 +565,28 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       renderPopupRef.current ? (
         renderPopupRef.current(popupMember)
       ) : (
-        <DefaultPopup member={popupMember} />
+        <DefaultPopup
+          member={popupMember}
+          onViewHistory={() => {
+            openHistory(popupMember);
+            (popupRef.current as { remove: () => void } | null)?.remove();
+            popupRef.current = null;
+            setPopupMember(null);
+          }}
+          onClose={() => {
+            (popupRef.current as { remove: () => void } | null)?.remove();
+            popupRef.current = null;
+            setActiveUserId(null);
+            setPopupMember(null);
+          }}
+        />
       )
     ) : null;
 
     return (
       <div
         className={cn(
-          "fleetwork-root relative w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50",
+          "fleetwork-root relative w-full overflow-hidden rounded-xl border bg-muted/40",
           className,
         )}
         style={{ height, ...style }}
@@ -359,6 +644,38 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         {popupMember &&
           popupContainerRef.current &&
           createPortal(popupContent, popupContainerRef.current)}
+
+        {/* History detail panel */}
+        {selectedMember && (
+          <HistoryPanel
+            member={selectedMember}
+            onClose={closeHistory}
+            onHistoryLoaded={(pts) => {
+              setHistoryPoints(pts);
+              setPlayIndex(0);
+              setIsPlaying(false);
+            }}
+            playIndex={playIndex}
+            onSeek={(idx) => seekHistory(idx)}
+          />
+        )}
+
+        {/* Playback controls bar */}
+        {selectedMember && historyPoints.length > 1 && (
+          <PlaybackControls
+            points={historyPoints}
+            index={playIndex}
+            isPlaying={isPlaying}
+            speed={playSpeed}
+            autoFollow={autoFollow}
+            onSeek={(idx) => seekHistory(idx)}
+            onPlayToggle={() => setIsPlaying((v) => !v)}
+            onSpeedCycle={() =>
+              setPlaySpeed((s) => (s === 1 ? 2 : s === 2 ? 4 : 1))
+            }
+            onAutoFollowToggle={() => setAutoFollow((v) => !v)}
+          />
+        )}
       </div>
     );
   },

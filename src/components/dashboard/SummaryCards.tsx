@@ -72,10 +72,10 @@ export function SummaryCards({
     >
       {KPI_ORDER.map((kpi) => (
         <Card key={kpi.key as string} className='px-4 py-3'>
-          <div className='text-xs font-medium text-slate-500'>
+          <div className='text-xs font-medium text-muted-foreground'>
             {t(kpi.labelKey)}
           </div>
-          <div className='mt-1 text-xl font-semibold text-slate-900'>
+          <div className='mt-1 text-xl font-semibold text-foreground'>
             {isLoading || !data ? (
               <Skeleton className='h-6 w-24' />
             ) : (
