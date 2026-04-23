@@ -2,59 +2,47 @@ import { useRef, useState } from 'react'
 import { LiveMap } from '@vietmap/fleetwork-tracking-sdk-react'
 import type { LiveMapRef, MemberStatus } from '@vietmap/fleetwork-tracking-sdk-react'
 
-/**
- * Page 2 — Live Map
- * Demo đầy đủ LiveMap với member list, legend, tile switcher, history playback.
- * Có imperative API để fly-to / focusMember từ ngoài component.
- */
 export function PageLiveMap() {
   const mapRef = useRef<LiveMapRef>(null)
-  const [log, setLog] = useState<string[]>([])
+  const [lastEvent, setLastEvent] = useState<string>('')
 
-  const addLog = (msg: string) =>
-    setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 9)])
+  const log = (msg: string) => setLastEvent(`[${new Date().toLocaleTimeString()}] ${msg}`)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)' }}>
+    <div className='flex h-[calc(100vh-52px)] flex-col'>
       {/* Toolbar */}
-      <div
-        style={{
-          padding: '8px 16px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--card)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 600, marginRight: 8 }}>🗺️ Live Map</span>
-        <button
-          style={btnStyle}
-          onClick={() => {
-            mapRef.current?.flyTo([106.7, 10.8], 12)
-            addLog('flyTo([106.7, 10.8], 12)')
-          }}
-        >
-          Fly to HCM
+      <div className='flex shrink-0 items-center gap-2 border-b border-border bg-card px-4 py-2'>
+        <span className='mr-2 text-sm font-semibold text-foreground'>Live Map</span>
+
+        <button className={toolbarBtn} onClick={() => { mapRef.current?.flyTo([105.85, 21.03], 12); log('flyTo Hà Nội') }}>
+          Hà Nội
         </button>
-        <button
-          style={btnStyle}
-          onClick={() => {
-            const members = mapRef.current?.getMembers() ?? []
-            addLog(`getMembers() → ${members.length} members`)
-          }}
-        >
+        <button className={toolbarBtn} onClick={() => { mapRef.current?.flyTo([106.7, 10.8], 12); log('flyTo TP.HCM') }}>
+          TP.HCM
+        </button>
+        <button className={toolbarBtn} onClick={() => { mapRef.current?.fitBounds([[102, 8], [110, 23]]); log('fitBounds Vietnam') }}>
+          Toàn quốc
+        </button>
+        <button className={toolbarBtn} onClick={() => {
+          const members = mapRef.current?.getMembers() ?? []
+          log(`getMembers → ${members.length} members`)
+        }}>
           Log members
         </button>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>
-          {log[0] ?? 'Click vào marker để xem popup + lộ trình'}
-        </span>
+
+        <div className='ml-auto'>
+          {lastEvent ? (
+            <span className='rounded-md bg-muted px-2.5 py-1 font-mono text-[11px] text-muted-foreground'>
+              {lastEvent}
+            </span>
+          ) : (
+            <span className='text-xs text-muted-foreground'>Click marker để xem popup</span>
+          )}
+        </div>
       </div>
 
-      {/* Map fills remaining height */}
-      <div style={{ flex: 1, minHeight: 0, padding: 12 }}>
+      {/* Map */}
+      <div className='min-h-0 flex-1 p-3'>
         <LiveMap
           ref={mapRef}
           height='100%'
@@ -67,28 +55,14 @@ export function PageLiveMap() {
           showTileSwitcher
           legendPosition='top-right'
           tileSwitcherPosition='bottom-right'
-          onMapReady={(map) => addLog(`onMapReady — zoom ${map.getZoom().toFixed(1)}`)}
-          onMapClick={([lng, lat]) => addLog(`onMapClick → ${lat.toFixed(4)}, ${lng.toFixed(4)}`)}
-          onMemberClick={(m: MemberStatus) => {
-            addLog(`onMemberClick → ${m.name}`)
-            return false // suppress default fly-to; handled manually below
-          }}
-          onMarkerClick={(m: MemberStatus) => {
-            addLog(`onMarkerClick → ${m.name} (${m.status})`)
-          }}
+          onMapReady={(map) => log(`Map ready — zoom ${map.getZoom().toFixed(1)}`)}
+          onMapClick={([lng, lat]) => log(`click ${lat.toFixed(4)}, ${lng.toFixed(4)}`)}
+          onMarkerClick={(m: MemberStatus) => log(`marker: ${m.name} (${m.statusLabel})`)}
         />
       </div>
     </div>
   )
 }
 
-const btnStyle: React.CSSProperties = {
-  padding: '5px 12px',
-  borderRadius: 6,
-  border: '1px solid var(--border)',
-  background: 'var(--card)',
-  color: 'var(--foreground)',
-  fontSize: 12,
-  cursor: 'pointer',
-  fontWeight: 500,
-}
+const toolbarBtn =
+  'rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted'

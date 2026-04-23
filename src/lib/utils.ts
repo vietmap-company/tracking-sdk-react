@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -27,4 +28,56 @@ export function formatNumber(value: number, fractionDigits = 0): string {
   return new Intl.NumberFormat('vi-VN', {
     maximumFractionDigits: fractionDigits,
   }).format(value)
+}
+
+// ─── Chart theme colors ───────────────────────────────────────────────────────
+// Reads resolved CSS custom-property values from .fleetwork-root so recharts
+// always uses the active theme palette instead of hardcoded hex values.
+function readVar(el: Element, name: string, fallback: string): string {
+  return getComputedStyle(el).getPropertyValue(name).trim() || fallback
+}
+
+export interface ChartColors {
+  chart1: string
+  chart2: string
+  chart3: string
+  chart4: string
+  chart5: string
+  grid: string
+  axisTick: string
+  tooltipBorder: string
+  tooltipBg: string
+}
+
+export function useChartColors(): ChartColors {
+  return React.useMemo(() => {
+    const el =
+      (typeof document !== 'undefined' &&
+        (document.querySelector('.fleetwork-root') as HTMLElement | null)) ||
+      null
+    if (!el) {
+      return {
+        chart1: 'oklch(0.646 0.222 41.116)',
+        chart2: 'oklch(0.6 0.118 184.704)',
+        chart3: 'oklch(0.398 0.07 227.392)',
+        chart4: 'oklch(0.828 0.189 84.429)',
+        chart5: 'oklch(0.769 0.188 70.08)',
+        grid: 'oklch(0.92 0.01 255.508)',
+        axisTick: 'oklch(0.554 0.046 257.417)',
+        tooltipBorder: 'oklch(0.92 0.01 255.508)',
+        tooltipBg: 'oklch(1 0 0)',
+      }
+    }
+    return {
+      chart1: readVar(el, '--chart-1', 'oklch(0.646 0.222 41.116)'),
+      chart2: readVar(el, '--chart-2', 'oklch(0.6 0.118 184.704)'),
+      chart3: readVar(el, '--chart-3', 'oklch(0.398 0.07 227.392)'),
+      chart4: readVar(el, '--chart-4', 'oklch(0.828 0.189 84.429)'),
+      chart5: readVar(el, '--chart-5', 'oklch(0.769 0.188 70.08)'),
+      grid: readVar(el, '--border', 'oklch(0.92 0.01 255.508)'),
+      axisTick: readVar(el, '--muted-foreground', 'oklch(0.554 0.046 257.417)'),
+      tooltipBorder: readVar(el, '--border', 'oklch(0.92 0.01 255.508)'),
+      tooltipBg: readVar(el, '--card', 'oklch(1 0 0)'),
+    }
+  }, [])
 }

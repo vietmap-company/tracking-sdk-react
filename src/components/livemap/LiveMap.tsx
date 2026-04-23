@@ -548,13 +548,29 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     const handleListItemClick = (m: MemberStatus) => {
       const cb = onMemberClick;
       const shouldDefault = cb ? cb(m) !== false : true;
-      if (shouldDefault) {
-        openHistory(m);
-        // Close any open popup
-        (popupRef.current as { remove: () => void } | null)?.remove();
-        popupRef.current = null;
-        setPopupMember(null);
-      }
+      if (!shouldDefault) return;
+
+      setActiveUserId(m.userId);
+      // Close any existing popup before flying
+      (popupRef.current as { remove: () => void } | null)?.remove();
+      popupRef.current = null;
+      setPopupMember(null);
+
+      const map = mapRef.current as (MapInstance & {
+        on: (evt: string, h: () => void) => void;
+        off: (evt: string, h: () => void) => void;
+      }) | null;
+      if (!map) return;
+
+      const targetZoom = Math.max(14, map.getZoom());
+      map.flyTo({ center: [m.lng, m.lat], zoom: targetZoom });
+
+      // Show popup only after fly animation completes so it's always on-screen
+      const onMoveEnd = () => {
+        map.off("moveend", onMoveEnd);
+        openPopup(m);
+      };
+      map.on("moveend", onMoveEnd);
     };
 
     const listPosition = slotProps?.list?.position ?? "left";

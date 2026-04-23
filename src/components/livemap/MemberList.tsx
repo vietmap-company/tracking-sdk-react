@@ -3,7 +3,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Signal,
   SignalZero,
   Users,
 } from "lucide-react";
@@ -202,30 +201,15 @@ export function MemberList({
                       <span className="truncate text-[13px] font-semibold text-foreground">
                         {m.name}
                       </span>
-                      {m.status === "moving" && m.speed != null && (
+                      {m.status !== "moving" && m.lastSeenAt && (
                         <Badge
-                          variant="moving"
-                          className="shrink-0 rounded-full px-2 text-[10px]"
-                        >
-                          <Signal className="h-2.5 w-2.5" />
-                          {m.speed} km/h
-                        </Badge>
-                      )}
-                      {m.status === "signal_lost" && (
-                        <Badge
-                          variant="signal_lost"
+                          variant={m.status === "signal_lost" ? "signal_lost" : "stopped"}
                           className="shrink-0 rounded-full px-2 text-[10px] font-normal"
                         >
                           {formatLastSeen(m.lastSeenAt)}
                         </Badge>
                       )}
                     </div>
-
-                    {m.groupName && (
-                      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {m.groupName}
-                      </div>
-                    )}
 
                     <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                       {m.lastAddress ?? "—"}

@@ -1,46 +1,50 @@
 import {
-  SummaryCards,
-  MemberReport,
   ActivityHeatmap,
   FuelTracking,
+  MemberReport,
   MonthlyExpenses,
+  SummaryCards,
 } from '@vietmap/fleetwork-tracking-sdk-react'
+import { PageHeader } from './PageHeader'
 
-/**
- * Page 4 — Widgets
- * Demo từng widget riêng lẻ từ Dashboard.
- */
 export function PageWidgets() {
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>🧩 Widgets Demo</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--muted-foreground)' }}>
-          Kết hợp từng widget từ Dashboard SDK để làm custom layout.
-        </p>
-      </div>
+    <div className='p-6'>
+      <PageHeader
+        title='Widgets'
+        description='Từng widget riêng lẻ — dùng khi cần custom layout.'
+      />
 
-      <h2 style={headerStyle}>Summary Cards</h2>
-      <SummaryCards pollInterval={15_000} />
+      <Section label='Summary Cards'>
+        <SummaryCards pollInterval={15_000} />
+      </Section>
 
-      <h2 style={headerStyle}>Member Report</h2>
-      <MemberReport pollInterval={20_000} />
+      <Section label='Member Report'>
+        <MemberReport pollInterval={20_000} />
+      </Section>
 
-      <h2 style={headerStyle}>Activity Heatmap</h2>
-      <ActivityHeatmap />
+      <Section label='Activity Heatmap'>
+        <ActivityHeatmap />
+      </Section>
 
-      <h2 style={headerStyle}>Fuel Tracking</h2>
-      <FuelTracking />
+      <Section label='Fuel Tracking'>
+        <FuelTracking />
+      </Section>
 
-      <h2 style={headerStyle}>Monthly Expenses</h2>
-      <MonthlyExpenses />
+      <Section label='Monthly Expenses'>
+        <MonthlyExpenses />
+      </Section>
     </div>
   )
 }
 
-const headerStyle = {
-  margin: '24px 0 12px',
-  fontSize: 16,
-  fontWeight: 600,
-  color: 'var(--foreground)',
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className='mt-8'>
+      <p className='mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground'>
+        {label}
+      </p>
+      {children}
+    </div>
+  )
 }

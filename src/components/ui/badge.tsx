@@ -17,9 +17,12 @@ const badgeVariants = cva(
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         // Domain variants — member status colors
-        moving: 'border-transparent bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-        stopped: 'border-transparent bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-        signal_lost: 'border-transparent bg-muted text-muted-foreground',
+        moving:
+          'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+        stopped:
+          'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+        signal_lost:
+          'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-400',
       },
     },
     defaultVariants: {

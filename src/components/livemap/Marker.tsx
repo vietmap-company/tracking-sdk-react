@@ -1,7 +1,16 @@
 import * as React from "react";
-import { X } from "lucide-react";
+import { MapPin, Navigation, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MemberStatus } from "@/lib/types";
+
+function formatLastSeen(ts: number): string {
+  const mins = Math.floor((Date.now() - ts) / 60_000);
+  if (mins < 1) return "vừa xong";
+  if (mins < 60) return `${mins} phút trước`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} giờ trước`;
+  return `${Math.floor(hrs / 24)} ngày trước`;
+}
 
 export interface MarkerDotProps {
   member: MemberStatus;
@@ -93,11 +102,7 @@ export function DefaultPopup({
     stopped: "text-amber-500",
     signal_lost: "text-slate-400",
   };
-  const STATUS_BG: Record<MemberStatus["status"], string> = {
-    moving: "bg-emerald-50",
-    stopped: "bg-amber-50",
-    signal_lost: "bg-slate-50",
-  };
+
   const STATUS_DOT: Record<MemberStatus["status"], string> = {
     moving: "bg-emerald-500",
     stopped: "bg-amber-500",
@@ -105,7 +110,7 @@ export function DefaultPopup({
   };
 
   return (
-    <div className="relative w-56 overflow-hidden rounded-xl border border-border/60 bg-card text-xs shadow-lg">
+    <div className="relative w-64 overflow-hidden rounded-xl border border-border/60 bg-card text-xs shadow-lg">
       {onClose && (
         <button
           type="button"
@@ -152,29 +157,62 @@ export function DefaultPopup({
       <div className="mx-3 border-t border-border/60" />
 
       {/* Stats */}
-      <div className="px-3 py-2.5 space-y-2">
-        {member.speed != null && (
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Tốc độ</span>
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-bold",
-                STATUS_BG[member.status],
-                STATUS_TEXT[member.status],
-              )}
-            >
+      <div className="px-3 py-2.5 space-y-2.5">
+        {/* Speed — only when moving */}
+        {member.status === "moving" && member.speed != null && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Navigation className="h-3 w-3 shrink-0" />
+              <span>Tốc độ</span>
+            </div>
+            <span className="font-semibold text-emerald-700">
               {member.speed} km/h
             </span>
           </div>
         )}
+
+        {/* Last seen — only when not moving */}
+        {member.status !== "moving" && member.lastSeenAt && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Cập nhật</span>
+            </div>
+            <span className="font-medium text-foreground">
+              {formatLastSeen(member.lastSeenAt)}
+            </span>
+          </div>
+        )}
+
+        {/* Group */}
+        {member.groupName && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Users className="h-3 w-3 shrink-0" />
+              <span>Nhóm</span>
+            </div>
+            <span className="font-medium text-foreground truncate max-w-32">
+              {member.groupName}
+            </span>
+          </div>
+        )}
+
+        {/* Address */}
         {member.lastAddress && (
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground">Địa chỉ</span>
-            <p className="leading-snug text-foreground line-clamp-2">
+          <div className="flex gap-1.5">
+            <MapPin className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
+            <p className="leading-snug text-foreground line-clamp-2 flex-1">
               {member.lastAddress}
             </p>
           </div>
         )}
+
+        {/* Coordinates */}
+        <div className="flex items-center justify-between gap-3 pt-0.5">
+          <span className="text-muted-foreground">Tọa độ</span>
+          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+            {member.lat.toFixed(5)}, {member.lng.toFixed(5)}
+          </span>
+        </div>
       </div>
 
       {/* View history button */}

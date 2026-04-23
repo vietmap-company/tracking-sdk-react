@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFuelTracking } from '@/hooks'
 import { useFleetwork } from '@/provider/FleetworkProvider'
-import { formatNumber } from '@/lib/utils'
+import { formatNumber, useChartColors } from '@/lib/utils'
 import type { FuelGroupBy, FuelTrackingData } from '@/lib/types'
 
 export interface FuelTrackingProps {
@@ -38,6 +38,7 @@ export function FuelTracking({
   onDataChange,
 }: FuelTrackingProps) {
   const { t } = useFleetwork()
+  const colors = useChartColors()
   const { data, isLoading, error } = useFuelTracking({
     from,
     to,
@@ -90,22 +91,23 @@ export function FuelTracking({
                 data={chartData}
                 margin={{ top: 8, right: 12, bottom: 0, left: -16 }}
               >
-                <CartesianGrid strokeDasharray='3 3' stroke='#f1f5f9' />
+                <CartesianGrid strokeDasharray='3 3' stroke={colors.grid} />
                 <XAxis
                   dataKey='label'
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 8,
-                    border: '1px solid #e2e8f0',
+                    border: `1px solid ${colors.tooltipBorder}`,
+                    background: colors.tooltipBg,
                     fontSize: 12,
                   }}
                 />
@@ -117,7 +119,7 @@ export function FuelTracking({
                   type='monotone'
                   dataKey='distanceKm'
                   name={t('fuel.distance')}
-                  stroke='#3b82f6'
+                  stroke={colors.chart2}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
@@ -125,7 +127,7 @@ export function FuelTracking({
                   type='monotone'
                   dataKey='fuelLiters'
                   name={t('fuel.fuel')}
-                  stroke='#10b981'
+                  stroke={colors.chart1}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />

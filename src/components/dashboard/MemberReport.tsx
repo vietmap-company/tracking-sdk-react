@@ -61,7 +61,7 @@ export function MemberReport({
   const totalPages = data?.pagination.totalPages ?? 1;
 
   return (
-    <Card className={cn("h-[400px]", className)} style={style}>
+    <Card className={cn("h-140", className)} style={style}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-muted-foreground" />
@@ -91,7 +91,7 @@ export function MemberReport({
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-lg">
           <Table containerClassName="h-full overflow-y-auto">
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 <TableHead>{t("report.col.employee")}</TableHead>
                 <TableHead>{t("report.col.distance")}</TableHead>

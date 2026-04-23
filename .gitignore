@@ -39,3 +39,6 @@ coverage/
 
 # Misc
 .cache/
+
+# Local mock/fake API server (dev-only, not shipped)
+mock-server/

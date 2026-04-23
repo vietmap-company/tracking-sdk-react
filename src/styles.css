@@ -2,6 +2,11 @@
 
 @source './**/*.{ts,tsx}';
 
+/* Scope dark: utilities to only activate when .dark is on .fleetwork-root itself.
+   Since FleetworkProvider never adds that class, dark mode is effectively disabled
+   for the entire SDK regardless of the consumer app's theme. */
+@custom-variant dark (&:where(.fleetwork-root.dark *), .fleetwork-root.dark &);
+
 /* ─── Shadcn theme tokens (Tailwind v4 @theme inline) ────────────────────── */
 /* Mirrors driver-connect-web-react/src/styles/theme.css — keep in sync. */
 @theme inline {
@@ -41,6 +46,7 @@
  * portals also re-apply it on their root so tokens flow through portals.
  */
 .fleetwork-root {
+  color-scheme: light;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
