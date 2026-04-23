@@ -1,18 +1,22 @@
 {
-  "name": "@vietmap/fleetwork-tracking-sdk-react",
+  "name": "@vietmap/tracking-sdk-react",
   "version": "0.1.0",
-  "description": "Fleetwork GPS Tracking SDK — Dashboard & LiveMap components for React",
+  "description": "Fleetwork Tracking SDK — Dashboard & LiveMap components for React",
   "type": "module",
-  "main": "./dist/fleetwork-tracking-sdk-react.cjs",
-  "module": "./dist/fleetwork-tracking-sdk-react.js",
+  "main": "./dist/tracking-sdk-react.cjs",
+  "module": "./dist/tracking-sdk-react.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "**/*.css",
+    "./dist/tracking-sdk-react.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/fleetwork-tracking-sdk-react.js",
-      "require": "./dist/fleetwork-tracking-sdk-react.cjs"
+      "import": "./dist/tracking-sdk-react.js",
+      "require": "./dist/tracking-sdk-react.cjs"
     },
-    "./styles.css": "./dist/fleetwork-tracking-sdk-react.css"
+    "./styles.css": "./dist/tracking-sdk-react.css"
   },
   "files": [
     "dist",
@@ -21,7 +25,23 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "tsc -b && vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vietmap-company/tracking-sdk-react.git"
+  },
+  "homepage": "https://fleetwork.vn/docs/sdk",
+  "bugs": {
+    "url": "https://github.com/vietmap-company/tracking-sdk-react/issues"
+  },
+  "author": "VietMap",
+  "engines": {
+    "node": ">=18"
   },
   "peerDependencies": {
     "react": ">=16.8.0",

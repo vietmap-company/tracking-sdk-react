@@ -57,7 +57,7 @@ export function MemberReport({
   }, [data, onDataChange]);
 
   const summary = data?.summary;
-  const members = data?.members ?? [];
+  const members = data?.users ?? [];
   const totalPages = data?.pagination.totalPages ?? 1;
 
   return (
@@ -130,15 +130,24 @@ export function MemberReport({
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar
-                          src={m.avatarUrl ?? undefined}
-                          alt={m.name}
-                          fallback={m.name}
-                          size={28}
-                        />
-                        <span className="font-medium text-foreground">
-                          {m.name}
-                        </span>
+                        {(() => {
+                          const meta = m.metadata as Record<string, string> | undefined
+                          const displayName = meta?.userName ?? m.name ?? m.userId
+                          const avatar = meta?.userAvatar ?? m.avatarUrl ?? undefined
+                          return (
+                            <>
+                              <Avatar
+                                src={avatar}
+                                alt={displayName}
+                                fallback={displayName}
+                                size={28}
+                              />
+                              <span className="font-medium text-foreground">
+                                {displayName}
+                              </span>
+                            </>
+                          )
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell>{formatNumber(m.distance.value, 1)}</TableCell>

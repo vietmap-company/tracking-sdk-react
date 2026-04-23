@@ -4,9 +4,10 @@ import type { MemberStatus, Position, TileType } from "@/lib/types";
 /** Minimal map instance surface — opaque to consumers. */
 export type MapInstance = {
   flyTo: (opts: { center: [number, number]; zoom?: number }) => void;
+  jumpTo: (opts: { center: [number, number]; zoom?: number }) => void;
   fitBounds: (
     bounds: [[number, number], [number, number]],
-    opts?: { padding?: number; duration?: number },
+    opts?: { padding?: number; duration?: number; maxZoom?: number },
   ) => void;
   getZoom: () => number;
   remove: () => void;
@@ -48,6 +49,9 @@ export interface LiveMapProps {
 
   /** Override members with local/mock data — skips API polling */
   members?: MemberStatus[];
+
+  /** Key inside lastLocation.metadata to use as member display name. Fallback: first 5 chars of userId. */
+  memberNameKey?: string;
 
   showList?: boolean;
   showLegend?: boolean;

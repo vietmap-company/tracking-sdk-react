@@ -87,7 +87,7 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.3
         version: 4.2.3(vite@8.0.9(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1))
-      '@vietmap/fleetwork-tracking-sdk-react':
+      '@vietmap/tracking-sdk-react':
         specifier: workspace:*
         version: link:..
       react:

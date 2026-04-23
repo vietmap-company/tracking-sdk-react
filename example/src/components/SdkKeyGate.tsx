@@ -14,7 +14,7 @@ interface SdkKeyGateProps {
 export function SdkKeyGate({ initial, onSubmit }: SdkKeyGateProps) {
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
   const [apiKeyTilemap, setApiKeyTilemap] = useState(initial?.apiKeyTilemap ?? '')
-  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? 'https://tracking.fleetwork.vn')
+  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? 'http://localhost:3001')
 
   const isValid = useMemo(
     () => apiKey.trim().length > 0 && apiKeyTilemap.trim().length > 0,
@@ -42,7 +42,7 @@ export function SdkKeyGate({ initial, onSubmit }: SdkKeyGateProps) {
             onSubmit({
               apiKey: apiKey.trim(),
               apiKeyTilemap: apiKeyTilemap.trim(),
-              baseUrl: baseUrl.trim() || 'https://tracking.fleetwork.vn',
+              baseUrl: baseUrl.trim() || 'http://localhost:3001',
             })
           }}
           className='rounded-2xl border border-border bg-card p-6 shadow-sm'
@@ -67,7 +67,7 @@ export function SdkKeyGate({ initial, onSubmit }: SdkKeyGateProps) {
               hint='Tuỳ chọn'
               value={baseUrl}
               onChange={setBaseUrl}
-              placeholder='https://tracking.fleetwork.vn'
+              placeholder='http://localhost:3001'
             />
           </div>
 

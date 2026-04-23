@@ -76,6 +76,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       defaultTile = "terrain",
       pollInterval = 10000,
       members: membersProp,
+      memberNameKey,
       showList = true,
       showLegend = true,
       legendPosition = "top-right",
@@ -117,6 +118,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     // History / playback state
     const [selectedMember, setSelectedMember] =
       React.useState<MemberStatus | null>(null);
+    const selectedMemberRef = React.useRef<MemberStatus | null>(null);
+    React.useEffect(() => {
+      selectedMemberRef.current = selectedMember;
+    }, [selectedMember]);
     const [historyPoints, setHistoryPoints] = React.useState<GpsPoint[]>([]);
     const [playIndex, setPlayIndex] = React.useState(0);
     const [isPlaying, setIsPlaying] = React.useState(false);
@@ -127,12 +132,14 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       null,
     );
     const historyPointsRef = React.useRef<GpsPoint[]>([]);
+    const hasFitInitialRef = React.useRef(false);
     React.useEffect(() => {
       historyPointsRef.current = historyPoints;
     }, [historyPoints]);
 
     const { data: apiMembers = [], isLoading: apiLoading } = useMembers({
       pollInterval,
+      nameKey: memberNameKey,
     });
     const members = membersProp ?? apiMembers;
     const isLoading = membersProp != null ? false : apiLoading;
@@ -288,7 +295,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           if (shouldDefault) {
             setActiveUserId(m.userId);
             openPopup(m);
-            (mapRef.current as MapInstance).flyTo({
+            (mapRef.current as MapInstance).jumpTo({
               center: [m.lng, m.lat],
               zoom: Math.max(14, (mapRef.current as MapInstance).getZoom()),
             });
@@ -300,49 +307,78 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       });
 
       if (changed) rerender();
+
+      // fitBounds to all markers — only the first time we get data
+      if (!hasFitInitialRef.current) {
+        const pts = members.filter((m) => m.lat && m.lng);
+        if (pts.length >= 2) {
+          hasFitInitialRef.current = true;
+          const lats = pts.map((m) => m.lat);
+          const lngs = pts.map((m) => m.lng);
+          (mapRef.current as MapInstance).fitBounds(
+            [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+            { padding: 60, duration: 0 },
+          );
+        } else if (pts.length === 1) {
+          hasFitInitialRef.current = true;
+          (mapRef.current as MapInstance).fitBounds(
+            [[pts[0].lng, pts[0].lat], [pts[0].lng, pts[0].lat]],
+            { padding: 60, duration: 0, maxZoom: 14 },
+          );
+        }
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [members, ready]);
 
-    const ROUTE_SOURCE = "fw-history-route";
-    const ROUTE_LAYER_BG = "fw-history-route-bg";
-    const ROUTE_LAYER = "fw-history-route-line";
+    const ROUTE_REM_SRC = "fw-route-remaining";
+    const ROUTE_REM_BG = "fw-route-remaining-bg";
+    const ROUTE_REM_LINE = "fw-route-remaining-line";
+    const ROUTE_TRAV_SRC = "fw-route-traveled";
+    const ROUTE_TRAV_LINE = "fw-route-traveled-line";
 
-    const drawHistoryRoute = React.useCallback((pts: GpsPoint[]) => {
+    const drawHistoryRoute = React.useCallback((pts: GpsPoint[], playIdx: number) => {
       const map = mapRef.current as MapInstance | null;
       if (!map || pts.length < 2) return;
-      const coords = pts.map((p) => [p.lng, p.lat]);
-      const geojson = {
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: coords },
-      };
+
+      const ci = Math.max(0, Math.min(playIdx, pts.length - 1));
+      const travCoords = pts.slice(0, ci + 1).map((p) => [p.lng, p.lat]);
+      const remCoords = pts.slice(ci).map((p) => [p.lng, p.lat]);
+
+      const travGeo = { type: "Feature", geometry: { type: "LineString", coordinates: travCoords } };
+      const remGeo = { type: "Feature", geometry: { type: "LineString", coordinates: remCoords } };
+
       try {
-        const src = map.getSource(ROUTE_SOURCE);
-        if (src) {
-          src.setData(geojson);
+        // ── Remaining route (mờ, dashed) ──
+        const remSrc = map.getSource(ROUTE_REM_SRC);
+        if (remSrc) {
+          remSrc.setData(remGeo);
         } else {
-          map.addSource(ROUTE_SOURCE, {
-            type: "geojson",
-            data: geojson,
+          map.addSource(ROUTE_REM_SRC, { type: "geojson", data: remGeo } as Record<string, unknown>);
+          map.addLayer({
+            id: ROUTE_REM_BG,
+            type: "line",
+            source: ROUTE_REM_SRC,
+            paint: { "line-color": "#94a3b8", "line-width": 6, "line-opacity": 0.08 },
           } as Record<string, unknown>);
           map.addLayer({
-            id: ROUTE_LAYER_BG,
+            id: ROUTE_REM_LINE,
             type: "line",
-            source: ROUTE_SOURCE,
-            paint: {
-              "line-color": "#3b82f6",
-              "line-width": 6,
-              "line-opacity": 0.15,
-            },
+            source: ROUTE_REM_SRC,
+            paint: { "line-color": "#94a3b8", "line-width": 3, "line-opacity": 0.45 },
           } as Record<string, unknown>);
+        }
+
+        // ── Traveled route (đậm) ──
+        const travSrc = map.getSource(ROUTE_TRAV_SRC);
+        if (travSrc) {
+          travSrc.setData(travGeo);
+        } else {
+          map.addSource(ROUTE_TRAV_SRC, { type: "geojson", data: travGeo } as Record<string, unknown>);
           map.addLayer({
-            id: ROUTE_LAYER,
+            id: ROUTE_TRAV_LINE,
             type: "line",
-            source: ROUTE_SOURCE,
-            paint: {
-              "line-color": "#3b82f6",
-              "line-width": 3,
-              "line-opacity": 0.85,
-            },
+            source: ROUTE_TRAV_SRC,
+            paint: { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.9 },
           } as Record<string, unknown>);
         }
       } catch (e) {
@@ -354,11 +390,12 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       const map = mapRef.current as MapInstance | null;
       if (!map) return;
       try {
-        if (map.getLayer(ROUTE_LAYER)) map.removeLayer(ROUTE_LAYER);
-        if (map.getLayer(ROUTE_LAYER_BG)) map.removeLayer(ROUTE_LAYER_BG);
-        if (map.getSource(ROUTE_SOURCE)) map.removeSource(ROUTE_SOURCE);
+        if (map.getLayer(ROUTE_TRAV_LINE)) map.removeLayer(ROUTE_TRAV_LINE);
+        if (map.getLayer(ROUTE_REM_LINE)) map.removeLayer(ROUTE_REM_LINE);
+        if (map.getLayer(ROUTE_REM_BG)) map.removeLayer(ROUTE_REM_BG);
+        if (map.getSource(ROUTE_TRAV_SRC)) map.removeSource(ROUTE_TRAV_SRC);
+        if (map.getSource(ROUTE_REM_SRC)) map.removeSource(ROUTE_REM_SRC);
       } catch {}
-      // Remove history marker
       (historyMarkerRef.current as { remove: () => void } | null)?.remove();
       historyMarkerRef.current = null;
     }, []);
@@ -374,10 +411,19 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         const VGL = vglRef.current;
         const map = mapRef.current as MapInstance | null;
         if (!VGL || !map) return;
+        const isMoving = (p.speed ?? 0) > 0;
+        const heading = p.heading ?? 0;
+        const sm = selectedMemberRef.current;
+        const memberName = sm ? (sm.name || sm.userId) : "";
+        const bg = isMoving ? "#16a34a" : "#f97316";
+        const icon = isMoving
+          ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><path d="M12 2L6 20l6-4 6 4L12 2z"/></svg>`
+          : `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><rect x="6" y="6" width="12" height="12"/></svg>`;
+        const markerHtml = `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;"><div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3);color:white;background:${bg};transform:rotate(${heading}deg);">${icon}</div><div style="margin-top:4px;background:white;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:500;white-space:nowrap;color:#111;box-shadow:0 1px 4px rgba(0,0,0,.15);">${memberName}</div></div>`;
+
         if (!historyMarkerRef.current) {
           const el = document.createElement("div");
-          el.style.cssText =
-            "width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 2px 8px rgba(59,130,246,.5);pointer-events:none;";
+          el.innerHTML = markerHtml;
           historyMarkerRef.current = new (
             VGL as unknown as {
               Marker: new (o: Record<string, unknown>) => {
@@ -385,29 +431,25 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
                 addTo: (m: unknown) => unknown;
               };
             }
-          ).Marker({ element: el }).setLngLat([p.lng, p.lat]);
-          (historyMarkerRef.current as { addTo: (m: unknown) => void }).addTo(
-            map,
-          );
+          ).Marker({ element: el, anchor: "center" }).setLngLat([p.lng, p.lat]);
+          (historyMarkerRef.current as { addTo: (m: unknown) => void }).addTo(map);
         } else {
-          (
-            historyMarkerRef.current as {
-              setLngLat: (ll: [number, number]) => void;
-            }
-          ).setLngLat([p.lng, p.lat]);
+          (historyMarkerRef.current as { getElement: () => HTMLElement }).getElement().innerHTML = markerHtml;
+          (historyMarkerRef.current as { setLngLat: (ll: [number, number]) => void }).setLngLat([p.lng, p.lat]);
         }
+        // Update traveled / remaining split
+        if (pts.length >= 2) drawHistoryRoute(pts, clamped);
         // Auto-follow: pan only if the point is outside viewport
         if (autoFollow) {
           try {
             const bounds = map.getBounds();
             if (!bounds.contains([p.lng, p.lat])) {
-              map.easeTo({ center: [p.lng, p.lat], duration: 400 });
+              map.jumpTo({ center: [p.lng, p.lat] });
             }
           } catch {}
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
       },
-      [autoFollow],
+      [autoFollow, drawHistoryRoute],
     );
 
     // Play timer
@@ -440,11 +482,11 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       };
     }, [isPlaying, playSpeed, seekHistory]);
 
-    // Draw route whenever historyPoints changes (and map is ready)
+    // Draw route whenever historyPoints changes — start at index 0 (full remaining)
     React.useEffect(() => {
       if (!ready) return;
       if (historyPoints.length >= 2) {
-        drawHistoryRoute(historyPoints);
+        drawHistoryRoute(historyPoints, 0);
       } else {
         clearHistoryRoute();
       }
@@ -458,7 +500,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         setPlayIndex(0);
         setIsPlaying(false);
         clearHistoryRoute();
-        (mapRef.current as MapInstance | null)?.flyTo({
+        (mapRef.current as MapInstance | null)?.jumpTo({
           center: [m.lng, m.lat],
           zoom: 14,
         });
@@ -523,7 +565,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       () => ({
         flyTo: (c, z) => {
           const map = mapRef.current as MapInstance | null;
-          map?.flyTo({ center: c, zoom: z ?? map.getZoom() });
+          map?.jumpTo({ center: c, zoom: z ?? map.getZoom() });
         },
         fitBounds: (bounds) => {
           const map = mapRef.current as MapInstance | null;
@@ -533,7 +575,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           const m = membersRef.current.find((x) => x.userId === userId);
           if (!m) return;
           setActiveUserId(userId);
-          (mapRef.current as MapInstance | null)?.flyTo({
+          (mapRef.current as MapInstance | null)?.jumpTo({
             center: [m.lng, m.lat],
             zoom: 15,
           });
@@ -556,21 +598,12 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       popupRef.current = null;
       setPopupMember(null);
 
-      const map = mapRef.current as (MapInstance & {
-        on: (evt: string, h: () => void) => void;
-        off: (evt: string, h: () => void) => void;
-      }) | null;
+      const map = mapRef.current as MapInstance | null;
       if (!map) return;
 
       const targetZoom = Math.max(14, map.getZoom());
-      map.flyTo({ center: [m.lng, m.lat], zoom: targetZoom });
-
-      // Show popup only after fly animation completes so it's always on-screen
-      const onMoveEnd = () => {
-        map.off("moveend", onMoveEnd);
-        openPopup(m);
-      };
-      map.on("moveend", onMoveEnd);
+      map.jumpTo({ center: [m.lng, m.lat], zoom: targetZoom });
+      openPopup(m);
     };
 
     const listPosition = slotProps?.list?.position ?? "left";
@@ -667,9 +700,21 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             member={selectedMember}
             onClose={closeHistory}
             onHistoryLoaded={(pts) => {
+              // Update ref synchronously so seekHistory(0) can read it immediately
+              historyPointsRef.current = pts;
               setHistoryPoints(pts);
               setPlayIndex(0);
               setIsPlaying(false);
+              seekHistory(0);
+              if (pts.length >= 2) {
+                const lats = pts.map((p) => p.lat);
+                const lngs = pts.map((p) => p.lng);
+                const bounds: [[number, number], [number, number]] = [
+                  [Math.min(...lngs), Math.min(...lats)],
+                  [Math.max(...lngs), Math.max(...lats)],
+                ];
+                (mapRef.current as MapInstance | null)?.fitBounds(bounds, { padding: 60, duration: 800 });
+              }
             }}
             playIndex={playIndex}
             onSeek={(idx) => seekHistory(idx)}

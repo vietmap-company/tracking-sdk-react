@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.3",
-    "@vietmap/fleetwork-tracking-sdk-react": "workspace:*", 
+    "@vietmap/tracking-sdk-react": "workspace:*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.1",

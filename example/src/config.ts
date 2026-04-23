@@ -7,6 +7,6 @@
 export const SDK_CONFIG = {
   apiKey: import.meta.env.VITE_FLEETWORK_API_KEY ?? '',
   apiKeyTilemap: import.meta.env.VITE_FLEETWORK_TILEMAP_KEY ?? '',
-  baseUrl: import.meta.env.VITE_FLEETWORK_BASE_URL ?? 'https://tracking.fleetwork.vn',
+  baseUrl: import.meta.env.VITE_FLEETWORK_BASE_URL ?? 'http://localhost:3001',
   locale: 'vi' as const,
 }

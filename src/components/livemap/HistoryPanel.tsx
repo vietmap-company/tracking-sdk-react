@@ -77,12 +77,12 @@ export function computeSegments(pts: GpsPoint[]): Segment[] {
   const segs: Segment[] = [];
   let i = 0;
   while (i < pts.length - 1) {
-    const gap = pts[i + 1].timestamp - pts[i].timestamp;
+    const gap = pts[i + 1].time - pts[i].time;
     if (gap > GPS_LOST_MS) {
       segs.push({
         type: "lostGps",
-        startTs: pts[i].timestamp,
-        endTs: pts[i + 1].timestamp,
+        startTs: pts[i].time,
+        endTs: pts[i + 1].time,
         durationMs: gap,
       });
       i++;
@@ -93,15 +93,15 @@ export function computeSegments(pts: GpsPoint[]): Segment[] {
     while (
       i < pts.length - 1 &&
       pts[i].speed > 0 === pts[start].speed > 0 &&
-      pts[i + 1].timestamp - pts[i].timestamp <= GPS_LOST_MS
+      pts[i + 1].time - pts[i].time <= GPS_LOST_MS
     ) {
       i++;
     }
     segs.push({
       type,
-      startTs: pts[start].timestamp,
-      endTs: pts[i].timestamp,
-      durationMs: pts[i].timestamp - pts[start].timestamp,
+      startTs: pts[start].time,
+      endTs: pts[i].time,
+      durationMs: pts[i].time - pts[start].time,
     });
   }
   return segs;
@@ -137,12 +137,12 @@ export function computeGroups(pts: GpsPoint[]): HistoryGroup[] {
   let i = 0;
   while (i < pts.length) {
     if (i > 0) {
-      const gap = pts[i].timestamp - pts[i - 1].timestamp;
+      const gap = pts[i].time - pts[i - 1].time;
       if (gap > GPS_LOST_MS) {
         groups.push({
           type: "lostGps",
-          startTs: pts[i - 1].timestamp,
-          endTs: pts[i].timestamp,
+          startTs: pts[i - 1].time,
+          endTs: pts[i].time,
           durationMs: gap,
         });
       }
@@ -152,12 +152,12 @@ export function computeGroups(pts: GpsPoint[]): HistoryGroup[] {
       while (
         i < pts.length &&
         pts[i].speed === 0 &&
-        (i === start || pts[i].timestamp - pts[i - 1].timestamp <= GPS_LOST_MS)
+        (i === start || pts[i].time - pts[i - 1].time <= GPS_LOST_MS)
       ) {
         i++;
       }
       const end = i - 1;
-      const dur = end > start ? pts[end].timestamp - pts[start].timestamp : 0;
+      const dur = end > start ? pts[end].time - pts[start].time : 0;
       if (end - start >= 2) {
         groups.push({
           type: "stopped",
@@ -202,10 +202,10 @@ function TimelineBar({
         : 2 * 3_600_000;
 
   const ticks: { pct: number; label: string }[] = [];
-  const firstTick = Math.ceil(first.timestamp / intervalMs) * intervalMs;
-  for (let t = firstTick; t < last.timestamp; t += intervalMs) {
+  const firstTick = Math.ceil(first.time / intervalMs) * intervalMs;
+  for (let t = firstTick; t < last.time; t += intervalMs) {
     ticks.push({
-      pct: ((t - first.timestamp) / totalMs) * 100,
+      pct: ((t - first.time) / totalMs) * 100,
       label: fmtTimeShort(t),
     });
   }
@@ -226,7 +226,7 @@ function TimelineBar({
     <div className="border-b border px-3 py-2.5 flex-shrink-0">
       {/* Time labels */}
       <div className="relative mb-1 h-4 text-[9px] text-muted-foreground">
-        <span className="absolute left-0">{fmtTimeShort(first.timestamp)}</span>
+        <span className="absolute left-0">{fmtTimeShort(first.time)}</span>
         {ticks.map((tk) => (
           <span
             key={tk.pct}
@@ -236,7 +236,7 @@ function TimelineBar({
             {tk.label}
           </span>
         ))}
-        <span className="absolute right-0">{fmtTimeShort(last.timestamp)}</span>
+        <span className="absolute right-0">{fmtTimeShort(last.time)}</span>
       </div>
       {/* Segment bar */}
       <div className="flex h-4 overflow-hidden rounded-md">
@@ -337,7 +337,7 @@ function HistoryRowItem({
             </span>
           </div>
           <span className="text-[10px] text-muted-foreground">
-            {fmtTimeShort(group.pts[0].timestamp)}
+            {fmtTimeShort(group.pts[0].time)}
           </span>
         </div>
         {/* Child rows */}
@@ -364,7 +364,7 @@ function HistoryRowItem({
                       : "text-muted-foreground",
                   )}
                 >
-                  {fmtTime(p.timestamp)}
+                  {fmtTime(p.time)}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
                   — km/h
@@ -396,7 +396,7 @@ function HistoryRowItem({
           isActive ? "font-semibold text-primary" : "text-muted-foreground",
         )}
       >
-        {fmtTime(group.pt.timestamp)}
+        {fmtTime(group.pt.time)}
       </span>
       <span
         className={cn(
@@ -491,7 +491,7 @@ export function HistoryPanel({
   const pts = historyPoints;
   const first = pts[0];
   const last = pts[pts.length - 1];
-  const totalMs = pts.length > 1 ? last.timestamp - first.timestamp : 0;
+  const totalMs = pts.length > 1 ? last.time - first.time : 0;
 
   const totalDistM = React.useMemo(() => {
     let d = 0;

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import { LiveMap } from '@vietmap/fleetwork-tracking-sdk-react'
-import type { LiveMapRef, MemberStatus } from '@vietmap/fleetwork-tracking-sdk-react'
+import { LiveMap } from '@vietmap/tracking-sdk-react'
+import type { LiveMapRef, MemberStatus } from '@vietmap/tracking-sdk-react'
 
 export function PageLiveMap() {
   const mapRef = useRef<LiveMapRef>(null)
@@ -50,6 +50,7 @@ export function PageLiveMap() {
           zoom={11}
           defaultTile='terrain'
           pollInterval={10_000}
+          memberNameKey='userName'
           showList
           showLegend
           showTileSwitcher

@@ -36,7 +36,7 @@ export type MemberStatusKind = 'moving' | 'stopped' | 'signal_lost'
 
 export interface SummaryCardsData {
   date: number
-  activeEmployees: { active: number; total: number }
+  activeUsers: { active: number; total: number }
   totalDistance: { value: number; unit: string }
   totalTravelTime: { totalSeconds: number; formatted: string }
   totalFuelCost: { value: number; currency: string; formatted: string }
@@ -45,7 +45,7 @@ export interface SummaryCardsData {
 
 export interface MemberRow {
   userId: string
-  name: string
+  name?: string
   avatarUrl?: string | null
   groupName?: string | null
   distance: { value: number; unit: string }
@@ -63,9 +63,10 @@ export interface MemberRow {
     lng: number
     address: string
     speed: number
-    timestamp: number
+    time: number
   } | null
   lastSeenAt: number
+  metadata?: Record<string, unknown>
 }
 
 export interface MemberReportData {
@@ -76,7 +77,7 @@ export interface MemberReportData {
     stopped: number
     signalLost: number
   }
-  members: MemberRow[]
+  users: MemberRow[]
   pagination: {
     page: number
     pageSize: number
@@ -165,13 +166,39 @@ export interface MemberStatus {
 }
 
 export interface GpsPoint {
+  time: number
+  status?: number
   lat: number
   lng: number
   speed: number
   heading: number
-  altitude?: number
-  accuracy?: number
-  timestamp: number
+  userId?: string
+  vehicleId?: string
+  deviceId?: string
+  /** JSON-encoded string from the server, e.g. '{"userName":"...","userAvatar":"..."}' */
+  metadata?: string | null
+  data?: string | null
+}
+
+export interface GpsUserRow {
+  id: string
+  userId?: string | null
+  vehicleId?: string | null
+  deviceId?: string | null
+  status: MemberStatusKind
+  statusCode?: number
+  lastSeenAt: number
+  lastLocation: GpsPoint | null
+}
+
+export interface GpsUsersResponse {
+  users: GpsUserRow[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
 }
 
 export interface SdkError extends Error {

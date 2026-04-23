@@ -1,30 +1,32 @@
-import { StrictMode, useState } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { FleetworkProvider } from '@vietmap/fleetwork-tracking-sdk-react'
-import '@vietmap/fleetwork-tracking-sdk-react/styles.css'
-import './index.css'
+import { StrictMode, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { FleetworkProvider } from "@vietmap/tracking-sdk-react";
+import "@vietmap/tracking-sdk-react/styles.css";
+import "./index.css";
 
-import { AppShell } from './components/AppShell'
-import { PageDashboardDefault } from './pages/PageDashboardDefault'
-import { PageLiveMap } from './pages/PageLiveMap'
-import { PageController } from './pages/PageController'
-import { PageWidgets } from './pages/PageWidgets'
-import { SDK_CONFIG } from './config'
-import { SdkKeyGate, type SdkRuntimeConfig } from './components/SdkKeyGate'
+import { AppShell } from "./components/AppShell";
+import { PageDashboardDefault } from "./pages/PageDashboardDefault";
+import { PageLiveMap } from "./pages/PageLiveMap";
+import { PageController } from "./pages/PageController";
+import { PageWidgets } from "./pages/PageWidgets";
+import { SDK_CONFIG } from "./config";
+import { SdkKeyGate, type SdkRuntimeConfig } from "./components/SdkKeyGate";
 
 function RootApp() {
-  const [runtimeConfig, setRuntimeConfig] = useState<SdkRuntimeConfig | null>(() => {
-    const hasEnv = Boolean(SDK_CONFIG.apiKey && SDK_CONFIG.apiKeyTilemap)
-    if (hasEnv) {
-      return {
-        apiKey: SDK_CONFIG.apiKey,
-        apiKeyTilemap: SDK_CONFIG.apiKeyTilemap,
-        baseUrl: SDK_CONFIG.baseUrl,
+  const [runtimeConfig, setRuntimeConfig] = useState<SdkRuntimeConfig | null>(
+    () => {
+      const hasEnv = Boolean(SDK_CONFIG.apiKey && SDK_CONFIG.apiKeyTilemap);
+      if (hasEnv) {
+        return {
+          apiKey: SDK_CONFIG.apiKey,
+          apiKeyTilemap: SDK_CONFIG.apiKeyTilemap,
+          baseUrl: SDK_CONFIG.baseUrl,
+        };
       }
-    }
-    return null
-  })
+      return null;
+    },
+  );
 
   if (!runtimeConfig) {
     return (
@@ -32,7 +34,7 @@ function RootApp() {
         initial={{ baseUrl: SDK_CONFIG.baseUrl }}
         onSubmit={(cfg) => setRuntimeConfig(cfg)}
       />
-    )
+    );
   }
 
   return (
@@ -45,20 +47,20 @@ function RootApp() {
       <BrowserRouter>
         <AppShell>
           <Routes>
-            <Route path='/' element={<Navigate to='/dashboard' replace />} />
-            <Route path='/dashboard' element={<PageDashboardDefault />} />
-            <Route path='/livemap' element={<PageLiveMap />} />
-            <Route path='/controller' element={<PageController />} />
-            <Route path='/widgets' element={<PageWidgets />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<PageDashboardDefault />} />
+            <Route path="/livemap" element={<PageLiveMap />} />
+            <Route path="/controller" element={<PageController />} />
+            <Route path="/widgets" element={<PageWidgets />} />
           </Routes>
         </AppShell>
       </BrowserRouter>
     </FleetworkProvider>
-  )
+  );
 }
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RootApp />
-  </StrictMode>
-)
+  </StrictMode>,
+);

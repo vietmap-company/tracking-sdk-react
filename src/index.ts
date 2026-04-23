@@ -18,6 +18,7 @@ export type {
   GetExpensesOptions,
 } from './controllers/DashboardController'
 export { LiveMapController } from './controllers/LiveMapController'
+export type { GetMembersOptions } from './controllers/LiveMapController'
 
 // HTTP / init
 export { initFleetwork, createHttpClient } from './lib/http'
@@ -40,6 +41,7 @@ export type {
   UseFuelTrackingOptions,
   UseMonthlyExpensesOptions,
   UseHistoryRouteOptions,
+  UseMembersOptions,
 } from './hooks'
 
 // Dashboard components
@@ -87,4 +89,6 @@ export type {
   MemberStatus,
   MemberStatusKind,
   GpsPoint,
+  GpsUserRow,
+  GpsUsersResponse,
 } from './lib/types'

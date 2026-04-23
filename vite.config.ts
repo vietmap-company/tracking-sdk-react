@@ -22,11 +22,11 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
-      name: "FleetworkTrackingSDK",
+      name: "VietmapTrackingSDK",
       fileName: (format) =>
         format === "es"
-          ? "fleetwork-tracking-sdk-react.js"
-          : "fleetwork-tracking-sdk-react.cjs",
+          ? "tracking-sdk-react.js"
+          : "tracking-sdk-react.cjs",
       formats: ["es", "cjs"],
     },
     rollupOptions: {

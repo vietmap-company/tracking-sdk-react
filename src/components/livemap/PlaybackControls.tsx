@@ -184,7 +184,7 @@ export function PlaybackControls({
       {/* Info row */}
       <div className="mt-1.5 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
         <span className="font-mono">
-          {curr ? fmtTime(curr.timestamp) : "—"}
+          {curr ? fmtTime(curr.time) : "—"}
           <span className="mx-1 text-muted-foreground/60">·</span>
           <span className="font-semibold text-foreground">
             {curr && curr.speed > 0 ? `${Math.round(curr.speed)} km/h` : "—"}

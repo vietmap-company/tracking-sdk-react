@@ -152,13 +152,19 @@ export function useMonthlyExpenses(
 
 /* ---------- LiveMap hooks ---------- */
 
+export interface UseMembersOptions extends BaseOptions {
+  /** Key inside lastLocation.metadata to use as member display name */
+  nameKey?: string
+}
+
 export function useMembers(
-  options: BaseOptions = {}
+  options: UseMembersOptions = {}
 ): QueryResult<MemberStatus[]> {
   const { apiKey } = useFleetwork()
+  const { nameKey } = options
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'members'],
-    queryFn: () => LiveMapController.getMembers(),
+    queryKey: ['fw', apiKey, 'members', nameKey],
+    queryFn: () => LiveMapController.getMembers({ nameKey }),
     enabled: options.enabled ?? true,
     refetchInterval: refetch(options.pollInterval),
   })
@@ -167,12 +173,13 @@ export function useMembers(
 
 export function useMember(
   userId: string,
-  options: BaseOptions = {}
+  options: UseMembersOptions = {}
 ): QueryResult<MemberStatus | null> {
   const { apiKey } = useFleetwork()
+  const { nameKey } = options
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'member', userId],
-    queryFn: () => LiveMapController.getMember(userId),
+    queryKey: ['fw', apiKey, 'member', userId, nameKey],
+    queryFn: () => LiveMapController.getMember(userId, { nameKey }),
     enabled: (options.enabled ?? true) && !!userId,
     refetchInterval: refetch(options.pollInterval),
   })
@@ -180,7 +187,7 @@ export function useMember(
 }
 
 export interface UseHistoryRouteOptions extends BaseOptions {
-  vehicleId: string
+  userId: string
   startTime: number
   endTime: number
 }
@@ -189,12 +196,12 @@ export function useHistoryRoute(
   options: UseHistoryRouteOptions
 ): QueryResult<GpsPoint[]> {
   const { apiKey } = useFleetwork()
-  const { vehicleId, startTime, endTime } = options
+  const { userId, startTime, endTime } = options
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'history', vehicleId, startTime, endTime],
+    queryKey: ['fw', apiKey, 'history', userId, startTime, endTime],
     queryFn: () =>
-      LiveMapController.getHistoryRoute(vehicleId, startTime, endTime),
-    enabled: (options.enabled ?? true) && !!vehicleId,
+      LiveMapController.getHistoryRoute(userId, startTime, endTime),
+    enabled: (options.enabled ?? true) && !!userId,
     refetchInterval: refetch(options.pollInterval),
   })
   return toResult(q)

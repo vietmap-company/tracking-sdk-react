@@ -4,7 +4,7 @@ import {
   MemberReport,
   MonthlyExpenses,
   SummaryCards,
-} from '@vietmap/fleetwork-tracking-sdk-react'
+} from '@vietmap/tracking-sdk-react'
 import { PageHeader } from './PageHeader'
 
 export function PageWidgets() {

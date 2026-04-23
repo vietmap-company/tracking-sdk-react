@@ -1,6 +1,6 @@
-import type { AxiosInstance } from 'axios'
-import { getGlobalClient, request } from '@/lib/http'
-import { startOfTodayMs } from '@/lib/utils'
+import type { AxiosInstance } from "axios";
+import { getGlobalClient, request } from "@/lib/http";
+import { startOfTodayMs } from "@/lib/utils";
 import type {
   ActivityHeatmapData,
   FuelGroupBy,
@@ -8,93 +8,93 @@ import type {
   MemberReportData,
   MonthlyExpensesData,
   SummaryCardsData,
-} from '@/lib/types'
+} from "@/lib/types";
 
 export interface GetSummaryOptions {
-  date?: number
-  client?: AxiosInstance
+  date?: number;
+  client?: AxiosInstance;
 }
 
 export interface GetMemberReportOptions {
-  page?: number
-  pageSize?: number
-  client?: AxiosInstance
+  page?: number;
+  pageSize?: number;
+  client?: AxiosInstance;
 }
 
 export interface GetFuelOptions {
-  groupBy?: FuelGroupBy
-  client?: AxiosInstance
+  groupBy?: FuelGroupBy;
+  client?: AxiosInstance;
 }
 
 export interface GetExpensesOptions {
-  currency?: string
-  client?: AxiosInstance
+  currency?: string;
+  client?: AxiosInstance;
 }
 
 function client(opts?: { client?: AxiosInstance }): AxiosInstance {
-  return opts?.client ?? getGlobalClient()
+  return opts?.client ?? getGlobalClient();
 }
 
 export const DashboardController = {
   async getSummaryCards(
-    options: GetSummaryOptions = {}
+    options: GetSummaryOptions = {},
   ): Promise<SummaryCardsData> {
-    const date = options.date ?? startOfTodayMs()
+    const date = options.date ?? startOfTodayMs();
     return request<SummaryCardsData>(client(options), {
-      method: 'GET',
-      url: '/api/v1/dashboard/gps-manager/summary',
+      method: "GET",
+      url: "gps-tracking/summary",
       params: { date },
-    })
+    });
   },
 
   async getMemberReport(
     date: number = startOfTodayMs(),
-    options: GetMemberReportOptions = {}
+    options: GetMemberReportOptions = {},
   ): Promise<MemberReportData> {
     return request<MemberReportData>(client(options), {
-      method: 'GET',
-      url: '/api/v1/dashboard/gps-manager/employees',
+      method: "GET",
+      url: "gps-tracking/users",
       params: {
         date,
         page: options.page ?? 1,
         pageSize: options.pageSize ?? 10,
       },
-    })
+    });
   },
 
   async getActivityHeatmap(
     from: number,
     to: number,
-    options: { client?: AxiosInstance } = {}
+    options: { client?: AxiosInstance } = {},
   ): Promise<ActivityHeatmapData> {
     return request<ActivityHeatmapData>(client(options), {
-      method: 'GET',
-      url: '/api/v1/dashboard/gps-manager/activity-heatmap',
+      method: "GET",
+      url: "gps-tracking/activity-heatmap",
       params: { from, to },
-    })
+    });
   },
 
   async getFuelTracking(
     from: number,
     to: number,
-    options: GetFuelOptions = {}
+    options: GetFuelOptions = {},
   ): Promise<FuelTrackingData> {
     return request<FuelTrackingData>(client(options), {
-      method: 'GET',
-      url: '/api/v1/dashboard/gps-manager/fuel-tracking',
-      params: { from, to, groupBy: options.groupBy ?? 'month' },
-    })
+      method: "GET",
+      url: "gps-tracking/fuel-tracking",
+      params: { from, to, groupBy: options.groupBy ?? "month" },
+    });
   },
 
   async getMonthlyExpenses(
     from: number,
     to: number,
-    options: GetExpensesOptions = {}
+    options: GetExpensesOptions = {},
   ): Promise<MonthlyExpensesData> {
     return request<MonthlyExpensesData>(client(options), {
-      method: 'GET',
-      url: '/api/v1/dashboard/gps-manager/monthly-costs',
-      params: { from, to, currency: options.currency ?? 'VND' },
-    })
+      method: "GET",
+      url: "gps-tracking/monthly-costs",
+      params: { from, to, currency: options.currency ?? "VND" },
+    });
   },
-}
+};

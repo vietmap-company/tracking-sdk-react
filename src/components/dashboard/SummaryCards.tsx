@@ -16,14 +16,14 @@ export interface SummaryCardsProps {
 }
 
 const KPI_ORDER: Array<{
-  key: keyof SummaryCardsData | 'activeEmployees'
+  key: keyof SummaryCardsData | 'activeUsers'
   labelKey: string
   render: (d: SummaryCardsData) => string
 }> = [
   {
-    key: 'activeEmployees',
+    key: 'activeUsers',
     labelKey: 'summary.activeEmployees',
-    render: (d) => `${d.activeEmployees.active}/${d.activeEmployees.total}`,
+    render: (d) => `${d.activeUsers.active}/${d.activeUsers.total}`,
   },
   {
     key: 'totalDistance',

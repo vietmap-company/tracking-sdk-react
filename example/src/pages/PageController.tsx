@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DashboardController, LiveMapController } from '@vietmap/fleetwork-tracking-sdk-react'
+import { DashboardController, LiveMapController } from '@vietmap/tracking-sdk-react'
 import { PageHeader } from './PageHeader'
 
 const ACTIONS = [
@@ -14,7 +14,7 @@ const ACTIONS = [
     label: 'getMemberReport',
     run: async () => {
       const data = await DashboardController.getMemberReport(Date.now())
-      return `${data.members.length} members — page ${data.pagination.page}/${data.pagination.totalPages}`
+      return `${data.users.length} users — page ${data.pagination.page}/${data.pagination.totalPages}`
     },
   },
   {

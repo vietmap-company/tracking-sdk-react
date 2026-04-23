@@ -27,7 +27,7 @@ export interface FleetworkProviderProps extends FleetworkConfig {
   queryClient?: QueryClient
 }
 
-const DEFAULT_BASE_URL = 'https://tracking.fleetwork.vn'
+const DEFAULT_BASE_URL = 'https://live.fleetwork.vn'
 
 export function FleetworkProvider({
   apiKey,
