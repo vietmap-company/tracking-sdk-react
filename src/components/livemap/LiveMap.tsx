@@ -70,7 +70,7 @@ const DEFAULT_CENTER: [number, number] = [106.6, 10.8];
 export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
   function LiveMap(props, ref) {
     const {
-      height = "100%",
+      height = "100dvh",
       center = DEFAULT_CENTER,
       zoom = 11,
       defaultTile = "terrain",
@@ -237,7 +237,9 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     // React to tile changes
     React.useEffect(() => {
       if (!ready || !mapRef.current) return;
-      (mapRef.current as MapInstance).setStyle(buildTileStyle(tile, apiKeyTilemap));
+      (mapRef.current as MapInstance).setStyle(
+        buildTileStyle(tile, apiKeyTilemap),
+      );
     }, [tile, apiKeyTilemap, ready]);
 
     // Sync markers whenever members change
@@ -316,13 +318,19 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           const lats = pts.map((m) => m.lat);
           const lngs = pts.map((m) => m.lng);
           (mapRef.current as MapInstance).fitBounds(
-            [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+            [
+              [Math.min(...lngs), Math.min(...lats)],
+              [Math.max(...lngs), Math.max(...lats)],
+            ],
             { padding: 60, duration: 0 },
           );
         } else if (pts.length === 1) {
           hasFitInitialRef.current = true;
           (mapRef.current as MapInstance).fitBounds(
-            [[pts[0].lng, pts[0].lat], [pts[0].lng, pts[0].lat]],
+            [
+              [pts[0].lng, pts[0].lat],
+              [pts[0].lng, pts[0].lat],
+            ],
             { padding: 60, duration: 0, maxZoom: 14 },
           );
         }
@@ -336,55 +344,82 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     const ROUTE_TRAV_SRC = "fw-route-traveled";
     const ROUTE_TRAV_LINE = "fw-route-traveled-line";
 
-    const drawHistoryRoute = React.useCallback((pts: GpsPoint[], playIdx: number) => {
-      const map = mapRef.current as MapInstance | null;
-      if (!map || pts.length < 2) return;
+    const drawHistoryRoute = React.useCallback(
+      (pts: GpsPoint[], playIdx: number) => {
+        const map = mapRef.current as MapInstance | null;
+        if (!map || pts.length < 2) return;
 
-      const ci = Math.max(0, Math.min(playIdx, pts.length - 1));
-      const travCoords = pts.slice(0, ci + 1).map((p) => [p.lng, p.lat]);
-      const remCoords = pts.slice(ci).map((p) => [p.lng, p.lat]);
+        const ci = Math.max(0, Math.min(playIdx, pts.length - 1));
+        const travCoords = pts.slice(0, ci + 1).map((p) => [p.lng, p.lat]);
+        const remCoords = pts.slice(ci).map((p) => [p.lng, p.lat]);
 
-      const travGeo = { type: "Feature", geometry: { type: "LineString", coordinates: travCoords } };
-      const remGeo = { type: "Feature", geometry: { type: "LineString", coordinates: remCoords } };
+        const travGeo = {
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: travCoords },
+        };
+        const remGeo = {
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: remCoords },
+        };
 
-      try {
-        // ── Remaining route (mờ, dashed) ──
-        const remSrc = map.getSource(ROUTE_REM_SRC);
-        if (remSrc) {
-          remSrc.setData(remGeo);
-        } else {
-          map.addSource(ROUTE_REM_SRC, { type: "geojson", data: remGeo } as Record<string, unknown>);
-          map.addLayer({
-            id: ROUTE_REM_BG,
-            type: "line",
-            source: ROUTE_REM_SRC,
-            paint: { "line-color": "#94a3b8", "line-width": 6, "line-opacity": 0.08 },
-          } as Record<string, unknown>);
-          map.addLayer({
-            id: ROUTE_REM_LINE,
-            type: "line",
-            source: ROUTE_REM_SRC,
-            paint: { "line-color": "#94a3b8", "line-width": 3, "line-opacity": 0.45 },
-          } as Record<string, unknown>);
+        try {
+          // ── Remaining route (mờ, dashed) ──
+          const remSrc = map.getSource(ROUTE_REM_SRC);
+          if (remSrc) {
+            remSrc.setData(remGeo);
+          } else {
+            map.addSource(ROUTE_REM_SRC, {
+              type: "geojson",
+              data: remGeo,
+            } as Record<string, unknown>);
+            map.addLayer({
+              id: ROUTE_REM_BG,
+              type: "line",
+              source: ROUTE_REM_SRC,
+              paint: {
+                "line-color": "#94a3b8",
+                "line-width": 6,
+                "line-opacity": 0.08,
+              },
+            } as Record<string, unknown>);
+            map.addLayer({
+              id: ROUTE_REM_LINE,
+              type: "line",
+              source: ROUTE_REM_SRC,
+              paint: {
+                "line-color": "#94a3b8",
+                "line-width": 3,
+                "line-opacity": 0.45,
+              },
+            } as Record<string, unknown>);
+          }
+
+          // ── Traveled route (đậm) ──
+          const travSrc = map.getSource(ROUTE_TRAV_SRC);
+          if (travSrc) {
+            travSrc.setData(travGeo);
+          } else {
+            map.addSource(ROUTE_TRAV_SRC, {
+              type: "geojson",
+              data: travGeo,
+            } as Record<string, unknown>);
+            map.addLayer({
+              id: ROUTE_TRAV_LINE,
+              type: "line",
+              source: ROUTE_TRAV_SRC,
+              paint: {
+                "line-color": "#3b82f6",
+                "line-width": 4,
+                "line-opacity": 0.9,
+              },
+            } as Record<string, unknown>);
+          }
+        } catch (e) {
+          console.warn("[LiveMap] drawHistoryRoute", e);
         }
-
-        // ── Traveled route (đậm) ──
-        const travSrc = map.getSource(ROUTE_TRAV_SRC);
-        if (travSrc) {
-          travSrc.setData(travGeo);
-        } else {
-          map.addSource(ROUTE_TRAV_SRC, { type: "geojson", data: travGeo } as Record<string, unknown>);
-          map.addLayer({
-            id: ROUTE_TRAV_LINE,
-            type: "line",
-            source: ROUTE_TRAV_SRC,
-            paint: { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.9 },
-          } as Record<string, unknown>);
-        }
-      } catch (e) {
-        console.warn("[LiveMap] drawHistoryRoute", e);
-      }
-    }, []);
+      },
+      [],
+    );
 
     const clearHistoryRoute = React.useCallback(() => {
       const map = mapRef.current as MapInstance | null;
@@ -414,7 +449,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         const isMoving = (p.speed ?? 0) > 0;
         const heading = p.heading ?? 0;
         const sm = selectedMemberRef.current;
-        const memberName = sm ? (sm.name || sm.userId) : "";
+        const memberName = sm ? sm.name || sm.userId : "";
         const bg = isMoving ? "#16a34a" : "#f97316";
         const icon = isMoving
           ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><path d="M12 2L6 20l6-4 6 4L12 2z"/></svg>`
@@ -432,10 +467,18 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
               };
             }
           ).Marker({ element: el, anchor: "center" }).setLngLat([p.lng, p.lat]);
-          (historyMarkerRef.current as { addTo: (m: unknown) => void }).addTo(map);
+          (historyMarkerRef.current as { addTo: (m: unknown) => void }).addTo(
+            map,
+          );
         } else {
-          (historyMarkerRef.current as { getElement: () => HTMLElement }).getElement().innerHTML = markerHtml;
-          (historyMarkerRef.current as { setLngLat: (ll: [number, number]) => void }).setLngLat([p.lng, p.lat]);
+          (
+            historyMarkerRef.current as { getElement: () => HTMLElement }
+          ).getElement().innerHTML = markerHtml;
+          (
+            historyMarkerRef.current as {
+              setLngLat: (ll: [number, number]) => void;
+            }
+          ).setLngLat([p.lng, p.lat]);
         }
         // Update traveled / remaining split
         if (pts.length >= 2) drawHistoryRoute(pts, clamped);
@@ -713,7 +756,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
                   [Math.min(...lngs), Math.min(...lats)],
                   [Math.max(...lngs), Math.max(...lats)],
                 ];
-                (mapRef.current as MapInstance | null)?.fitBounds(bounds, { padding: 60, duration: 800 });
+                (mapRef.current as MapInstance | null)?.fitBounds(bounds, {
+                  padding: 60,
+                  duration: 800,
+                });
               }
             }}
             playIndex={playIndex}
