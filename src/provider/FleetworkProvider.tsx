@@ -84,6 +84,9 @@ export function FleetworkProvider({
     if (theme?.colors?.background) vars['--background'] = theme.colors.background
     if (theme?.colors?.text) vars['--foreground'] = theme.colors.text
     if (theme?.colors?.border) vars['--border'] = theme.colors.border
+    if (theme?.colors?.statusMoving) vars['--status-moving'] = theme.colors.statusMoving
+    if (theme?.colors?.statusStopped) vars['--status-stopped'] = theme.colors.statusStopped
+    if (theme?.colors?.statusSignalLost) vars['--status-signal-lost'] = theme.colors.statusSignalLost
     if (theme?.borderRadius != null)
       vars['--radius'] = `${theme.borderRadius}px`
     if (theme?.fontFamily) vars['--fw-font'] = theme.fontFamily

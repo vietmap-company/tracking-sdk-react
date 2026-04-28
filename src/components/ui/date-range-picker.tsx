@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useOptionalFleetwork } from "@/provider/FleetworkProvider";
 
 export interface DateRangePickerProps {
   from?: Date;
@@ -29,9 +30,12 @@ export function DateRangePicker({
   minDate,
   maxDate,
   numberOfMonths = 2,
-  placeholder = "Chọn khoảng ngày",
+  placeholder,
   className,
 }: DateRangePickerProps) {
+  const ctx = useOptionalFleetwork();
+  const t = ctx?.t;
+  const resolvedPlaceholder = placeholder ?? t?.("datepicker.range.placeholder") ?? "Chọn khoảng ngày";
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState<DateRange | undefined>(
     from && to ? { from, to } : undefined,
@@ -81,8 +85,8 @@ export function DateRangePicker({
       }
       return `${format(pending.from, "dd/MM/yyyy")} →`;
     }
-    return placeholder;
-  }, [pending, placeholder]);
+    return resolvedPlaceholder;
+  }, [pending, resolvedPlaceholder]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -91,7 +95,7 @@ export function DateRangePicker({
           type="button"
           variant="outline"
           className={cn(
-            "h-9 justify-start gap-2 text-left text-sm font-normal",
+            "h-9 justify-start gap-2 bg-card text-left text-sm font-normal",
             !pending?.from && "text-muted-foreground",
             className,
           )}
@@ -117,18 +121,17 @@ export function DateRangePicker({
             if (maxDate && startOfDay(date) > startOfDay(maxDate)) return true;
             return false;
           }}
-          initialFocus
         />
         <div className="flex justify-end gap-2 border-t px-3 py-2">
           <Button variant="outline" size="sm" onClick={handleCancel}>
-            Hủy
+            {t?.("datepicker.cancel") ?? "Hủy"}
           </Button>
           <Button
             size="sm"
             disabled={!pending?.from || !pending?.to}
             onClick={handleApply}
           >
-            Áp dụng
+            {t?.("datepicker.apply") ?? "Áp dụng"}
           </Button>
         </div>
       </PopoverContent>

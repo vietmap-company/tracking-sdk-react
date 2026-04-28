@@ -12,7 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useFleetwork } from "@/provider/FleetworkProvider";
-import type { MemberStatus, MemberStatusKind } from "@/lib/types";
+import type { MemberStatus } from "@/lib/types";
+import { STATUS_BG } from "./statusColors";
 
 export interface MemberListProps {
   members: MemberStatus[];
@@ -27,12 +28,6 @@ export interface MemberListProps {
   className?: string;
   style?: React.CSSProperties;
 }
-
-const STATUS_DOT: Record<MemberStatusKind, string> = {
-  moving: "bg-emerald-500",
-  stopped: "bg-amber-400",
-  signal_lost: "bg-muted-foreground/40",
-};
 
 function formatLastSeen(ts?: number): string {
   if (!ts) return "";
@@ -189,7 +184,7 @@ export function MemberList({
                     <span
                       className={cn(
                         "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card",
-                        STATUS_DOT[m.status],
+                        STATUS_BG[m.status],
                       )}
                     />
                   </div>

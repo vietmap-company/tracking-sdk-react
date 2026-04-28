@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx shadcn@latest add button badge calendar card input popover separator skeleton tabs table tooltip avatar --yes)"
     ]
   }
 }

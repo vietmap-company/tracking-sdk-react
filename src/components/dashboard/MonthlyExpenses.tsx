@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 import {
   Bar,
   BarChart,
@@ -8,51 +8,52 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useMonthlyExpenses } from '@/hooks'
-import { useFleetwork } from '@/provider/FleetworkProvider'
-import { useChartColors } from '@/lib/utils'
-import type { MonthlyExpensesData } from '@/lib/types'
+} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMonthlyExpenses } from "@/hooks";
+import { useFleetwork } from "@/provider/FleetworkProvider";
+import { useChartColors } from "@/lib/utils";
+import type { MonthlyExpensesData } from "@/lib/types";
 
 export interface MonthlyExpensesProps {
-  from?: number
-  to?: number
-  currency?: string
-  pollInterval?: number
-  className?: string
-  style?: React.CSSProperties
-  onError?: (error: Error) => void
-  onDataChange?: (data: MonthlyExpensesData) => void
+  from?: number;
+  to?: number;
+  currency?: string;
+  pollInterval?: number;
+  className?: string;
+  style?: React.CSSProperties;
+  onError?: (error: Error) => void;
+  onDataChange?: (data: MonthlyExpensesData) => void;
 }
-
 
 export function MonthlyExpenses({
   from,
   to,
-  currency = 'VND',
+  currency = "VND",
   pollInterval,
   className,
   style,
   onError,
   onDataChange,
 }: MonthlyExpensesProps) {
-  const { t } = useFleetwork()
-  const colors = useChartColors()
+  const { t } = useFleetwork();
+  const colors = useChartColors();
   const { data, isLoading, error } = useMonthlyExpenses({
     from,
     to,
     currency,
     pollInterval,
-  })
+  });
+
+  console.log("MonthlyExpenses data:", data, "error:", error);
 
   React.useEffect(() => {
-    if (error && onError) onError(error)
-  }, [error, onError])
+    if (error && onError) onError(error);
+  }, [error, onError]);
   React.useEffect(() => {
-    if (data && onDataChange) onDataChange(data)
-  }, [data, onDataChange])
+    if (data && onDataChange) onDataChange(data);
+  }, [data, onDataChange]);
 
   const chartData = data?.months.map((m) => ({
     label: m.label,
@@ -60,7 +61,7 @@ export function MonthlyExpenses({
     maintenance: m.costs.maintenance / 1_000_000,
     insurance: m.costs.insurance / 1_000_000,
     other: m.costs.other / 1_000_000,
-  }))
+  }));
 
   // Always use theme chart tokens — API-provided colors are backend-defined
   // and not theme-aware, so we ignore categories[].color from the response.
@@ -69,35 +70,40 @@ export function MonthlyExpenses({
     maintenance: colors.chart2,
     insurance: colors.chart3,
     other: colors.chart5,
-  }
-  const categories = (data?.categories ?? [
-    { key: 'fuel', label: t('expenses.fuel') },
-    { key: 'maintenance', label: t('expenses.maintenance') },
-    { key: 'insurance', label: t('expenses.insurance') },
-    { key: 'other', label: t('expenses.other') },
-  ]).map((cat) => ({ ...cat, color: categoryColorMap[cat.key] ?? colors.chart4 }))
+  };
+  const categories = (
+    data?.categories ?? [
+      { key: "fuel", label: t("expenses.fuel") },
+      { key: "maintenance", label: t("expenses.maintenance") },
+      { key: "insurance", label: t("expenses.insurance") },
+      { key: "other", label: t("expenses.other") },
+    ]
+  ).map((cat) => ({
+    ...cat,
+    color: categoryColorMap[cat.key] ?? colors.chart4,
+  }));
 
   return (
     <Card className={className} style={style}>
       <CardHeader>
-        <CardTitle>{t('expenses.title')}</CardTitle>
-        <div className='text-xs text-muted-foreground'>
-          {t('expenses.subtitle')}
+        <CardTitle>{t("expenses.title")}</CardTitle>
+        <div className="text-xs text-muted-foreground">
+          {t("expenses.subtitle")}
         </div>
       </CardHeader>
       <CardContent>
         {isLoading || !chartData ? (
-          <Skeleton className='h-60 w-full' />
+          <Skeleton className="h-60 w-full" />
         ) : (
-          <div className='h-60 w-full'>
-            <ResponsiveContainer width='100%' height='100%'>
+          <div className="h-60 w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
                 margin={{ top: 8, right: 12, bottom: 0, left: -16 }}
               >
-                <CartesianGrid strokeDasharray='3 3' stroke={colors.grid} />
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis
-                  dataKey='label'
+                  dataKey="label"
                   tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
                   axisLine={false}
@@ -107,9 +113,9 @@ export function MonthlyExpenses({
                   tickLine={false}
                   axisLine={false}
                   label={{
-                    value: t('expenses.unit'),
+                    value: t("expenses.unit"),
                     angle: -90,
-                    position: 'insideLeft',
+                    position: "insideLeft",
                     fill: colors.axisTick,
                     fontSize: 11,
                   }}
@@ -123,14 +129,14 @@ export function MonthlyExpenses({
                   }}
                 />
                 <Legend
-                  iconType='circle'
+                  iconType="circle"
                   wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
                 />
                 {categories.map((cat) => (
                   <Bar
                     key={cat.key}
                     dataKey={cat.key}
-                    stackId='cost'
+                    stackId="cost"
                     name={cat.label}
                     fill={cat.color}
                     radius={[2, 2, 0, 0]}
@@ -142,5 +148,5 @@ export function MonthlyExpenses({
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

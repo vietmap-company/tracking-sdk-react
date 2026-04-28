@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useFleetwork } from "@/provider/FleetworkProvider";
+import { STATUS_BG, STATUS_HEX } from "./statusColors";
 import { LiveMapController } from "@/controllers/LiveMapController";
 import type { GpsPoint, MemberStatus } from "@/lib/types";
 
@@ -190,6 +191,7 @@ function TimelineBar({
   segments: Segment[];
   totalMs: number;
 }) {
+  const { t } = useFleetwork();
   const first = pts[0];
   const last = pts[pts.length - 1];
 
@@ -211,9 +213,9 @@ function TimelineBar({
   }
 
   const COLOR: Record<Segment["type"], string> = {
-    moving: "#10b981",
-    stopped: "#f59e0b",
-    lostGps: "#94a3b8",
+    moving: STATUS_HEX.moving,
+    stopped: STATUS_HEX.stopped,
+    lostGps: STATUS_HEX.lostGps,
   };
 
   // Segment duration totals for legend
@@ -255,20 +257,20 @@ function TimelineBar({
       <div className="mt-1.5 flex flex-wrap gap-2">
         {(
           [
-            ["#10b981", "moving", "Di chuyển"],
-            ["#f59e0b", "stopped", "Dừng"],
-            ["#94a3b8", "lostGps", "Mất GPS"],
-          ] as [string, keyof typeof totals, string][]
+            ["moving", t("history.moving")],
+            ["stopped", t("history.stopped")],
+            ["lostGps", t("history.lostGps")],
+          ] as [keyof typeof totals, string][]
         )
-          .filter(([, k]) => totals[k] > 0)
-          .map(([c, k, lbl]) => (
+          .filter(([k]) => totals[k] > 0)
+          .map(([k, lbl]) => (
             <span
               key={k}
               className="flex items-center gap-1 text-[10px] text-muted-foreground"
             >
               <span
                 className="inline-block h-2 w-2 rounded-sm"
-                style={{ background: c }}
+                style={{ background: COLOR[k] }}
               />
               {lbl} {fmtDuration(totals[k])}
             </span>
@@ -379,7 +381,7 @@ function HistoryRowItem({
   // moving point
   const isActive = group.idx === activeIndex;
   const isMoving = group.pt.speed > 0;
-  const dot = isMoving ? "bg-emerald-500" : "bg-amber-400";
+  const dot = isMoving ? STATUS_BG.moving : STATUS_BG.stopped;
   return (
     <div
       data-idx={group.idx}
@@ -420,17 +422,6 @@ export interface HistoryPanelProps {
   onSeek: (index: number) => void;
 }
 
-const STATUS_DOT: Record<MemberStatus["status"], string> = {
-  moving: "bg-emerald-500",
-  stopped: "bg-amber-500",
-  signal_lost: "bg-slate-400",
-};
-
-const STATUS_AVATAR: Record<MemberStatus["status"], string> = {
-  moving: "bg-emerald-500",
-  stopped: "bg-amber-500",
-  signal_lost: "bg-slate-400",
-};
 
 export function HistoryPanel({
   member,
@@ -522,7 +513,7 @@ export function HistoryPanel({
           <div
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white",
-              STATUS_AVATAR[member.status],
+              STATUS_BG[member.status],
             )}
           >
             {member.name.slice(0, 2).toUpperCase()}
@@ -535,7 +526,7 @@ export function HistoryPanel({
               <span
                 className={cn(
                   "inline-block h-1.5 w-1.5 rounded-full",
-                  STATUS_DOT[member.status],
+                  STATUS_BG[member.status],
                 )}
               />
               <span className="text-muted-foreground">

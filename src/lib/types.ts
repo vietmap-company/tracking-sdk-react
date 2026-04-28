@@ -20,6 +20,12 @@ export interface ThemeConfig {
     text?: string;
     /** Maps to shadcn --border */
     border?: string;
+    /** Maps to --status-moving (moving indicator dot color) */
+    statusMoving?: string;
+    /** Maps to --status-stopped (stopped indicator dot color) */
+    statusStopped?: string;
+    /** Maps to --status-signal-lost (signal lost indicator dot color) */
+    statusSignalLost?: string;
   };
   /** Maps to shadcn --radius (in pixels) */
   borderRadius?: number;

@@ -1,22 +1,22 @@
-import * as React from 'react'
-import { cn } from '@/lib/utils'
-import { SummaryCards } from './SummaryCards'
-import { MemberReport } from './MemberReport'
-import { ActivityHeatmap } from './ActivityHeatmap'
-import { FuelTracking } from './FuelTracking'
-import { MonthlyExpenses } from './MonthlyExpenses'
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { SummaryCards } from "./SummaryCards";
+import { MemberReport } from "./MemberReport";
+import { ActivityHeatmap } from "./ActivityHeatmap";
+import { FuelTracking } from "./FuelTracking";
+import { MonthlyExpenses } from "./MonthlyExpenses";
 
 export interface DashboardProps {
-  date?: number
-  pollInterval?: number
-  showSummaryCards?: boolean
-  showMemberReport?: boolean
-  showActivityHeatmap?: boolean
-  showFuelTracking?: boolean
-  showMonthlyExpenses?: boolean
-  className?: string
-  style?: React.CSSProperties
-  onError?: (error: Error) => void
+  date?: number;
+  pollInterval?: number;
+  showSummaryCards?: boolean;
+  showMemberReport?: boolean;
+  showActivityHeatmap?: boolean;
+  showFuelTracking?: boolean;
+  showMonthlyExpenses?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+  onError?: (error: Error) => void;
 }
 
 export function Dashboard({
@@ -32,10 +32,7 @@ export function Dashboard({
   onError,
 }: DashboardProps) {
   return (
-    <div
-      className={cn('flex w-full flex-col gap-4', className)}
-      style={style}
-    >
+    <div className={cn("flex w-full flex-col gap-4", className)} style={style}>
       {showSummaryCards && (
         <SummaryCards
           date={date}
@@ -57,7 +54,7 @@ export function Dashboard({
       )}
 
       {(showFuelTracking || showMonthlyExpenses) && (
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
           {showFuelTracking && (
             <FuelTracking pollInterval={pollInterval} onError={onError} />
           )}
@@ -67,5 +64,5 @@ export function Dashboard({
         </div>
       )}
     </div>
-  )
+  );
 }

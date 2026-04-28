@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useOptionalFleetwork } from "@/provider/FleetworkProvider";
 
 type DatePickerProps = {
   value?: Date;
@@ -26,10 +27,13 @@ export function DatePicker({
   onChange,
   minDate,
   maxDate,
-  placeholder = "Chọn ngày",
+  placeholder,
   formatLabel,
   className,
 }: DatePickerProps) {
+  const ctx = useOptionalFleetwork();
+  const t = ctx?.t;
+  const resolvedPlaceholder = placeholder ?? t?.("datepicker.placeholder") ?? "Chọn ngày";
   const [open, setOpen] = React.useState(false);
 
   const handleSelect = (date: Date | undefined) => {
@@ -51,7 +55,7 @@ export function DatePicker({
     ? formatLabel
       ? formatLabel(value)
       : format(value, "dd/MM/yyyy")
-    : placeholder;
+    : resolvedPlaceholder;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -60,7 +64,7 @@ export function DatePicker({
           type="button"
           variant="outline"
           className={cn(
-            "w-full justify-start gap-2 text-left font-normal",
+            "w-full justify-start gap-2 bg-card text-left font-normal",
             !value && "text-muted-foreground",
             className,
           )}
@@ -79,7 +83,6 @@ export function DatePicker({
           mode="single"
           selected={value}
           onSelect={handleSelect}
-          initialFocus
           disabled={(date) => {
             if (minDate && startOfDay(date) < startOfDay(minDate)) return true;
             if (maxDate && startOfDay(date) > startOfDay(maxDate)) return true;

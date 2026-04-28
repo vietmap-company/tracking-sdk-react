@@ -1,8 +1,4 @@
 @import "tailwindcss";
-/* Inter — SDK's primary typeface (Expo-inspired). Loaded once; if the consuming
-   app already self-hosts Inter, the browser reuses the cached font. */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap");
-
 @source './**/*.{ts,tsx}';
 
 /* Scope dark: utilities to only activate when .dark is on .fleetwork-root itself.
@@ -35,6 +31,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-status-moving: var(--status-moving);
+  --color-status-stopped: var(--status-stopped);
+  --color-status-signal-lost: var(--status-signal-lost);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -84,6 +83,11 @@
   --border: #e0e1e6; /* Border Lavender */
   --input: #d9d9e0; /* Input Border */
   --ring: #0d74ce; /* Link Cobalt */
+
+  /* Status indicators */
+  --status-moving: #10b981;
+  --status-stopped: #f59e0b;
+  --status-signal-lost: #94a3b8;
 
   /* Charts — functional palette; monochrome blues with a warm anchor */
   --chart-1: #0d74ce; /* Link Cobalt */

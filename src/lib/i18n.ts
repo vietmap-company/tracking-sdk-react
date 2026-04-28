@@ -64,6 +64,11 @@ const vi: Dict = {
   "status.stopped": "Đang dừng",
   "status.signal_lost": "Mất tín hiệu",
 
+  "datepicker.placeholder": "Chọn ngày",
+  "datepicker.range.placeholder": "Chọn khoảng ngày",
+  "datepicker.apply": "Áp dụng",
+  "datepicker.cancel": "Hủy",
+
   "common.loading": "Đang tải...",
   "common.error": "Đã xảy ra lỗi",
   "common.retry": "Thử lại",
@@ -165,6 +170,11 @@ const en: Dict = {
   "status.moving": "Moving",
   "status.stopped": "Stopped",
   "status.signal_lost": "Signal lost",
+
+  "datepicker.placeholder": "Pick a date",
+  "datepicker.range.placeholder": "Pick a date range",
+  "datepicker.apply": "Apply",
+  "datepicker.cancel": "Cancel",
 
   "common.loading": "Loading...",
   "common.error": "An error occurred",

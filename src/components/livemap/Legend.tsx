@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { POSITION_CLASSES } from "./types";
+import { STATUS_BG } from "./statusColors";
 import type { Position } from "@/lib/types";
 
 export interface LegendProps {
@@ -16,10 +17,10 @@ export function Legend({
   style,
 }: LegendProps) {
   const { t } = useFleetwork();
-  const items: Array<{ key: string; label: string; color: string }> = [
-    { key: "moving", label: t("status.moving"), color: "bg-emerald-500" },
-    { key: "stopped", label: t("status.stopped"), color: "bg-amber-400" },
-    { key: "signal_lost", label: t("status.signal_lost"), color: "bg-slate-400" },
+  const items: Array<{ key: string; label: string }> = [
+    { key: "moving", label: t("status.moving") },
+    { key: "stopped", label: t("status.stopped") },
+    { key: "signal_lost", label: t("status.signal_lost") },
   ];
 
   return (
@@ -34,7 +35,7 @@ export function Legend({
       <ul className="flex flex-col gap-1.5">
         {items.map((it) => (
           <li key={it.key} className="flex items-center gap-2 text-[11px] font-medium text-foreground">
-            <span className={cn("h-2 w-2 shrink-0 rounded-full", it.color)} />
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_BG[it.key])} />
             {it.label}
           </li>
         ))}
