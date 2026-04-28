@@ -93,13 +93,13 @@ export function PlaybackControls({
   );
 
   return (
-    <div className="absolute bottom-4 left-1/2 z-20 w-[min(480px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-border/50 bg-card/85 p-2.5 shadow-md backdrop-blur-md">
+    <div className="absolute bottom-4 left-1/2 z-20 w-[min(480px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-border/60 bg-card/90 p-3 shadow-elevated backdrop-blur-md">
       <div className="flex items-center gap-2">
         {/* Play / Pause */}
         <button
           type="button"
           onClick={onPlayToggle}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-card text-foreground shadow-sm transition-colors hover:bg-muted"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-card text-foreground shadow-whisper transition-colors hover:bg-muted"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
@@ -120,7 +120,7 @@ export function PlaybackControls({
             <button
               type="button"
               onClick={onSpeedCycle}
-              className="flex h-7 shrink-0 items-center rounded-full border border-border/60 bg-muted px-2.5 text-[11px] font-bold text-foreground transition-colors hover:bg-accent"
+              className="flex h-7 shrink-0 items-center rounded-full border border-border/60 bg-card px-3 text-[11px] font-bold text-foreground shadow-whisper transition-colors hover:bg-muted"
             >
               {speed}×
             </button>
@@ -157,7 +157,7 @@ export function PlaybackControls({
               type="button"
               onClick={onAutoFollowToggle}
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-whisper transition-colors",
                 autoFollow
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-border/60 bg-card text-muted-foreground hover:bg-muted",

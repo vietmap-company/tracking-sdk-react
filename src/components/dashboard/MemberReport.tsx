@@ -61,7 +61,7 @@ export function MemberReport({
   const totalPages = data?.pagination.totalPages ?? 1;
 
   return (
-    <Card className={cn("h-140", className)} style={style}>
+    <Card className={cn("min-h-120", className)} style={style}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-muted-foreground" />
@@ -131,7 +131,7 @@ export function MemberReport({
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {(() => {
-                          const meta = m.metadata as Record<string, string> | undefined
+                          const meta = m.metaData as Record<string, string> | undefined
                           const displayName = meta?.userName ?? m.name ?? m.userId
                           const avatar = meta?.userAvatar ?? m.avatarUrl ?? undefined
                           return (
@@ -204,20 +204,23 @@ interface StatCardProps {
   accent?: "moving" | "stopped" | "signal_lost";
 }
 
+const STATUS_DOT: Record<string, string> = {
+  moving: "bg-emerald-500",
+  stopped: "bg-amber-400",
+  signal_lost: "bg-muted-foreground/50",
+};
+
 function StatCard({ label, value, accent }: StatCardProps) {
-  const accentColor =
-    accent === "moving"
-      ? "text-emerald-600"
-      : accent === "stopped"
-        ? "text-amber-600"
-        : accent === "signal_lost"
-          ? "text-muted-foreground"
-          : "text-foreground";
   return (
-    <div className="rounded-md bg-muted/50 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn("mt-0.5 text-lg font-semibold", accentColor)}>
-        {value == null ? <Skeleton className="h-5 w-8" /> : value}
+    <div className="flex flex-col gap-1 rounded-lg border border-border bg-card px-4 py-3 shadow-whisper">
+      <div className="flex items-center gap-1.5">
+        {accent && (
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[accent] ?? "bg-muted-foreground/50")} />
+        )}
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      </div>
+      <div className="text-xl font-semibold tracking-tight text-foreground">
+        {value == null ? <Skeleton className="h-6 w-8" /> : value}
       </div>
     </div>
   );

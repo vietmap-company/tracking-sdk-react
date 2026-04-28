@@ -96,24 +96,24 @@ export function ActivityHeatmap({
     <Card className={className} style={style}>
       <CardHeader className="grid grid-cols-[1fr_auto] items-center">
         <CardTitle>{t("heatmap.title")}</CardTitle>
-        <div className="flex items-center overflow-hidden rounded-md border border-border bg-card">
+        <div className="flex items-center overflow-hidden rounded-full border border-border bg-muted">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => shiftRange(-1)}
-            className="h-8 w-8 rounded-none border-r border-border"
+            className="h-8 w-8 rounded-none rounded-l-full border-r border-border hover:bg-card"
             aria-label="Tuần trước"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="h-8 px-3 text-xs font-medium text-foreground inline-flex items-center">
+          <span className="h-8 select-none px-3 text-xs font-medium text-foreground inline-flex items-center">
             {formatDateRange(range.from, range.to)}
           </span>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => shiftRange(1)}
-            className="h-8 w-8 rounded-none border-l border-border"
+            className="h-8 w-8 rounded-none rounded-r-full border-l border-border hover:bg-card"
             aria-label="Tuần sau"
           >
             <ChevronRight className="h-4 w-4" />

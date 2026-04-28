@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -126,13 +125,13 @@ export function MemberList({
         </div>
 
         {/* Search */}
-        <div className="relative mt-3">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <div className="mt-3 flex h-8 items-center gap-2 rounded-full bg-muted px-3">
+          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("list.search")}
-            className="h-8 rounded-full border-0 bg-muted pl-9 text-[12px] shadow-none focus-visible:ring-1 focus-visible:ring-ring/40"
+            className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
       </div>
@@ -203,7 +202,11 @@ export function MemberList({
                       </span>
                       {m.status !== "moving" && m.lastSeenAt && (
                         <Badge
-                          variant={m.status === "signal_lost" ? "signal_lost" : "stopped"}
+                          variant={
+                            m.status === "signal_lost"
+                              ? "signal_lost"
+                              : "stopped"
+                          }
                           className="shrink-0 rounded-full px-2 text-[10px] font-normal"
                         >
                           {formatLastSeen(m.lastSeenAt)}

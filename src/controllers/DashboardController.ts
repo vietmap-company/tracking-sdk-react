@@ -6,6 +6,7 @@ import type {
   FuelGroupBy,
   FuelTrackingData,
   MemberReportData,
+  MemberStatusKind,
   MonthlyExpensesData,
   SummaryCardsData,
 } from "@/lib/types";
@@ -18,11 +19,19 @@ export interface GetSummaryOptions {
 export interface GetMemberReportOptions {
   page?: number;
   pageSize?: number;
+  status?: MemberStatusKind;
+  client?: AxiosInstance;
+}
+
+export interface GetActivityHeatmapOptions {
+  metric?: "distance" | "points";
+  userId?: string;
   client?: AxiosInstance;
 }
 
 export interface GetFuelOptions {
   groupBy?: FuelGroupBy;
+  userId?: string;
   client?: AxiosInstance;
 }
 
@@ -42,7 +51,7 @@ export const DashboardController = {
     const date = options.date ?? startOfTodayMs();
     return request<SummaryCardsData>(client(options), {
       method: "GET",
-      url: "gps-tracking/summary",
+      url: "dashboard/gps-manager/summary",
       params: { date },
     });
   },
@@ -53,11 +62,12 @@ export const DashboardController = {
   ): Promise<MemberReportData> {
     return request<MemberReportData>(client(options), {
       method: "GET",
-      url: "gps-tracking/users",
+      url: "dashboard/gps-manager/users",
       params: {
         date,
         page: options.page ?? 1,
         pageSize: options.pageSize ?? 10,
+        status: options.status,
       },
     });
   },
@@ -65,12 +75,17 @@ export const DashboardController = {
   async getActivityHeatmap(
     from: number,
     to: number,
-    options: { client?: AxiosInstance } = {},
+    options: GetActivityHeatmapOptions = {},
   ): Promise<ActivityHeatmapData> {
     return request<ActivityHeatmapData>(client(options), {
       method: "GET",
-      url: "gps-tracking/activity-heatmap",
-      params: { from, to },
+      url: "dashboard/gps-manager/activity-heatmap",
+      params: {
+        from,
+        to,
+        metric: options.metric ?? "distance",
+        userId: options.userId,
+      },
     });
   },
 
@@ -81,8 +96,13 @@ export const DashboardController = {
   ): Promise<FuelTrackingData> {
     return request<FuelTrackingData>(client(options), {
       method: "GET",
-      url: "gps-tracking/fuel-tracking",
-      params: { from, to, groupBy: options.groupBy ?? "month" },
+      url: "dashboard/gps-manager/fuel-tracking",
+      params: {
+        from,
+        to,
+        groupBy: options.groupBy ?? "month",
+        userId: options.userId,
+      },
     });
   },
 
@@ -93,7 +113,7 @@ export const DashboardController = {
   ): Promise<MonthlyExpensesData> {
     return request<MonthlyExpensesData>(client(options), {
       method: "GET",
-      url: "gps-tracking/monthly-costs",
+      url: "dashboard/gps-manager/monthly-costs",
       params: { from, to, currency: options.currency ?? "VND" },
     });
   },

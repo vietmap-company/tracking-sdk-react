@@ -21,6 +21,7 @@ import {
   FleetworkProvider,
   Dashboard,
   LiveMap,
+  Report,
 } from '@vietmap/tracking-sdk-react'
 import '@vietmap/tracking-sdk-react/styles.css'
 
@@ -34,6 +35,7 @@ export default function App() {
     >
       <Dashboard />
       <LiveMap height="600px" memberNameKey="userName" />
+      <Report />
     </FleetworkProvider>
   )
 }
@@ -63,6 +65,21 @@ All-in-one dashboard with 5 widgets:
 - `MonthlyExpenses` — category breakdown
 
 Each widget can also be imported standalone.
+
+### `<Report />`
+
+All-in-one report hub. Landing page with 3 cards → click into a report type:
+
+- **Báo cáo hành trình** (Trip) — 2 tabs: Summary / Detail
+- **Báo cáo tiêu thụ nhiên liệu** (Fuel) — 2 tabs: Summary / Detail
+- **Báo cáo thời gian hoạt động** (Activity time) — single table
+
+```tsx
+<Report from={Date.now() - 30 * 86400_000} to={Date.now()} />
+```
+
+Sub-reports can also be used standalone (all accept `range`, `onRangeChange`, `onBack`, `onError`, `pageSize`):
+`TripSummaryReport`, `TripDetailReport`, `FuelSummaryReport`, `FuelDetailReport`, `ActivityTimeReport`.
 
 ### `<LiveMap />`
 
@@ -94,6 +111,13 @@ const { data } = useMonthlyExpenses({ from, to })
 const { data } = useMembers({ pollInterval: 10000 })
 const { data } = useMember(userId)
 const { data } = useHistoryRoute({ userId, startTime, endTime })
+
+// Reports
+const { data } = useTripSummaryReport({ from, to })
+const { data } = useTripDetailReport({ from, to })
+const { data } = useFuelSummaryReport({ from, to })
+const { data } = useFuelDetailReport({ from, to })
+const { data } = useActivityTimeReport({ from, to })
 ```
 
 ## Controllers (framework-agnostic)
@@ -101,13 +125,19 @@ const { data } = useHistoryRoute({ userId, startTime, endTime })
 Use outside React (Zustand, Redux, Node scripts):
 
 ```ts
-import { initFleetwork, DashboardController, LiveMapController } from '@vietmap/tracking-sdk-react'
+import {
+  initFleetwork,
+  DashboardController,
+  LiveMapController,
+  ReportController,
+} from '@vietmap/tracking-sdk-react'
 
 initFleetwork({ apiKey: '...', apiKeyTilemap: '...' })
 
 const summary = await DashboardController.getSummaryCards()
 const members = await LiveMapController.getMembers()
 const history = await LiveMapController.getHistoryRoute(userId, from, to)
+const tripReport = await ReportController.getTripSummary({ from, to })
 ```
 
 ## Theming

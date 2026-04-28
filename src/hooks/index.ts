@@ -1,6 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { DashboardController } from '@/controllers/DashboardController'
 import { LiveMapController } from '@/controllers/LiveMapController'
+import { ReportController } from '@/controllers/ReportController'
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import {
   daysAgoMs,
@@ -10,13 +11,18 @@ import {
 } from '@/lib/utils'
 import type {
   ActivityHeatmapData,
+  ActivityTimeReportData,
+  FuelDetailReportData,
   FuelGroupBy,
+  FuelSummaryReportData,
   FuelTrackingData,
   GpsPoint,
   MemberReportData,
   MemberStatus,
   MonthlyExpensesData,
   SummaryCardsData,
+  TripDetailReportData,
+  TripSummaryReportData,
 } from '@/lib/types'
 
 interface BaseOptions {
@@ -65,6 +71,7 @@ export interface UseMemberReportOptions extends BaseOptions {
   date?: number
   page?: number
   pageSize?: number
+  status?: 'moving' | 'stopped' | 'signal_lost'
 }
 
 export function useMemberReport(
@@ -74,10 +81,11 @@ export function useMemberReport(
   const date = options.date ?? startOfTodayMs()
   const page = options.page ?? 1
   const pageSize = options.pageSize ?? 10
+  const status = options.status
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'memberReport', date, page, pageSize],
+    queryKey: ['fw', apiKey, 'memberReport', date, page, pageSize, status],
     queryFn: () =>
-      DashboardController.getMemberReport(date, { page, pageSize }),
+      DashboardController.getMemberReport(date, { page, pageSize, status }),
     enabled: options.enabled ?? true,
     refetchInterval: refetch(options.pollInterval),
   })
@@ -87,6 +95,8 @@ export function useMemberReport(
 export interface UseActivityHeatmapOptions extends BaseOptions {
   from?: number
   to?: number
+  metric?: 'distance' | 'points'
+  userId?: string
 }
 
 export function useActivityHeatmap(
@@ -95,9 +105,11 @@ export function useActivityHeatmap(
   const { apiKey } = useFleetwork()
   const to = options.to ?? Date.now()
   const from = options.from ?? daysAgoMs(14)
+  const metric = options.metric ?? 'distance'
+  const userId = options.userId
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'heatmap', from, to],
-    queryFn: () => DashboardController.getActivityHeatmap(from, to),
+    queryKey: ['fw', apiKey, 'heatmap', from, to, metric, userId],
+    queryFn: () => DashboardController.getActivityHeatmap(from, to, { metric, userId }),
     enabled: options.enabled ?? true,
     refetchInterval: refetch(options.pollInterval),
   })
@@ -108,6 +120,7 @@ export interface UseFuelTrackingOptions extends BaseOptions {
   from?: number
   to?: number
   groupBy?: FuelGroupBy
+  userId?: string
 }
 
 export function useFuelTracking(
@@ -117,10 +130,11 @@ export function useFuelTracking(
   const from = options.from ?? startOfYearMs()
   const to = options.to ?? endOfYearMs()
   const groupBy = options.groupBy ?? 'month'
+  const userId = options.userId
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'fuel', from, to, groupBy],
+    queryKey: ['fw', apiKey, 'fuel', from, to, groupBy, userId],
     queryFn: () =>
-      DashboardController.getFuelTracking(from, to, { groupBy }),
+      DashboardController.getFuelTracking(from, to, { groupBy, userId }),
     enabled: options.enabled ?? true,
     refetchInterval: refetch(options.pollInterval),
   })
@@ -202,6 +216,109 @@ export function useHistoryRoute(
     queryFn: () =>
       LiveMapController.getHistoryRoute(userId, startTime, endTime),
     enabled: (options.enabled ?? true) && !!userId,
+    refetchInterval: refetch(options.pollInterval),
+  })
+  return toResult(q)
+}
+
+/* ---------- Report hooks ---------- */
+
+export interface UseReportOptions extends BaseOptions {
+  from: number
+  to: number
+  userId?: string
+  groupId?: string
+  page?: number
+  pageSize?: number
+  sortBy?: string
+  sortDesc?: boolean
+}
+
+export type UseActivityTimeReportOptions = Omit<UseReportOptions, 'sortBy' | 'sortDesc'>
+
+const reportEnabled = (options: { enabled?: boolean; from?: number; to?: number }) =>
+  (options.enabled ?? true) && !!options.from && !!options.to
+
+export function useTripSummaryReport(
+  options: UseReportOptions
+): QueryResult<TripSummaryReportData> {
+  const { apiKey } = useFleetwork()
+  const q = useQuery({
+    queryKey: [
+      'fw', apiKey, 'report/trip/summary',
+      options.from, options.to, options.userId, options.groupId,
+      options.page, options.pageSize, options.sortBy, options.sortDesc,
+    ],
+    queryFn: () => ReportController.getTripSummary(options),
+    enabled: reportEnabled(options),
+    refetchInterval: refetch(options.pollInterval),
+  })
+  return toResult(q)
+}
+
+export function useTripDetailReport(
+  options: UseReportOptions
+): QueryResult<TripDetailReportData> {
+  const { apiKey } = useFleetwork()
+  const q = useQuery({
+    queryKey: [
+      'fw', apiKey, 'report/trip/detail',
+      options.from, options.to, options.userId, options.groupId,
+      options.page, options.pageSize, options.sortBy, options.sortDesc,
+    ],
+    queryFn: () => ReportController.getTripDetail(options),
+    enabled: reportEnabled(options),
+    refetchInterval: refetch(options.pollInterval),
+  })
+  return toResult(q)
+}
+
+export function useFuelSummaryReport(
+  options: UseReportOptions
+): QueryResult<FuelSummaryReportData> {
+  const { apiKey } = useFleetwork()
+  const q = useQuery({
+    queryKey: [
+      'fw', apiKey, 'report/fuel/summary',
+      options.from, options.to, options.userId, options.groupId,
+      options.page, options.pageSize, options.sortBy, options.sortDesc,
+    ],
+    queryFn: () => ReportController.getFuelSummary(options),
+    enabled: reportEnabled(options),
+    refetchInterval: refetch(options.pollInterval),
+  })
+  return toResult(q)
+}
+
+export function useFuelDetailReport(
+  options: UseReportOptions
+): QueryResult<FuelDetailReportData> {
+  const { apiKey } = useFleetwork()
+  const q = useQuery({
+    queryKey: [
+      'fw', apiKey, 'report/fuel/detail',
+      options.from, options.to, options.userId, options.groupId,
+      options.page, options.pageSize, options.sortBy, options.sortDesc,
+    ],
+    queryFn: () => ReportController.getFuelDetail(options),
+    enabled: reportEnabled(options),
+    refetchInterval: refetch(options.pollInterval),
+  })
+  return toResult(q)
+}
+
+export function useActivityTimeReport(
+  options: UseActivityTimeReportOptions
+): QueryResult<ActivityTimeReportData> {
+  const { apiKey } = useFleetwork()
+  const q = useQuery({
+    queryKey: [
+      'fw', apiKey, 'report/activity-time',
+      options.from, options.to, options.userId, options.groupId,
+      options.page, options.pageSize,
+    ],
+    queryFn: () => ReportController.getActivityTime(options),
+    enabled: reportEnabled(options),
     refetchInterval: refetch(options.pollInterval),
   })
   return toResult(q)

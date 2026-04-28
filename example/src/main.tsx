@@ -9,6 +9,10 @@ import { AppShell } from "./components/AppShell";
 import { PageDashboardDefault } from "./pages/PageDashboardDefault";
 import { PageLiveMap } from "./pages/PageLiveMap";
 import { PageController } from "./pages/PageController";
+import { PageReport } from "./pages/PageReport";
+import { PageReportTrip } from "./pages/PageReportTrip";
+import { PageReportFuel } from "./pages/PageReportFuel";
+import { PageReportActivity } from "./pages/PageReportActivity";
 import { PageWidgets } from "./pages/PageWidgets";
 import { SDK_CONFIG } from "./config";
 import { SdkKeyGate, type SdkRuntimeConfig } from "./components/SdkKeyGate";
@@ -50,6 +54,10 @@ function RootApp() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<PageDashboardDefault />} />
             <Route path="/livemap" element={<PageLiveMap />} />
+            <Route path="/report" element={<PageReport />} />
+            <Route path="/report/trip" element={<PageReportTrip />} />
+            <Route path="/report/fuel" element={<PageReportFuel />} />
+            <Route path="/report/activity" element={<PageReportActivity />} />
             <Route path="/controller" element={<PageController />} />
             <Route path="/widgets" element={<PageWidgets />} />
           </Routes>

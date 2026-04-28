@@ -554,7 +554,7 @@ export function HistoryPanel({
 
         {/* Date navigation row */}
         <div className="border-t bg-muted/40 px-4 py-2.5">
-          <div className="flex items-center overflow-hidden rounded-md border-border bg-card">
+          <div className="flex items-center overflow-hidden rounded-full border border-border bg-muted">
             <Button
               variant="ghost"
               size="icon"
@@ -564,7 +564,7 @@ export function HistoryPanel({
                 loadHistory(prev);
               }}
               aria-label="Ngày trước"
-              className="h-8 w-8 shrink-0 rounded-none border-r border-border"
+              className="h-8 w-8 shrink-0 rounded-none rounded-l-full border-r border-border hover:bg-card"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -585,7 +585,7 @@ export function HistoryPanel({
                     year: "numeric",
                   }).format(d);
                 }}
-                className="h-8 w-full justify-center rounded-none border-0 font-medium shadow-none hover:bg-muted focus-visible:ring-0"
+                className="h-8 w-full justify-center rounded-none border-0 font-medium shadow-none hover:bg-card focus-visible:ring-0"
               />
             </div>
             <Button
@@ -598,7 +598,7 @@ export function HistoryPanel({
               }}
               disabled={startOfDay(historyDate) >= startOfDay(new Date())}
               aria-label="Ngày sau"
-              className="h-8 w-8 shrink-0 rounded-none border-l border-border"
+              className="h-8 w-8 shrink-0 rounded-none rounded-r-full border-l border-border hover:bg-card"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -610,7 +610,7 @@ export function HistoryPanel({
       <div className="flex flex-1 flex-col overflow-hidden">
         {historyLoading ? (
           <div className="flex flex-1 items-center justify-center gap-2.5">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-border-t-primary" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
             <span className="text-[12px] text-muted-foreground">
               {t("history.loading")}
             </span>

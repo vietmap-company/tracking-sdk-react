@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Inter — SDK's primary typeface (Expo-inspired). Loaded once; if the consuming
+   app already self-hosts Inter, the browser reuses the cached font. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 @source './**/*.{ts,tsx}';
 
@@ -8,7 +11,6 @@
 @custom-variant dark (&:where(.fleetwork-root.dark *), .fleetwork-root.dark &);
 
 /* ─── Shadcn theme tokens (Tailwind v4 @theme inline) ────────────────────── */
-/* Mirrors driver-connect-web-react/src/styles/theme.css — keep in sync. */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -38,71 +40,69 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  --shadow-whisper: 0 3px 6px rgb(0 0 0 / 0.08), 0 2px 4px rgb(0 0 0 / 0.07);
+  --shadow-elevated: 0 10px 20px rgb(0 0 0 / 0.1), 0 3px 6px rgb(0 0 0 / 0.05);
 }
 
 /**
  * Scope SDK styles under .fleetwork-root so they don't bleed into
  * consumer apps. Provider adds this class automatically. Popover/Tooltip
  * portals also re-apply it on their root so tokens flow through portals.
+ *
+ * Palette is Expo-inspired: monochromatic, luminous cool-white canvas with
+ * pure-black CTAs. See DESIGN.md for the rationale.
  */
 .fleetwork-root {
   color-scheme: light;
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.01 255.508);
-  --input: oklch(0.92 0.01 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+
+  /* 8px base radius — cards. Buttons/inputs get 6px via --radius-md. */
+  --radius: 0.5rem;
+
+  /* Surfaces */
+  --background: #f0f0f3; /* Cloud Gray */
+  --card: #ffffff; /* Pure White */
+  --popover: #ffffff;
+  --muted: #f5f5f7; /* faint hover surface */
+  --accent: #f5f5f7;
+  --secondary: #f0f0f3;
+
+  /* Ink */
+  --foreground: #1c2024; /* Near Black */
+  --card-foreground: #1c2024;
+  --popover-foreground: #1c2024;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #1c2024;
+  --muted-foreground: #60646c; /* Slate Gray */
+  --accent-foreground: #1c2024;
+
+  /* Action */
+  --primary: #000000; /* Expo Black */
+  --destructive: #eb8e90; /* Destructive Rose */
+
+  /* Lines */
+  --border: #e0e1e6; /* Border Lavender */
+  --input: #d9d9e0; /* Input Border */
+  --ring: #0d74ce; /* Link Cobalt */
+
+  /* Charts — functional palette; monochrome blues with a warm anchor */
+  --chart-1: #0d74ce; /* Link Cobalt */
+  --chart-2: #47c2ff; /* Widget Sky */
+  --chart-3: #476cff; /* Legal Blue */
+  --chart-4: #8145b5; /* Preview Purple */
+  --chart-5: #ab6400; /* Warning Amber */
 
   --fw-font:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    "Inter", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --fw-font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   font-family: var(--fw-font);
   color: var(--foreground);
-}
-
-.fleetwork-root.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.14 0.04 259.21);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 16%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .fleetwork-root *,
@@ -111,14 +111,30 @@
   box-sizing: border-box;
 }
 
-/* Ensure border color is explicitly applied for utility `border` / `border-b` classes
-   so inspect always shows concrete color instead of style+width only. */
+/* Consumers/portals that break out of the root should still get the font. */
+.fleetwork-portal {
+  font-family: var(--fw-font);
+}
+
+/* Explicit border-color for utility `border` classes so DevTools always shows
+   a concrete color rather than width+style only. */
 .fleetwork-root .border,
 .fleetwork-root .border-b,
 .fleetwork-root .border-t,
 .fleetwork-root .border-l,
 .fleetwork-root .border-r {
   border-color: var(--border);
+}
+
+/* Display typography — Expo uses tight negative tracking at scale. */
+.fleetwork-root h1,
+.fleetwork-root h2 {
+  letter-spacing: -0.025em;
+}
+.fleetwork-root .fw-display {
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 /* Strip VietmapGL default popup chrome — works out of the box for all consumers */

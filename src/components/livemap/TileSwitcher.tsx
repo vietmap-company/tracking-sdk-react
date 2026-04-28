@@ -47,17 +47,17 @@ export function TileSwitcher({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-card/90 text-foreground shadow-whisper backdrop-blur-sm hover:bg-card"
       >
         <Layers className="h-4 w-4" />
       </button>
       {open && (
         <div
           className={cn(
-            "absolute min-w-37.5 rounded-lg border border-border/60 bg-popover p-1 shadow-md",
+            "absolute min-w-37.5 rounded-xl border border-border/60 bg-popover p-1 shadow-elevated",
             position.startsWith("bottom")
-              ? "bottom-10 right-0"
-              : "top-10 right-0",
+              ? "bottom-11 right-0"
+              : "top-11 right-0",
           )}
         >
           {OPTIONS.map((opt) => (
@@ -69,8 +69,8 @@ export function TileSwitcher({
                 setOpen(false);
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-popover-foreground transition-colors hover:bg-accent",
-                value === opt.key && "bg-accent font-medium",
+                "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-popover-foreground transition-colors hover:bg-muted",
+                value === opt.key && "bg-muted font-semibold",
               )}
             >
               <span

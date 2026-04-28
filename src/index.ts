@@ -14,11 +14,17 @@ export { DashboardController } from './controllers/DashboardController'
 export type {
   GetSummaryOptions,
   GetMemberReportOptions,
+  GetActivityHeatmapOptions,
   GetFuelOptions,
   GetExpensesOptions,
 } from './controllers/DashboardController'
 export { LiveMapController } from './controllers/LiveMapController'
 export type { GetMembersOptions } from './controllers/LiveMapController'
+export { ReportController } from './controllers/ReportController'
+export type {
+  BaseReportOptions,
+  ActivityTimeOptions,
+} from './controllers/ReportController'
 
 // HTTP / init
 export { initFleetwork, createHttpClient } from './lib/http'
@@ -42,7 +48,23 @@ export type {
   UseMonthlyExpensesOptions,
   UseHistoryRouteOptions,
   UseMembersOptions,
+  UseReportOptions,
+  UseActivityTimeReportOptions,
 } from './hooks'
+
+// Report hooks
+export {
+  useTripSummaryReport,
+  useTripDetailReport,
+  useFuelSummaryReport,
+  useFuelDetailReport,
+  useActivityTimeReport,
+} from './hooks'
+
+// UI primitives
+export { DateRangePicker } from './components/ui/date-range-picker'
+export type { DateRangePickerProps } from './components/ui/date-range-picker'
+export { DatePicker } from './components/ui/date-picker'
 
 // Dashboard components
 export { Dashboard } from './components/dashboard/Dashboard'
@@ -66,6 +88,18 @@ export type {
   LiveMapSlotProps,
   MapInstance,
 } from './components/livemap/types'
+
+// Report
+export { Report } from './components/report/Report'
+export type { ReportProps } from './components/report/Report'
+export {
+  TripSummaryReport,
+  TripDetailReport,
+  FuelSummaryReport,
+  FuelDetailReport,
+  ActivityTimeReport,
+} from './components/report/views'
+export type { ReportViewProps, ReportRangeState } from './components/report/views'
 
 // Types
 export type {
@@ -91,4 +125,19 @@ export type {
   GpsPoint,
   GpsUserRow,
   GpsUsersResponse,
+  // Reports
+  TripSummaryReportData,
+  TripSummaryRow,
+  TripDetailReportData,
+  TripDetailRow,
+  FuelSummaryReportData,
+  FuelSummaryRow,
+  FuelDetailReportData,
+  FuelDetailRow,
+  ActivityTimeReportData,
+  ActivityTimeRow,
+  FuelReportTotals,
+  ReportPagination,
+  DurationValue,
+  LocationPoint,
 } from './lib/types'
