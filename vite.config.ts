@@ -24,9 +24,7 @@ export default defineConfig({
       entry: resolve(__dirname, "src/index.ts"),
       name: "VietmapTrackingSDK",
       fileName: (format) =>
-        format === "es"
-          ? "tracking-sdk-react.js"
-          : "tracking-sdk-react.cjs",
+        format === "es" ? "tracking-sdk-react.js" : "tracking-sdk-react.cjs",
       formats: ["es", "cjs"],
     },
     rollupOptions: {
@@ -36,8 +34,7 @@ export default defineConfig({
           react: "React",
           "react-dom": "ReactDOM",
         },
-        assetFileNames: (asset) =>
-          asset.name === "style.css" ? "styles.css" : (asset.name ?? "asset"),
+        assetFileNames: () => "tracking-sdk-react.css",
       },
     },
     sourcemap: true,

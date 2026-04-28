@@ -20,7 +20,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "vite build --watch",
