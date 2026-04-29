@@ -59,11 +59,115 @@ import { buildTileStyle } from "./tiles";
 import { MemberList } from "./MemberList";
 import { Legend } from "./Legend";
 import { TileSwitcher } from "./TileSwitcher";
-import { DefaultPopup, MarkerDot } from "./Marker";
+import { DefaultPopup } from "./Marker";
 import { HistoryPanel } from "./HistoryPanel";
 import { PlaybackControls } from "./PlaybackControls";
+import { SpiderOverlay } from "./SpiderOverlay";
 import type { LiveMapProps, LiveMapRef, MapInstance } from "./types";
 import type { GpsPoint, MemberStatus, TileType } from "@/lib/types";
+
+// ─── Cluster layer IDs ────────────────────────────────────────────────────────
+const MEMBERS_SOURCE = "fw-members";
+const LAYER_CLUSTERS = "fw-clusters";
+const LAYER_CLUSTER_COUNT = "fw-cluster-count";
+const LAYER_POINTS = "fw-points";
+
+/** Convert MemberStatus array to GeoJSON FeatureCollection for map source */
+function toGeoJSON(members: MemberStatus[]): unknown {
+  return {
+    type: "FeatureCollection",
+    features: members
+      .filter((m) => m.lat && m.lng)
+      .map((m) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [m.lng, m.lat] },
+        properties: { userId: m.userId, name: m.name, status: m.status },
+      })),
+  };
+}
+
+/** Add GeoJSON source and cluster layers to the map */
+function addClusterLayers(
+  map: MapInstance,
+  data: unknown,
+  clusterRadius: number,
+  clusterMaxZoom: number,
+) {
+  map.addSource(MEMBERS_SOURCE, {
+    type: "geojson",
+    data,
+    cluster: true,
+    clusterRadius,
+    clusterMaxZoom,
+  } as Record<string, unknown>);
+
+  // Cluster circles — color/size steps by point_count
+  map.addLayer({
+    id: LAYER_CLUSTERS,
+    type: "circle",
+    source: MEMBERS_SOURCE,
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": [
+        "step",
+        ["get", "point_count"],
+        "#3b82f6",
+        100,
+        "#f59e0b",
+        500,
+        "#ef4444",
+      ],
+      "circle-radius": [
+        "step",
+        ["get", "point_count"],
+        16,
+        100,
+        24,
+        500,
+        32,
+      ],
+      "circle-opacity": 0.85,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+    },
+  } as Record<string, unknown>);
+
+  // Cluster count labels
+  map.addLayer({
+    id: LAYER_CLUSTER_COUNT,
+    type: "symbol",
+    source: MEMBERS_SOURCE,
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": "{point_count_abbreviated}",
+      "text-size": 13,
+    },
+    paint: { "text-color": "#ffffff" },
+  } as Record<string, unknown>);
+
+  // Individual (unclustered) points — color by status
+  map.addLayer({
+    id: LAYER_POINTS,
+    type: "circle",
+    source: MEMBERS_SOURCE,
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      "circle-color": [
+        "match",
+        ["get", "status"],
+        "moving",
+        "#10b981",
+        "stopped",
+        "#f59e0b",
+        "#94a3b8", // signal_lost fallback
+      ],
+      "circle-radius": 8,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.95,
+    },
+  } as Record<string, unknown>);
+}
 
 const DEFAULT_CENTER: [number, number] = [106.6, 10.8];
 
@@ -75,6 +179,9 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       zoom = 11,
       defaultTile = "terrain",
       pollInterval = 10000,
+      maxUsers = 3000,
+      clusterRadius = 50,
+      clusterMaxZoom = 14,
       members: membersProp,
       memberNameKey,
       showList = true,
@@ -96,24 +203,28 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     const { apiKeyTilemap } = useFleetwork();
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const mapRef = React.useRef<unknown>(null);
-    const markersRef = React.useRef<
-      Map<string, { marker: unknown; el: HTMLDivElement }>
-    >(new Map());
     const popupRef = React.useRef<unknown>(null);
     const popupContainerRef = React.useRef<HTMLDivElement | null>(null);
     const vglRef = React.useRef<VGL | null>(null);
 
+    // Keep cluster config accessible inside stable callbacks
+    const clusterRadiusRef = React.useRef(clusterRadius);
+    const clusterMaxZoomRef = React.useRef(clusterMaxZoom);
+    React.useEffect(() => {
+      clusterRadiusRef.current = clusterRadius;
+    }, [clusterRadius]);
+    React.useEffect(() => {
+      clusterMaxZoomRef.current = clusterMaxZoom;
+    }, [clusterMaxZoom]);
+
     const [tile, setTile] = React.useState<TileType>(defaultTile);
     const [activeUserId, setActiveUserId] = React.useState<string | null>(null);
-    const [popupMember, setPopupMember] = React.useState<MemberStatus | null>(
-      null,
-    );
+    const [popupMember, setPopupMember] = React.useState<MemberStatus | null>(null);
+    const [spiderState, setSpiderState] = React.useState<{
+      centerPx: { x: number; y: number };
+      members: MemberStatus[];
+    } | null>(null);
     const [ready, setReady] = React.useState(false);
-    const [, bumpMarkerVersion] = React.useState<number>(0);
-    const rerender = React.useCallback(
-      () => bumpMarkerVersion((v: number) => v + 1),
-      [],
-    );
 
     // History / playback state
     const [selectedMember, setSelectedMember] =
@@ -140,6 +251,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     const { data: apiMembers = [], isLoading: apiLoading } = useMembers({
       pollInterval,
       nameKey: memberNameKey,
+      maxUsers,
     });
     const members = membersProp ?? apiMembers;
     const isLoading = membersProp != null ? false : apiLoading;
@@ -161,6 +273,46 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     React.useEffect(() => {
       renderPopupRef.current = renderMarkerPopup;
     }, [renderMarkerPopup]);
+
+    const openPopup = React.useCallback((m: MemberStatus) => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (!popupContainerRef.current) {
+        popupContainerRef.current = document.createElement("div");
+      }
+      (popupRef.current as { remove: () => void } | null)?.remove();
+
+      type PopupInstance = {
+        setLngLat: (ll: [number, number]) => PopupInstance;
+        setDOMContent: (el: HTMLElement) => PopupInstance;
+        addTo: (m: unknown) => PopupInstance;
+        remove: () => void;
+        on: (evt: string, h: () => void) => void;
+      };
+      const VGL = vglRef.current;
+      if (!VGL) return;
+      const popup = new (
+        VGL as unknown as {
+          Popup: new (opts: Record<string, unknown>) => PopupInstance;
+        }
+      ).Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 15,
+      });
+
+      popup
+        .setLngLat([m.lng, m.lat])
+        .setDOMContent(popupContainerRef.current!)
+        .addTo(map);
+
+      popup.on("close", () => {
+        setPopupMember(null);
+      });
+
+      popupRef.current = popup;
+      setPopupMember(m);
+    }, []);
 
     // Init map — load VietmapGL from CDN first, then create the map
     React.useEffect(() => {
@@ -200,15 +352,130 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
               onMapReady?.(map as MapInstance);
             }
           };
+
+          // Global click: detect cluster/point hits via queryRenderedFeatures
           const handleClick = (e: unknown) => {
-            const ev = e as { lngLat?: { lng: number; lat: number } };
+            const ev = e as {
+              lngLat?: { lng: number; lat: number };
+              point?: { x: number; y: number };
+            };
+
+            const m = mapRef.current as MapInstance;
+            if (ev.point && m?.queryRenderedFeatures) {
+              const features = m.queryRenderedFeatures(
+                [ev.point.x, ev.point.y],
+                { layers: [LAYER_CLUSTERS, LAYER_POINTS] },
+              );
+
+              if (features && features.length > 0) {
+                const f = features[0];
+
+                if (f.layer.id === LAYER_CLUSTERS) {
+                  const coords = f.geometry.coordinates as [number, number];
+                  m.easeTo({ center: coords, zoom: m.getZoom() + 3, duration: 500 });
+                  return;
+                }
+
+                if (f.layer.id === LAYER_POINTS) {
+                  // Query a small bbox to find ALL points overlapping at this pixel
+                  const px = ev.point as { x: number; y: number };
+                  const bboxFeats = m.queryRenderedFeatures?.(
+                    [[px.x - 12, px.y - 12], [px.x + 12, px.y + 12]] as [[number, number], [number, number]],
+                    { layers: [LAYER_POINTS] },
+                  ) ?? [];
+
+                  // Group by coordinate — points at the same geo position overlap
+                  const clickedCoord = f.geometry.coordinates as [number, number];
+                  const overlapping = bboxFeats.filter((feat) => {
+                    const c = feat.geometry.coordinates as [number, number];
+                    return (
+                      Math.abs(c[0] - clickedCoord[0]) < 0.00002 &&
+                      Math.abs(c[1] - clickedCoord[1]) < 0.00002
+                    );
+                  });
+
+                  if (overlapping.length > 1) {
+                    // Multiple members at same coordinate → spiderfy
+                    const spiderMembers = overlapping
+                      .map((feat) =>
+                        membersRef.current.find(
+                          (x) => x.userId === (feat.properties.userId as string),
+                        ),
+                      )
+                      .filter((x): x is MemberStatus => x != null);
+                    const centerPx = m.project?.(clickedCoord) ?? { x: px.x, y: px.y };
+                    ;(popupRef.current as { remove: () => void } | null)?.remove();
+                    popupRef.current = null;
+                    setPopupMember(null);
+                    setSpiderState({ centerPx, members: spiderMembers });
+                    return;
+                  }
+
+                  // Single point — normal popup
+                  const userId = f.properties.userId as string;
+                  const member = membersRef.current.find((x) => x.userId === userId);
+                  if (member) {
+                    const cb = onMarkerClickRef.current;
+                    const shouldDefault = cb ? cb(member) !== false : true;
+                    if (shouldDefault) {
+                      setSpiderState(null);
+                      setActiveUserId(userId);
+                      openPopup(member);
+                      m.jumpTo({
+                        center: [member.lng, member.lat],
+                        zoom: Math.max(14, m.getZoom()),
+                      });
+                    }
+                  }
+                  return;
+                }
+              }
+            }
+
+            // No feature hit — close spider and fire normal map click
+            setSpiderState(null);
             if (ev.lngLat) {
               onMapClickRef.current?.([ev.lngLat.lng, ev.lngLat.lat]);
             }
           };
 
+          // Cursor: pointer when hovering clusters or individual points
+          const handleMouseMove = (e: unknown) => {
+            const ev = e as { point?: { x: number; y: number } };
+            const m = mapRef.current as MapInstance;
+            const canvas = m?.getCanvas?.();
+            if (!canvas || !ev.point || !m.queryRenderedFeatures) return;
+            const features = m.queryRenderedFeatures(
+              [ev.point.x, ev.point.y],
+              { layers: [LAYER_CLUSTERS, LAYER_POINTS] },
+            );
+            canvas.style.cursor =
+              features && features.length > 0 ? "pointer" : "";
+          };
+
+          // Re-add cluster layers after setStyle clears the map
+          const handleStyleData = () => {
+            const m = mapRef.current as MapInstance;
+            if (!m || m.getSource(MEMBERS_SOURCE)) return;
+            try {
+              addClusterLayers(
+                m,
+                toGeoJSON(membersRef.current),
+                clusterRadiusRef.current,
+                clusterMaxZoomRef.current,
+              );
+            } catch {
+              // Style not fully loaded yet — will succeed on next styledata
+            }
+          };
+
+          const handleMoveStart = () => setSpiderState(null);
+
           map.on("load", handleLoad);
           map.on("click", handleClick);
+          map.on("mousemove", handleMouseMove);
+          map.on("styledata", handleStyleData);
+          map.on("movestart", handleMoveStart);
         })
         .catch((err) => {
           if (!cancelled)
@@ -217,10 +484,6 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
 
       return () => {
         cancelled = true;
-        markersRef.current.forEach(({ marker }) => {
-          (marker as { remove: () => void }).remove();
-        });
-        markersRef.current.clear();
         (popupRef.current as { remove: () => void } | null)?.remove();
         popupRef.current = null;
         if (map) {
@@ -242,82 +505,31 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       );
     }, [tile, apiKeyTilemap, ready]);
 
-    // Sync markers whenever members change
+    // Sync GeoJSON source whenever members change
     React.useEffect(() => {
       if (!ready || !mapRef.current) return;
-      const map = mapRef.current;
-      const current = markersRef.current;
-      const nextIds = new Set(members.map((m: MemberStatus) => m.userId));
-      let changed = false;
+      const map = mapRef.current as MapInstance;
+      const data = toGeoJSON(members);
 
-      // Remove vanished
-      current.forEach((entry, id) => {
-        if (!nextIds.has(id)) {
-          (entry.marker as { remove: () => void }).remove();
-          current.delete(id);
-          changed = true;
+      try {
+        const src = map.getSource(MEMBERS_SOURCE);
+        if (src) {
+          src.setData(data);
+        } else {
+          addClusterLayers(map, data, clusterRadius, clusterMaxZoom);
         }
-      });
+      } catch (e) {
+        console.warn("[LiveMap] cluster source update:", e);
+      }
 
-      // Upsert present
-      members.forEach((m: MemberStatus) => {
-        if (!m.lat || !m.lng) return;
-        const existing = current.get(m.userId);
-        if (existing) {
-          (
-            existing.marker as {
-              setLngLat: (ll: [number, number]) => unknown;
-            }
-          ).setLngLat([m.lng, m.lat]);
-          return;
-        }
-        const el = document.createElement("div");
-        el.style.cursor = "pointer";
-        const VGL = vglRef.current;
-        if (!VGL) return;
-        const marker = new (
-          VGL as unknown as {
-            Marker: new (opts: Record<string, unknown>) => unknown;
-          }
-        ).Marker({ element: el, anchor: "bottom" });
-        (
-          marker as {
-            setLngLat: (ll: [number, number]) => {
-              addTo: (m: unknown) => void;
-            };
-          }
-        )
-          .setLngLat([m.lng, m.lat])
-          .addTo(map);
-
-        el.addEventListener("click", (evt) => {
-          evt.stopPropagation();
-          const cb = onMarkerClickRef.current;
-          const shouldDefault = cb ? cb(m) !== false : true;
-          if (shouldDefault) {
-            setActiveUserId(m.userId);
-            openPopup(m);
-            (mapRef.current as MapInstance).jumpTo({
-              center: [m.lng, m.lat],
-              zoom: Math.max(14, (mapRef.current as MapInstance).getZoom()),
-            });
-          }
-        });
-
-        current.set(m.userId, { marker, el });
-        changed = true;
-      });
-
-      if (changed) rerender();
-
-      // fitBounds to all markers — only the first time we get data
+      // fitBounds to all members — only on first data load
       if (!hasFitInitialRef.current) {
         const pts = members.filter((m) => m.lat && m.lng);
         if (pts.length >= 2) {
           hasFitInitialRef.current = true;
           const lats = pts.map((m) => m.lat);
           const lngs = pts.map((m) => m.lng);
-          (mapRef.current as MapInstance).fitBounds(
+          map.fitBounds(
             [
               [Math.min(...lngs), Math.min(...lats)],
               [Math.max(...lngs), Math.max(...lats)],
@@ -326,7 +538,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           );
         } else if (pts.length === 1) {
           hasFitInitialRef.current = true;
-          (mapRef.current as MapInstance).fitBounds(
+          map.fitBounds(
             [
               [pts[0].lng, pts[0].lat],
               [pts[0].lng, pts[0].lat],
@@ -560,48 +772,6 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       clearHistoryRoute();
     }, [clearHistoryRoute]);
 
-    const openPopup = React.useCallback((m: MemberStatus) => {
-      const map = mapRef.current;
-      if (!map) return;
-      // Create popup container if not exists
-      if (!popupContainerRef.current) {
-        popupContainerRef.current = document.createElement("div");
-      }
-      // Tear down previous popup
-      (popupRef.current as { remove: () => void } | null)?.remove();
-
-      type PopupInstance = {
-        setLngLat: (ll: [number, number]) => PopupInstance;
-        setDOMContent: (el: HTMLElement) => PopupInstance;
-        addTo: (m: unknown) => PopupInstance;
-        remove: () => void;
-        on: (evt: string, h: () => void) => void;
-      };
-      const VGL = vglRef.current;
-      if (!VGL) return;
-      const popup = new (
-        VGL as unknown as {
-          Popup: new (opts: Record<string, unknown>) => PopupInstance;
-        }
-      ).Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 72,
-      });
-
-      popup
-        .setLngLat([m.lng, m.lat])
-        .setDOMContent(popupContainerRef.current!)
-        .addTo(map);
-
-      popup.on("close", () => {
-        setPopupMember(null);
-      });
-
-      popupRef.current = popup;
-      setPopupMember(m);
-    }, []);
-
     // Imperative API
     React.useImperativeHandle(
       ref,
@@ -636,7 +806,6 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       if (!shouldDefault) return;
 
       setActiveUserId(m.userId);
-      // Close any existing popup before flying
       (popupRef.current as { remove: () => void } | null)?.remove();
       popupRef.current = null;
       setPopupMember(null);
@@ -685,6 +854,20 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       >
         <div ref={containerRef} className="h-full w-full" />
 
+        {/* Spiderfy overlay — renders when multiple members share the same coordinate */}
+        {spiderState && (
+          <SpiderOverlay
+            centerPx={spiderState.centerPx}
+            members={spiderState.members}
+            onSelect={(m) => {
+              setSpiderState(null);
+              setActiveUserId(m.userId);
+              openPopup(m);
+            }}
+            onClose={() => setSpiderState(null)}
+          />
+        )}
+
         {showList && (
           <MemberList
             members={members}
@@ -716,22 +899,6 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           />
         )}
 
-        {/* Update markers' DOM content via React portals */}
-        {members.map((m: MemberStatus) => {
-          const entry = markersRef.current.get(m.userId);
-          if (!entry) return null;
-          return createPortal(
-            <MarkerDot
-              member={m}
-              active={activeUserId === m.userId}
-              className={slotProps?.markers?.className}
-              style={slotProps?.markers?.style}
-            />,
-            entry.el,
-            m.userId,
-          );
-        })}
-
         {/* Portal popup content into the vietmap popup container */}
         {popupMember &&
           popupContainerRef.current &&
@@ -743,7 +910,6 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             member={selectedMember}
             onClose={closeHistory}
             onHistoryLoaded={(pts) => {
-              // Update ref synchronously so seekHistory(0) can read it immediately
               historyPointsRef.current = pts;
               setHistoryPoints(pts);
               setPlayIndex(0);

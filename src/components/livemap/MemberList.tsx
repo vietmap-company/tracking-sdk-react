@@ -15,6 +15,8 @@ import { useFleetwork } from "@/provider/FleetworkProvider";
 import type { MemberStatus } from "@/lib/types";
 import { STATUS_BG } from "./statusColors";
 
+const PAGE_SIZE = 50;
+
 export interface MemberListProps {
   members: MemberStatus[];
   isLoading: boolean;
@@ -52,12 +54,39 @@ export function MemberList({
   const { t } = useFleetwork();
   const [query, setQuery] = React.useState("");
   const [collapsed, setCollapsed] = React.useState(false);
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
 
   const filtered = React.useMemo(() => {
+    const STATUS_ORDER: Record<string, number> = { moving: 0, stopped: 1, signal_lost: 2 };
     const q = query.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter((m) => m.name.toLowerCase().includes(q));
+    const base = q ? members.filter((m) => m.name.toLowerCase().includes(q)) : members;
+    return [...base].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3));
   }, [members, query]);
+
+  // Reset visible count when filter changes
+  React.useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [query]);
+
+  // IntersectionObserver — load more when sentinel enters viewport
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length));
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filtered.length]);
+
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   if (collapsed) {
     return (
@@ -134,104 +163,110 @@ export function MemberList({
       <Separator className="mx-3 w-auto" />
 
       {/* List */}
-      <div className="min-h-0 overflow-y-auto">
-        {isLoading ? (
-          <div className="space-y-1 p-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+      {isLoading ? (
+        <div className="space-y-1 p-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 rounded-xl px-2 py-2.5"
+            >
+              <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-2.5 w-36" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+          <SignalZero className="h-9 w-9 opacity-30" />
+          <span className="text-xs font-medium text-muted-foreground">
+            {t("common.noData")}
+          </span>
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {visible.map((m) => {
+            const isActive = activeUserId === m.userId;
+            const defaultItem = (
               <div
-                key={i}
-                className="flex items-center gap-3 rounded-xl px-2 py-2.5"
+                className={cn(
+                  "relative flex items-center gap-3 px-4 py-2.5 transition-colors",
+                  isActive ? "bg-primary/8" : "hover:bg-muted/60",
+                )}
               >
-                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-3 w-28" />
-                  <Skeleton className="h-2.5 w-36" />
+                {/* Active indicator bar */}
+                {isActive && (
+                  <span className="absolute top-2 bottom-2 left-0 w-0.75 rounded-r-full bg-primary" />
+                )}
+
+                {/* Avatar + status dot */}
+                <div className="relative shrink-0">
+                  <Avatar
+                    src={m.avatarUrl ?? undefined}
+                    alt={m.name}
+                    fallback={m.name}
+                    size={36}
+                  />
+                  <span
+                    className={cn(
+                      "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card",
+                      STATUS_BG[m.status],
+                    )}
+                  />
+                </div>
+
+                {/* Info */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[13px] font-semibold text-foreground">
+                      {m.name}
+                    </span>
+                    {m.status !== "moving" && m.lastSeenAt && (
+                      <Badge
+                        variant={
+                          m.status === "signal_lost"
+                            ? "signal_lost"
+                            : "stopped"
+                        }
+                        className="shrink-0 rounded-full px-2 text-[10px] font-normal"
+                      >
+                        {formatLastSeen(m.lastSeenAt)}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                    {m.lastAddress ?? "—"}
+                  </div>
                 </div>
               </div>
-            ))}
+            );
+
+            const content = renderItem ? renderItem(m, defaultItem) : defaultItem;
+
+            return (
+              <div
+                key={m.userId}
+                onClick={() => onItemClick?.(m)}
+                className="cursor-pointer"
+              >
+                {content}
+              </div>
+            );
+          })}
+
+          {/* Sentinel — triggers load-more when scrolled into view */}
+          <div ref={sentinelRef} className="py-2 text-center">
+            {hasMore && (
+              <span className="text-[11px] text-muted-foreground">
+                {filtered.length - visibleCount} người nữa...
+              </span>
+            )}
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-            <SignalZero className="h-9 w-9 opacity-30" />
-            <span className="text-xs font-medium text-muted-foreground">
-              {t("common.noData")}
-            </span>
-          </div>
-        ) : (
-          <ul className="py-1.5">
-            {filtered.map((m) => {
-              const isActive = activeUserId === m.userId;
-              const defaultItem = (
-                <div
-                  className={cn(
-                    "relative flex items-center gap-3 px-4 py-2.5 transition-colors",
-                    isActive ? "bg-primary/8" : "hover:bg-muted/60",
-                  )}
-                >
-                  {/* Active indicator bar */}
-                  {isActive && (
-                    <span className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-full bg-primary" />
-                  )}
-
-                  {/* Avatar + status dot */}
-                  <div className="relative shrink-0">
-                    <Avatar
-                      src={m.avatarUrl ?? undefined}
-                      alt={m.name}
-                      fallback={m.name}
-                      size={36}
-                    />
-                    <span
-                      className={cn(
-                        "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card",
-                        STATUS_BG[m.status],
-                      )}
-                    />
-                  </div>
-
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-[13px] font-semibold text-foreground">
-                        {m.name}
-                      </span>
-                      {m.status !== "moving" && m.lastSeenAt && (
-                        <Badge
-                          variant={
-                            m.status === "signal_lost"
-                              ? "signal_lost"
-                              : "stopped"
-                          }
-                          className="shrink-0 rounded-full px-2 text-[10px] font-normal"
-                        >
-                          {formatLastSeen(m.lastSeenAt)}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                      {m.lastAddress ?? "—"}
-                    </div>
-                  </div>
-                </div>
-              );
-
-              const content = renderItem
-                ? renderItem(m, defaultItem)
-                : defaultItem;
-              return (
-                <li
-                  key={m.userId}
-                  onClick={() => onItemClick?.(m)}
-                  className="cursor-pointer"
-                >
-                  {content}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

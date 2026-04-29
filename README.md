@@ -1,8 +1,6 @@
 # @vietmap/tracking-sdk-react
 
-React SDK for **Fleetwork GPS Tracking** — drop-in **Dashboard** & **LiveMap** components, React Query hooks, and framework-agnostic controllers.
-
-📖 **Full documentation:** [https://fleetwork.vn/docs/sdk](https://fleetwork.vn/docs/sdk)
+React SDK for **GPS Tracking** — drop-in **Dashboard**, **LiveMap**, and **Report** components built on React Query and VietmapGL.
 
 ## Install
 
@@ -30,8 +28,8 @@ export default function App() {
     <FleetworkProvider
       apiKey="YOUR_API_TOKEN"
       apiKeyTilemap="YOUR_VIETMAP_TILE_KEY"
-      baseUrl="https://live.fleetwork.vn"   // optional
-      locale="vi"                            // 'vi' | 'en'
+      baseUrl="https://your-api-server.com"
+      locale="vi"
     >
       <Dashboard />
       <LiveMap height="600px" memberNameKey="userName" />
@@ -41,88 +39,180 @@ export default function App() {
 }
 ```
 
-> Full API reference, design guide and live examples are on the [docs site](https://fleetwork.vn/docs/sdk).
-
-## Provider config
+## Provider
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `apiKey` | `string` | — | Fleetwork API token (`X-API-Key`) |
-| `apiKeyTilemap` | `string` | — | VietMap tile key |
-| `baseUrl` | `string` | `https://live.fleetwork.vn` | API base URL, SDK automatically appends `/api/v1/` |
+| `apiKey` | `string` | — | API token (`X-API-Key` header) |
+| `apiKeyTilemap` | `string` | — | VietMap tile key for map rendering |
+| `baseUrl` | `string` | — | API base URL — SDK appends `/api/v1/` automatically |
 | `locale` | `'vi' \| 'en'` | `'vi'` | UI language |
-| `theme` | `ThemeConfig` | — | CSS variable overrides |
+| `theme` | `ThemeConfig` | — | CSS variable overrides (see Theming) |
 
 ## Components
 
 ### `<Dashboard />`
 
-All-in-one dashboard with 5 widgets:
-- `SummaryCards` — total distance / travel time / fuel cost
-- `MemberReport` — per-user table with pagination
-- `ActivityHeatmap` — hourly activity for date range
-- `FuelTracking` — fuel consumption chart
-- `MonthlyExpenses` — category breakdown
+All-in-one dashboard with 5 widgets. Each widget can also be imported standalone.
 
-Each widget can also be imported standalone.
-
-### `<Report />`
-
-All-in-one report hub. Landing page with 3 cards → click into a report type:
-
-- **Báo cáo hành trình** (Trip) — 2 tabs: Summary / Detail
-- **Báo cáo tiêu thụ nhiên liệu** (Fuel) — 2 tabs: Summary / Detail
-- **Báo cáo thời gian hoạt động** (Activity time) — single table
+| Widget | Description |
+|---|---|
+| `SummaryCards` | Total distance / travel time / fuel cost for a date |
+| `MemberReport` | Per-user table with pagination and status badges |
+| `ActivityHeatmap` | Hourly activity heatmap over a date range |
+| `FuelTracking` | Fuel consumption bar/line chart |
+| `MonthlyExpenses` | Monthly cost breakdown chart |
 
 ```tsx
-<Report from={Date.now() - 30 * 86400_000} to={Date.now()} />
+import { SummaryCards, MemberReport } from '@vietmap/tracking-sdk-react'
+
+<SummaryCards date={Date.now()} pollInterval={30_000} />
+<MemberReport pageSize={20} onRowClick={(m) => console.log(m)} />
 ```
 
-Sub-reports can also be used standalone (all accept `range`, `onRangeChange`, `onBack`, `onError`, `pageSize`):
-`TripSummaryReport`, `TripDetailReport`, `FuelSummaryReport`, `FuelDetailReport`, `ActivityTimeReport`.
+---
 
 ### `<LiveMap />`
 
-Real-time fleet map with:
-- Auto-polling member positions (`pollInterval`, default 10s)
-- Member list sidebar, tile switcher, legend
-- Click a member → popup → **View History** → playback controls with traveled/remaining route
-- `ref` exposes `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`
-- `memberNameKey` — key inside `lastLocation.metadata` used as the display name (fallback: first 5 chars of `userId`)
+Real-time fleet map backed by VietmapGL with GPU-accelerated clustering.
+
+**Key features:**
+- Auto-polling member positions (`pollInterval`, default 10 s)
+- GeoJSON clustering — renders 3 000+ markers as GL circle layers (no DOM nodes), zoom to expand clusters
+- Spiderfy — click overlapping markers at the same coordinate to fan them out and select individually
+- Member sidebar — infinite scroll, sorted **moving → stopped → signal lost**, with live search
+- Tile switcher (terrain / satellite / road)
+- Click a marker → popup → **View History** → animated playback with traveled/remaining route overlay
+- `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`
 
 ```tsx
+import { useRef } from 'react'
+import { LiveMap, type LiveMapRef, type MemberStatus } from '@vietmap/tracking-sdk-react'
+
 const mapRef = useRef<LiveMapRef>(null)
+
 <LiveMap
   ref={mapRef}
-  pollInterval={5000}
+  height="600px"
+  center={[106.63, 10.82]}
+  zoom={6}
   defaultTile="terrain"
-  onMarkerClick={(m) => console.log(m)}
+  pollInterval={10_000}
+  maxUsers={3000}
+  clusterRadius={50}
+  clusterMaxZoom={14}
+  memberNameKey="userName"
+  showList
+  showLegend
+  showTileSwitcher
+  onMapReady={(map) => console.log('ready', map.getZoom())}
+  onMarkerClick={(m: MemberStatus) => console.log(m.name)}
 />
 ```
 
-## Hooks (React Query)
+**`LiveMapProps`**
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `height` | `string` | `'100dvh'` | Map container height |
+| `center` | `[lng, lat]` | `[106.6, 10.8]` | Initial map center |
+| `zoom` | `number` | `11` | Initial zoom level |
+| `defaultTile` | `'terrain' \| 'satellite' \| 'road'` | `'terrain'` | Map tile style |
+| `pollInterval` | `number` | `10000` | Member position refresh interval (ms) |
+| `maxUsers` | `number` | `3000` | Max users fetched per poll |
+| `clusterRadius` | `number` | `50` | Cluster radius in pixels |
+| `clusterMaxZoom` | `number` | `14` | Zoom level at which clustering stops |
+| `memberNameKey` | `string` | — | Key in `lastLocation.metadata` to use as display name |
+| `members` | `MemberStatus[]` | — | Override with local data (skips API polling) |
+| `showList` | `boolean` | `true` | Show member sidebar |
+| `showLegend` | `boolean` | `true` | Show status legend |
+| `showTileSwitcher` | `boolean` | `true` | Show tile switcher control |
+| `onMarkerClick` | `(m) => void \| boolean` | — | Marker click callback; return `false` to suppress default popup |
+| `onMemberClick` | `(m) => void \| boolean` | — | Sidebar item click callback |
+| `onMapClick` | `([lng, lat]) => void` | — | Map background click |
+| `onMapReady` | `(map) => void` | — | Fires once after map loads |
+| `renderMarkerPopup` | `(m) => ReactNode` | — | Custom popup content |
+| `renderMemberItem` | `(m, default) => ReactNode` | — | Custom sidebar row renderer |
+
+**`LiveMapRef` (imperative API)**
 
 ```tsx
-const { data } = useSummaryCards()
-const { data } = useMemberReport()
-const { data } = useActivityHeatmap({ from, to })
-const { data } = useFuelTracking({ from, to })
-const { data } = useMonthlyExpenses({ from, to })
-const { data } = useMembers({ pollInterval: 10000 })
+mapRef.current?.flyTo([106.63, 10.82], 14)
+mapRef.current?.fitBounds([[102, 8], [110, 23]])
+mapRef.current?.focusMember('user-123')   // fly to + open popup
+mapRef.current?.getMembers()              // MemberStatus[]
+mapRef.current?.getMap()                  // MapInstance
+```
+
+---
+
+### `<Report />`
+
+All-in-one report hub. Landing page with 3 cards → navigate into report types.
+
+| Report | Tabs | Description |
+|---|---|---|
+| Trip | Summary / Detail | Per-user trip totals and individual trip rows |
+| Fuel | Summary / Detail | Fuel consumption and cost per user/trip |
+| Activity time | — | Hourly active/inactive counts and distance |
+
+All report tables include row numbers, zebra striping, right-aligned numeric columns, sortable headers, and paginator with page number buttons + first/last navigation.
+
+```tsx
+<Report from={Date.now() - 30 * 86_400_000} to={Date.now()} />
+```
+
+Sub-reports can also be used standalone:
+
+```tsx
+import {
+  TripSummaryReport,
+  TripDetailReport,
+  FuelSummaryReport,
+  FuelDetailReport,
+  ActivityTimeReport,
+} from '@vietmap/tracking-sdk-react'
+
+// All accept: range, onRangeChange, onBack, onError, pageSize
+<TripSummaryReport
+  range={{ from, to }}
+  onRangeChange={setRange}
+  pageSize={20}
+/>
+```
+
+---
+
+## Hooks (React Query)
+
+All hooks require `FleetworkProvider` in the tree. They return `{ data, isLoading, error, refetch, isFetching }`.
+
+```tsx
+// Dashboard
+const { data } = useSummaryCards({ date?, pollInterval? })
+const { data } = useMemberReport({ date?, page?, pageSize?, status? })
+const { data } = useActivityHeatmap({ from?, to?, metric? })
+const { data } = useFuelTracking({ from?, to?, groupBy? })
+const { data } = useMonthlyExpenses({ from?, to?, currency? })
+
+// LiveMap
+const { data } = useMembers({ pollInterval?, nameKey?, maxUsers? })
 const { data } = useMember(userId)
 const { data } = useHistoryRoute({ userId, startTime, endTime })
 
 // Reports
-const { data } = useTripSummaryReport({ from, to })
-const { data } = useTripDetailReport({ from, to })
-const { data } = useFuelSummaryReport({ from, to })
-const { data } = useFuelDetailReport({ from, to })
-const { data } = useActivityTimeReport({ from, to })
+const { data } = useTripSummaryReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
+const { data } = useTripDetailReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
+const { data } = useFuelSummaryReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
+const { data } = useFuelDetailReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
+const { data } = useActivityTimeReport({ from, to, page?, pageSize? })
 ```
+
+---
 
 ## Controllers (framework-agnostic)
 
-Use outside React (Zustand, Redux, Node scripts):
+Use outside React — in Zustand actions, Redux thunks, Node scripts, or any non-React context.
 
 ```ts
 import {
@@ -132,27 +222,36 @@ import {
   ReportController,
 } from '@vietmap/tracking-sdk-react'
 
-initFleetwork({ apiKey: '...', apiKeyTilemap: '...' })
+initFleetwork({ apiKey: '...', apiKeyTilemap: '...', baseUrl: '...' })
 
-const summary = await DashboardController.getSummaryCards()
-const members = await LiveMapController.getMembers()
-const history = await LiveMapController.getHistoryRoute(userId, from, to)
+const summary    = await DashboardController.getSummaryCards()
+const members    = await LiveMapController.getMembers({ pageSize: 3000 })
+const history    = await LiveMapController.getHistoryRoute(userId, from, to)
 const tripReport = await ReportController.getTripSummary({ from, to })
+const fuelReport = await ReportController.getFuelSummary({ from, to })
 ```
+
+---
 
 ## Theming
 
-Override CSS variables via `theme`:
+Override CSS variables via the `theme` prop:
 
 ```tsx
 <FleetworkProvider
   theme={{
-    colors: { primary: '#2563eb', background: '#0f172a', text: '#f1f5f9' },
+    colors: {
+      primary: '#2563eb',
+      background: '#0f172a',
+      text: '#f1f5f9',
+    },
     borderRadius: 8,
     fontFamily: 'Inter, sans-serif',
   }}
-/>
+>
 ```
+
+---
 
 ## Build
 
@@ -161,12 +260,13 @@ pnpm install
 pnpm build
 ```
 
-Outputs `dist/tracking-sdk-react.{js,cjs}`, `dist/index.d.ts`, `dist/tracking-sdk-react.css`.
+Outputs:
+- `dist/tracking-sdk-react.js` (ESM)
+- `dist/tracking-sdk-react.cjs` (CommonJS)
+- `dist/index.d.ts` (TypeScript declarations)
+- `dist/tracking-sdk-react.css` (styles)
 
-## Links
-
-- 📖 [Documentation](https://fleetwork.vn/docs/sdk)
-- 🐛 [Report an issue](https://github.com/vietmap-company/tracking-sdk-react/issues)
+---
 
 ## License
 

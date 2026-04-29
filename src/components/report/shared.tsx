@@ -1,12 +1,12 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useFleetwork } from "@/provider/FleetworkProvider";
-import { cn } from "@/lib/utils";
+import { cn, getPageNumbers } from "@/lib/utils";
 
 export interface ReportShellProps {
   title: string;
@@ -52,31 +52,80 @@ export interface PaginationBarProps {
 export function PaginationBar({ page, totalPages, onChange }: PaginationBarProps) {
   const { t } = useFleetwork();
   if (totalPages <= 1) return null;
+  const pages = getPageNumbers(page, totalPages);
   return (
     <div className="mt-4 flex items-center justify-between gap-2">
       <span className="text-xs text-muted-foreground">
-        {t("report.page")} <span className="font-semibold text-foreground">{page}</span> {t("report.of")} {totalPages}
+        {t("report.page")}{" "}
+        <span className="font-semibold text-foreground">{page}</span>{" "}
+        {t("report.of")} {totalPages}
       </span>
-      <div className="flex items-center gap-1.5">
+
+      <div className="flex items-center gap-1">
+        {/* First page */}
         <Button
           variant="outline"
           size="sm"
+          className="h-8 w-8 p-0"
           disabled={page <= 1}
-          onClick={() => onChange(Math.max(1, page - 1))}
-          className="rounded-full"
+          onClick={() => onChange(1)}
         >
-          <ChevronLeft className="h-4 w-4" />
-          {t("report.prev")}
+          <ChevronsLeft className="h-3.5 w-3.5" />
         </Button>
+
+        {/* Prev */}
         <Button
           variant="outline"
           size="sm"
-          disabled={page >= totalPages}
-          onClick={() => onChange(Math.min(totalPages, page + 1))}
-          className="rounded-full"
+          className="h-8 w-8 p-0"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
         >
-          {t("report.next")}
-          <ChevronRight className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+
+        {/* Page numbers */}
+        {pages.map((p, i) =>
+          p === "..." ? (
+            <span
+              key={`ellipsis-${i}`}
+              className="flex h-8 w-6 items-center justify-center text-xs text-muted-foreground"
+            >
+              …
+            </span>
+          ) : (
+            <Button
+              key={p}
+              variant={p === page ? "default" : "outline"}
+              size="sm"
+              className="h-8 min-w-8 px-2 text-xs"
+              onClick={() => onChange(p as number)}
+            >
+              {p}
+            </Button>
+          ),
+        )}
+
+        {/* Next */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+
+        {/* Last page */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0"
+          disabled={page >= totalPages}
+          onClick={() => onChange(totalPages)}
+        >
+          <ChevronsRight className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

@@ -22,7 +22,17 @@ export type MapInstance = {
   getLayer: (id: string) => unknown | undefined;
   removeLayer: (id: string) => void;
   getBounds: () => { contains: (lngLat: [number, number]) => boolean };
-  easeTo: (opts: { center: [number, number]; duration?: number }) => void;
+  easeTo: (opts: { center: [number, number]; zoom?: number; duration?: number }) => void;
+  queryRenderedFeatures?: (
+    geometry: [number, number] | [[number, number], [number, number]],
+    options?: { layers?: string[] },
+  ) => Array<{
+    layer: { id: string };
+    geometry: { type: string; coordinates: unknown };
+    properties: Record<string, unknown>;
+  }>;
+  project?: (lngLat: [number, number]) => { x: number; y: number };
+  getCanvas?: () => HTMLCanvasElement;
 };
 
 export interface LiveMapSlotProps {
@@ -46,6 +56,12 @@ export interface LiveMapProps {
   zoom?: number;
   defaultTile?: TileType;
   pollInterval?: number;
+  /** Maximum number of users to fetch from the API. Default: 3000 */
+  maxUsers?: number;
+  /** Cluster radius in pixels. Default: 50 */
+  clusterRadius?: number;
+  /** Maximum zoom level at which clustering is applied. Default: 14 */
+  clusterMaxZoom?: number;
 
   /** Override members with local/mock data — skips API polling */
   members?: MemberStatus[];

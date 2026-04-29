@@ -169,16 +169,18 @@ export function useMonthlyExpenses(
 export interface UseMembersOptions extends BaseOptions {
   /** Key inside lastLocation.metadata to use as member display name */
   nameKey?: string
+  /** Maximum number of users to fetch (maps to API pageSize). Default: 3000 */
+  maxUsers?: number
 }
 
 export function useMembers(
   options: UseMembersOptions = {}
 ): QueryResult<MemberStatus[]> {
   const { apiKey } = useFleetwork()
-  const { nameKey } = options
+  const { nameKey, maxUsers } = options
   const q = useQuery({
-    queryKey: ['fw', apiKey, 'members', nameKey],
-    queryFn: () => LiveMapController.getMembers({ nameKey }),
+    queryKey: ['fw', apiKey, 'members', nameKey, maxUsers],
+    queryFn: () => LiveMapController.getMembers({ nameKey, pageSize: maxUsers }),
     enabled: options.enabled ?? true,
     refetchInterval: refetch(options.pollInterval),
   })

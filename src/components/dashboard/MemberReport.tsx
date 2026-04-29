@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardList } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { useMemberReport } from "@/hooks";
 import { useFleetwork } from "@/provider/FleetworkProvider";
-import { cn, formatNumber } from "@/lib/utils";
+import { cn, formatNumber, getPageNumbers } from "@/lib/utils";
 import type { MemberReportData, MemberRow } from "@/lib/types";
 
 export interface MemberReportProps {
@@ -89,15 +89,16 @@ export function MemberReport({
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-lg">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
           <Table containerClassName="h-full overflow-y-auto">
-            <TableHeader className="sticky top-0 z-10 bg-card">
+            <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
               <TableRow>
+                <TableHead className="w-10 text-center font-normal text-muted-foreground">#</TableHead>
                 <TableHead>{t("report.col.employee")}</TableHead>
-                <TableHead>{t("report.col.distance")}</TableHead>
-                <TableHead>{t("report.col.travelTime")}</TableHead>
-                <TableHead>{t("report.col.fuel")}</TableHead>
-                <TableHead>{t("report.col.fuelCost")}</TableHead>
+                <TableHead className="text-right">{t("report.col.distance")}</TableHead>
+                <TableHead className="text-right">{t("report.col.travelTime")}</TableHead>
+                <TableHead className="text-right">{t("report.col.fuel")}</TableHead>
+                <TableHead className="text-right">{t("report.col.fuelCost")}</TableHead>
                 <TableHead>{t("report.col.status")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -105,7 +106,7 @@ export function MemberReport({
               {isLoading ? (
                 Array.from({ length: pageSize }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((__, j) => (
+                    {Array.from({ length: 7 }).map((__, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-20" />
                       </TableCell>
@@ -114,83 +115,78 @@ export function MemberReport({
                 ))
               ) : members.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="py-8 text-center text-muted-foreground"
-                  >
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     {t("report.empty")}
                   </TableCell>
                 </TableRow>
               ) : (
-                members.map((m) => (
-                  <TableRow
-                    key={m.userId}
-                    onClick={() => onRowClick?.(m)}
-                    className={cn(onRowClick && "cursor-pointer")}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {(() => {
-                          const meta = m.metaData as Record<string, string> | undefined
-                          const displayName = meta?.userName ?? m.name ?? m.userId
-                          const avatar = meta?.userAvatar ?? m.avatarUrl ?? undefined
-                          return (
-                            <>
-                              <Avatar
-                                src={avatar}
-                                alt={displayName}
-                                fallback={displayName}
-                                size={28}
-                              />
-                              <span className="font-medium text-foreground">
-                                {displayName}
-                              </span>
-                            </>
-                          )
-                        })()}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatNumber(m.distance.value, 1)}</TableCell>
-                    <TableCell>{m.travelTime.formatted}</TableCell>
-                    <TableCell>
-                      {formatNumber(m.fuel.consumedLiters, 1)}
-                    </TableCell>
-                    <TableCell>
-                      {formatNumber(m.fuel.costVnd / 1_000_000, 2)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={m.status}>{m.statusLabel}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
+                members.map((m, i) => {
+                  const meta = m.metaData as Record<string, string> | undefined
+                  const displayName = meta?.userName ?? m.name ?? m.userId
+                  const avatar = meta?.userAvatar ?? m.avatarUrl ?? undefined
+                  return (
+                    <TableRow
+                      key={m.userId}
+                      onClick={() => onRowClick?.(m)}
+                      className={cn(
+                        i % 2 === 1 ? "bg-muted/30" : "",
+                        onRowClick && "cursor-pointer",
+                      )}
+                    >
+                      <TableCell className="w-10 text-center text-xs tabular-nums text-muted-foreground">
+                        {(page - 1) * pageSize + i + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar src={avatar} alt={displayName} fallback={displayName} size={28} />
+                          <span className="font-medium text-foreground">{displayName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(m.distance.value, 1)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{m.travelTime.formatted}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(m.fuel.consumedLiters, 1)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(m.fuel.costVnd / 1_000_000, 2)}</TableCell>
+                      <TableCell>
+                        <Badge variant={m.status}>{m.statusLabel}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
         </div>
 
         {totalPages > 1 && (
-          <div className="mt-3 flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              {t("report.prev")}
-            </Button>
+          <div className="mt-3 flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">
-              {t("report.page")} {page} {t("report.of")} {totalPages}
+              {t("report.page")}{" "}
+              <span className="font-semibold text-foreground">{page}</span>{" "}
+              {t("report.of")} {totalPages}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              {t("report.next")}
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page <= 1} onClick={() => setPage(1)}>
+                <ChevronsLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              {getPageNumbers(page, totalPages).map((p, i) =>
+                p === "..." ? (
+                  <span key={`e-${i}`} className="flex h-8 w-6 items-center justify-center text-xs text-muted-foreground">…</span>
+                ) : (
+                  <Button key={p} variant={p === page ? "default" : "outline"} size="sm" className="h-8 min-w-8 px-2 text-xs" onClick={() => setPage(p as number)}>
+                    {p}
+                  </Button>
+                ),
+              )}
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>
+                <ChevronsRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

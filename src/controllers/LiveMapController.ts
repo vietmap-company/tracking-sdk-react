@@ -11,6 +11,8 @@ export interface GetMembersOptions {
   client?: AxiosInstance;
   /** Key inside lastLocation.metadata to use as member display name */
   nameKey?: string;
+  /** Number of users to fetch per page. Default: 3000 */
+  pageSize?: number;
 }
 
 function parseMeta(raw?: string | null): Record<string, string> {
@@ -74,7 +76,7 @@ export const LiveMapController = {
     const data = await request<GpsUsersResponse>(c(options), {
       method: "GET",
       url: "gps-tracking/users",
-      params: { pageSize: 1000 },
+      params: { pageSize: options.pageSize ?? 3000 },
     });
     return data.users.map((row) => rowToMember(row, options.nameKey));
   },

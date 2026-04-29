@@ -24,6 +24,14 @@ export function daysAgoMs(days: number): number {
   return Date.now() - days * 24 * 60 * 60 * 1000
 }
 
+/** Generate page number array with ellipsis — mirrors driver-connect getPageNumbers */
+export function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  if (current <= 4) return [1, 2, 3, 4, 5, '...', total]
+  if (current >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, '...', current - 1, current, current + 1, '...', total]
+}
+
 export function formatNumber(value: number, fractionDigits = 0): string {
   return new Intl.NumberFormat('vi-VN', {
     maximumFractionDigits: fractionDigits,
