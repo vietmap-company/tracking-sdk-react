@@ -8,13 +8,14 @@ import { PageReport } from '@/example/pages/PageReport'
 import { PageController } from '@/example/pages/PageController'
 
 const API_KEY = import.meta.env.VITE_API_KEY ?? 'demo-key'
-const BASE_URL = import.meta.env.VITE_BASE_URL ?? 'http://localhost:3001'
+// baseUrl không cần set — mặc định là https://live.fleetwork.vn/api/v1
+const BASE_URL = import.meta.env.VITE_BASE_URL
 
 function App() {
   return (
-    <SdkKeyGate apiKey={API_KEY} baseUrl={BASE_URL}>
+    <SdkKeyGate apiKey={API_KEY} baseUrl={BASE_URL ?? ''}>
       {({ apiKey, baseUrl }) => (
-        <FleetworkProvider apiKey={apiKey} baseUrl={baseUrl} locale="vi">
+        <FleetworkProvider apiKey={apiKey} baseUrl={baseUrl || undefined} locale="vi">
           <AppShell>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

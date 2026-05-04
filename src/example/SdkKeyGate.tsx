@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Boxes } from 'lucide-react'
 
+const DEFAULT_BASE_URL = 'https://live.fleetwork.vn/api/v1'
+
 interface SdkKeyGateProps {
   apiKey: string
   baseUrl: string
@@ -15,9 +17,9 @@ interface SdkKeyGateProps {
 export function SdkKeyGate({ apiKey: defaultApiKey, baseUrl: defaultBaseUrl, children }: SdkKeyGateProps) {
   const [submitted, setSubmitted] = useState(false)
   const [apiKey, setApiKey] = useState(defaultApiKey)
-  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl)
+  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl || DEFAULT_BASE_URL)
 
-  // Auto-submit if env vars are already set
+  // Auto-submit nếu đã có API key từ env
   if (submitted || (defaultApiKey && defaultApiKey !== 'demo-key')) {
     return <>{children({ apiKey, baseUrl })}</>
   }
@@ -32,13 +34,10 @@ export function SdkKeyGate({ apiKey: defaultApiKey, baseUrl: defaultBaseUrl, chi
             </div>
           </div>
           <CardTitle className="text-xl">Fleetwork SDK</CardTitle>
-          <CardDescription>Configure your API connection to get started</CardDescription>
+          <CardDescription>Nhập API Key để bắt đầu</CardDescription>
         </CardHeader>
         <CardContent>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => { e.preventDefault(); setSubmitted(true) }}
-          >
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setSubmitted(true) }}>
             <div className="space-y-1.5">
               <Label htmlFor="apiKey">API Key</Label>
               <Input
@@ -53,16 +52,16 @@ export function SdkKeyGate({ apiKey: defaultApiKey, baseUrl: defaultBaseUrl, chi
               <Label htmlFor="baseUrl">Base URL</Label>
               <Input
                 id="baseUrl"
-                placeholder="http://localhost:3001"
+                placeholder={DEFAULT_BASE_URL}
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Run <code className="bg-muted px-1 rounded text-xs font-mono">node mock-server/server.mjs</code> locally
+                Mặc định: <code className="bg-muted px-1 rounded font-mono">{DEFAULT_BASE_URL}</code>
               </p>
             </div>
-            <Button type="submit" className="w-full" disabled={!apiKey || !baseUrl}>
-              Connect
+            <Button type="submit" className="w-full" disabled={!apiKey}>
+              Kết nối
             </Button>
           </form>
         </CardContent>

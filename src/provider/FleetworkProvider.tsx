@@ -21,7 +21,7 @@ export interface FleetworkProviderProps extends FleetworkConfig {
   children: React.ReactNode;
 }
 
-const DEFAULT_BASE_URL = "https://dricon.fastmap.vn";
+const DEFAULT_BASE_URL = 'https://live.fleetwork.vn/api/v1';
 
 export function FleetworkProvider({
   apiKey,

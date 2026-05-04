@@ -32,17 +32,9 @@ import "@vietmap/tracking-sdk-react/styles.css"
 
 export default function App() {
   return (
-    <FleetworkProvider
-      apiKey="YOUR_API_TOKEN"
-      baseUrl="https://your-api-server.com"
-      locale="vi"
-    >
+    <FleetworkProvider apiKey="YOUR_API_TOKEN">
       <Dashboard />
-      <LiveMap
-        apiKeyTilemap="YOUR_VIETMAP_TILE_KEY"
-        height="600px"
-        memberNameKey="userName"
-      />
+      <LiveMap apiKeyTilemap="YOUR_VIETMAP_TILE_KEY" height="600px" memberNameKey="userName" />
       <Report />
     </FleetworkProvider>
   )
@@ -56,11 +48,12 @@ export default function App() {
 | Prop | Type | Mặc định | Mô tả |
 |---|---|---|---|
 | `apiKey` | `string` | — | API token (gửi qua header `X-API-Key`) |
-| `baseUrl` | `string` | — | Base URL của API server |
+| `baseUrl` | `string` | `"https://live.fleetwork.vn/api/v1"` | Base URL của API server |
 | `locale` | `"vi" \| "en"` | `"vi"` | Ngôn ngữ giao diện |
 | `theme` | `ThemeConfig` | — | Tuỳ chỉnh CSS variables (xem Theming) |
 
-> **Lưu ý:** `apiKeyTilemap` truyền trực tiếp vào prop của `<LiveMap>`, không qua Provider.
+> `baseUrl` và `locale` là optional — chỉ truyền khi cần override mặc định.  
+> `apiKeyTilemap` truyền trực tiếp vào prop của `<LiveMap>`, không qua Provider.
 
 ---
 
