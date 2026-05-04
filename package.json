@@ -1,16 +1,67 @@
 {
-  "name": "sdk",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@vietmap/tracking-sdk-react",
+  "version": "1.1.0",
+  "description": "React SDK for DriveConnect — drop-in Dashboard, LiveMap, and Report components with VietmapGL.",
   "type": "module",
+  "main": "./dist/tracking-sdk-react.cjs",
+  "module": "./dist/tracking-sdk-react.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "**/*.css",
+    "./dist/tracking-sdk-react.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/tracking-sdk-react.js",
+      "require": "./dist/tracking-sdk-react.cjs"
+    },
+    "./styles.css": "./dist/tracking-sdk-react.css"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build:lib": "vite build --mode lib",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vietmap-company/tracking-sdk-react.git"
+  },
+  "author": "VietMap",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "vietmap",
+    "fleetworks",
+    "tracking-sdk",
+    "gps",
+    "tracking",
+    "dashboard",
+    "livemap",
+    "report",
+    "react",
+    "sdk"
+  ],
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -36,37 +87,26 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@tailwindcss/vite": "^4.2.4",
+    "axios": "^1.16.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
     "lucide-react": "^1.14.0",
-    "next-themes": "^0.4.6",
-    "react": "^19.2.5",
     "react-day-picker": "^9.14.0",
-    "react-dom": "^19.2.5",
-    "react-hook-form": "^7.75.0",
-    "react-resizable-panels": "^4.11.0",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.4",
-    "vaul": "^1.1.2",
-    "zod": "^4.4.2"
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.2.1",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.5.0",
+    "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vite-plugin-dts": "^4.5.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   }
 }
