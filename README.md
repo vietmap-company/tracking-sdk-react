@@ -1,12 +1,12 @@
 # @vietmap/tracking-sdk-react
 
-React SDK cho **GPS Tracking** -- drop-in **Dashboard**, **LiveMap** va **Report** components voi VietmapGL va shadcn/ui.
+React SDK cho **GPS Tracking** — drop-in **Dashboard**, **LiveMap** và **Report** components với VietmapGL và shadcn/ui.
 
-## Cai dat
+## Cài đặt
 
 ```bash
 npm install @vietmap/tracking-sdk-react
-# hoac
+# hoặc
 pnpm add @vietmap/tracking-sdk-react
 ```
 
@@ -53,14 +53,14 @@ export default function App() {
 
 ## Provider
 
-| Prop | Type | Default | Mo ta |
+| Prop | Type | Mặc định | Mô tả |
 |---|---|---|---|
-| `apiKey` | `string` | -- | API token (gui qua `X-API-Key` header) |
-| `baseUrl` | `string` | -- | Base URL cua API server |
-| `locale` | `"vi" \| "en"` | `"vi"` | Ngon ngu giao dien |
-| `theme` | `ThemeConfig` | -- | Override CSS variables (xem Theming) |
+| `apiKey` | `string` | — | API token (gửi qua header `X-API-Key`) |
+| `baseUrl` | `string` | — | Base URL của API server |
+| `locale` | `"vi" \| "en"` | `"vi"` | Ngôn ngữ giao diện |
+| `theme` | `ThemeConfig` | — | Tuỳ chỉnh CSS variables (xem Theming) |
 
-> **Luu y:** `apiKeyTilemap` truyen truc tiep vao `<LiveMap>` prop, khong qua Provider.
+> **Lưu ý:** `apiKeyTilemap` truyền trực tiếp vào prop của `<LiveMap>`, không qua Provider.
 
 ---
 
@@ -68,15 +68,15 @@ export default function App() {
 
 ### `<Dashboard />`
 
-Dashboard tong hop voi 5 widgets. Moi widget co the dung doc lap.
+Dashboard tổng hợp với 5 widgets. Mỗi widget có thể dùng độc lập.
 
-| Widget | Mo ta |
+| Widget | Mô tả |
 |---|---|
-| `SummaryCards` | Tong quang duong / thoi gian / chi phi nhien lieu hom nay |
-| `MemberReport` | Bang nhan vien voi phan trang va badge trang thai |
-| `ActivityHeatmap` | Heatmap gio hoat dong (T2-CN x 0-23h) |
-| `FuelTracking` | Bieu do quang duong vs tieu thu nhien lieu |
-| `MonthlyExpenses` | Bieu do chi phi phan loai theo thang |
+| `SummaryCards` | Tổng quãng đường / thời gian / chi phí nhiên liệu hôm nay |
+| `MemberReport` | Bảng nhân viên với phân trang và badge trạng thái |
+| `ActivityHeatmap` | Heatmap giờ hoạt động (T2–CN × 0–23h) |
+| `FuelTracking` | Biểu đồ quãng đường vs tiêu thụ nhiên liệu |
+| `MonthlyExpenses` | Biểu đồ chi phí phân loại theo tháng |
 
 ```tsx
 import { Dashboard, SummaryCards, MemberReport } from "@vietmap/tracking-sdk-react"
@@ -88,30 +88,31 @@ import { Dashboard, SummaryCards, MemberReport } from "@vietmap/tracking-sdk-rea
 
 **`DashboardProps`**
 
-| Prop | Type | Default | Mo ta |
+| Prop | Type | Mặc định | Mô tả |
 |---|---|---|---|
-| `date` | `number` | hom nay | Timestamp ms |
-| `pollInterval` | `number` | `30000` | Tu dong refresh (ms) |
-| `showSummaryCards` | `boolean` | `true` | Hien/an |
-| `showMemberReport` | `boolean` | `true` | Hien/an |
-| `showActivityHeatmap` | `boolean` | `true` | Hien/an |
-| `showFuelTracking` | `boolean` | `true` | Hien/an |
-| `showMonthlyExpenses` | `boolean` | `true` | Hien/an |
+| `date` | `number` | hôm nay | Timestamp ms |
+| `pollInterval` | `number` | `30000` | Tự động refresh (ms) |
+| `showSummaryCards` | `boolean` | `true` | Hiện/ẩn widget |
+| `showMemberReport` | `boolean` | `true` | Hiện/ẩn widget |
+| `showActivityHeatmap` | `boolean` | `true` | Hiện/ẩn widget |
+| `showFuelTracking` | `boolean` | `true` | Hiện/ẩn widget |
+| `showMonthlyExpenses` | `boolean` | `true` | Hiện/ẩn widget |
 
 ---
 
 ### `<LiveMap />`
 
-Ban do fleet real-time dung VietmapGL (CDN loader) voi GPU-accelerated clustering.
+Bản đồ fleet real-time dùng VietmapGL (CDN loader) với GPU-accelerated clustering.
 
-**Tinh nang:**
-- Tu dong poll vi tri nhan vien (pollInterval, mac dinh 10s)
-- GeoJSON clustering -- render 3000+ marker, zoom de mo cluster
-- Sidebar nhan vien -- collapsible pill, infinite scroll, sort moving -> stopped -> mat tin hieu
+**Tính năng:**
+- Tự động poll vị trí nhân viên (`pollInterval`, mặc định 10 giây)
+- GeoJSON clustering — render 3000+ marker, zoom để mở cluster
+- Spiderfy — click nhiều marker trùng toạ độ sẽ fan out để chọn riêng từng người
+- Sidebar nhân viên — collapsible pill, infinite scroll, sắp xếp moving → stopped → mất tín hiệu, tìm kiếm
 - Tile switcher: terrain / light / dark / satellite
-- Click marker -> popup -> Xem lo trinh -> animated playback voi route overlay
-- History panel: stats quang duong + thoi gian, timeline bar, danh sach diem theo nhom, date picker
-- Switch member khi dang xem history tu reload history cua member moi
+- Click marker → popup → **Xem lộ trình** → animated playback với route overlay
+- History panel: thống kê quãng đường + thời gian, timeline bar, danh sách điểm theo nhóm, date picker
+- Khi đang xem lịch sử, chọn nhân viên khác sẽ tự tải lại lịch sử của người đó
 - `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`
 
 ```tsx
@@ -140,33 +141,33 @@ const mapRef = useRef<LiveMapRef>(null)
 
 **`LiveMapProps`**
 
-| Prop | Type | Default | Mo ta |
+| Prop | Type | Mặc định | Mô tả |
 |---|---|---|---|
-| `apiKeyTilemap` | `string` | -- | VietMap tile key (bat buoc) |
-| `height` | `string` | `"100dvh"` | Chieu cao container |
-| `center` | `[lng, lat]` | `[106.6, 10.8]` | Trung tam ban do |
-| `zoom` | `number` | `11` | Zoom ban dau |
-| `defaultTile` | `TileType` | `"terrain"` | Loai tile mac dinh |
-| `pollInterval` | `number` | `10000` | Interval refresh vi tri (ms) |
-| `maxUsers` | `number` | `3000` | So user toi da moi lan poll |
-| `clusterRadius` | `number` | `50` | Ban kinh cluster (px) |
-| `clusterMaxZoom` | `number` | `14` | Zoom tat cluster |
-| `memberNameKey` | `string` | -- | Key trong `metadata` dung lam ten hien thi |
-| `members` | `MemberStatus[]` | -- | Override data (tat API polling) |
-| `showList` | `boolean` | `true` | Hien sidebar nhan vien |
-| `onMarkerClick` | `(m) => void \| boolean` | -- | Return `false` de chan popup mac dinh |
-| `onMemberClick` | `(m) => void \| boolean` | -- | Click item tren sidebar |
-| `onMapClick` | `([lng, lat]) => void` | -- | Click nen ban do |
-| `onMapReady` | `(map) => void` | -- | Fires khi map load xong |
-| `renderMarkerPopup` | `(m) => ReactNode` | -- | Custom popup content |
-| `renderMemberItem` | `(m, default) => ReactNode` | -- | Custom sidebar row |
+| `apiKeyTilemap` | `string` | — | VietMap tile key *(bắt buộc)* |
+| `height` | `string` | `"100dvh"` | Chiều cao container |
+| `center` | `[lng, lat]` | `[106.6, 10.8]` | Toạ độ trung tâm bản đồ |
+| `zoom` | `number` | `11` | Mức zoom ban đầu |
+| `defaultTile` | `TileType` | `"terrain"` | Loại tile mặc định |
+| `pollInterval` | `number` | `10000` | Chu kỳ refresh vị trí (ms) |
+| `maxUsers` | `number` | `3000` | Số nhân viên tối đa mỗi lần poll |
+| `clusterRadius` | `number` | `50` | Bán kính cluster (px) |
+| `clusterMaxZoom` | `number` | `14` | Mức zoom tắt cluster |
+| `memberNameKey` | `string` | — | Key trong `metadata` dùng làm tên hiển thị |
+| `members` | `MemberStatus[]` | — | Override data (tắt API polling) |
+| `showList` | `boolean` | `true` | Hiện sidebar nhân viên |
+| `onMarkerClick` | `(m) => void \| boolean` | — | Return `false` để chặn popup mặc định |
+| `onMemberClick` | `(m) => void \| boolean` | — | Click item trên sidebar |
+| `onMapClick` | `([lng, lat]) => void` | — | Click nền bản đồ |
+| `onMapReady` | `(map) => void` | — | Fires sau khi bản đồ load xong |
+| `renderMarkerPopup` | `(m) => ReactNode` | — | Tuỳ chỉnh nội dung popup |
+| `renderMemberItem` | `(m, default) => ReactNode` | — | Tuỳ chỉnh hàng sidebar |
 
 **`LiveMapRef` (imperative API)**
 
 ```tsx
 mapRef.current?.flyTo([106.63, 10.82], 14)
 mapRef.current?.fitBounds([[102, 8], [110, 23]])
-mapRef.current?.focusMember("user-123")  // bay den + mo popup
+mapRef.current?.focusMember("user-123")  // Bay đến + mở popup
 mapRef.current?.getMembers()             // MemberStatus[]
 mapRef.current?.getMap()                 // MapInstance
 ```
@@ -175,21 +176,21 @@ mapRef.current?.getMap()                 // MapInstance
 
 ### `<Report />`
 
-Hub bao cao -- home screen voi 3 cards, navigate vao tung loai bao cao.
+Hub báo cáo — màn hình chính với 3 thẻ, điều hướng vào từng loại.
 
-| Bao cao | Tabs | Mo ta |
+| Báo cáo | Tabs | Mô tả |
 |---|---|---|
-| Hanh trinh | Tong hop / Chi tiet | Quang duong, thoi gian, toc do |
-| Nhien lieu | Tong hop / Chi tiet | Dinh muc va chi phi nhien lieu |
-| Gio hoat dong | -- | So nhan vien hoat dong theo gio |
+| Hành trình | Tổng hợp / Chi tiết | Quãng đường, thời gian, tốc độ |
+| Nhiên liệu | Tổng hợp / Chi tiết | Định mức và chi phí nhiên liệu |
+| Giờ hoạt động | — | Số nhân viên hoạt động theo giờ |
 
-Tat ca bang: sortable headers, sticky header + sticky totals row, scroll ngang/doc, DateRangePicker 2 thang.
+Tất cả bảng: header có thể sort, sticky header + sticky hàng tổng, scroll ngang/dọc, `DateRangePicker` 2 tháng với nút xác nhận.
 
 ```tsx
 <Report from={Date.now() - 30 * 86_400_000} to={Date.now()} />
 ```
 
-Sub-reports dung doc lap:
+Dùng từng sub-report độc lập:
 
 ```tsx
 import {
@@ -198,6 +199,7 @@ import {
   ActivityTimeReport,
 } from "@vietmap/tracking-sdk-react"
 
+// Tất cả nhận: range, onRangeChange, onBack, onError, pageSize
 <TripSummaryReport range={{ from, to }} onRangeChange={setRange} pageSize={20} />
 ```
 
@@ -205,9 +207,9 @@ import {
 
 ## Hooks
 
-Tat ca hooks can `FleetworkProvider` trong tree. Tra ve `{ data, isLoading, error, refetch }`.
+Tất cả hooks cần `FleetworkProvider` trong tree. Trả về `{ data, isLoading, error, refetch }`.
 
-> Khong dung TanStack Query -- hooks thuan `useState/useEffect`.
+> Không dùng TanStack Query — hooks thuần `useState/useEffect`.
 
 ```tsx
 // Dashboard
@@ -234,7 +236,7 @@ const { data } = useActivityTimeReport({ from, to, page?, pageSize? })
 
 ## Controllers (framework-agnostic)
 
-Dung ngoai React -- Zustand, Redux, Node.js scripts, hoac bat ky context nao.
+Dùng ngoài React — Zustand, Redux, Node.js scripts, hoặc bất kỳ context nào.
 
 ```ts
 import {
@@ -257,7 +259,7 @@ const fuel    = await ReportController.getFuelSummary({ from, to })
 
 ## Theming
 
-Override CSS variables qua `theme` prop cua `FleetworkProvider`:
+Tuỳ chỉnh CSS variables qua prop `theme` của `FleetworkProvider`:
 
 ```tsx
 <FleetworkProvider
@@ -280,28 +282,18 @@ Override CSS variables qua `theme` prop cua `FleetworkProvider`:
 
 **`ThemeConfig`**
 
-| Field | Maps to CSS var | Mo ta |
+| Field | CSS variable | Mô tả |
 |---|---|---|
-| `colors.primary` | `--primary` | Mau chinh (buttons, focus ring) |
-| `colors.background` | `--background` | Mau nen trang |
-| `colors.text` | `--foreground` | Mau chu chinh |
-| `colors.border` | `--border` | Mau vien |
-| `colors.destructive` | `--destructive` | Mau loi/xoa |
-| `colors.statusMoving` | `--status-moving` | Mau dot "dang di chuyen" |
-| `colors.statusStopped` | `--status-stopped` | Mau dot "dung" |
-| `colors.statusSignalLost` | `--status-signal-lost` | Mau dot "mat tin hieu" |
+| `colors.primary` | `--primary` | Màu chính (button, focus ring) |
+| `colors.background` | `--background` | Màu nền trang |
+| `colors.text` | `--foreground` | Màu chữ chính |
+| `colors.border` | `--border` | Màu viền |
+| `colors.destructive` | `--destructive` | Màu lỗi / xoá |
+| `colors.statusMoving` | `--status-moving` | Màu chấm "đang di chuyển" |
+| `colors.statusStopped` | `--status-stopped` | Màu chấm "dừng" |
+| `colors.statusSignalLost` | `--status-signal-lost` | Màu chấm "mất tín hiệu" |
 | `borderRadius` | `--radius` | Border radius (px) |
-| `fontFamily` | `--dc-font` | Font chu |
-
----
-
-## Mock Server (dev)
-
-```bash
-cd mock-server
-node server.mjs
-# -> http://localhost:3001  (3500 users, day du routes)
-```
+| `fontFamily` | `--dc-font` | Font chữ |
 
 ---
 
@@ -313,13 +305,13 @@ pnpm build
 ```
 
 Output:
-- `dist/tracking-sdk-react.js` -- ESM
-- `dist/tracking-sdk-react.cjs` -- CommonJS
-- `dist/index.d.ts` -- TypeScript declarations
-- `dist/tracking-sdk-react.css` -- Styles (import rieng)
+- `dist/tracking-sdk-react.js` — ESM
+- `dist/tracking-sdk-react.cjs` — CommonJS
+- `dist/index.d.ts` — TypeScript declarations
+- `dist/tracking-sdk-react.css` — Styles (import riêng)
 
 ---
 
 ## License
 
-MIT c VietMap
+MIT © VietMap

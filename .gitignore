@@ -39,6 +39,3 @@ coverage/
 
 # Misc
 .cache/
-
-# Mock server (dev-only, not shipped)
-mock-server/
