@@ -12,6 +12,7 @@ import { Legend } from './Legend'
 import { DefaultPopup } from './Marker'
 import { HistoryPanel } from './HistoryPanel'
 import { PlaybackControls } from './PlaybackControls'
+import { SpiderOverlay } from './SpiderOverlay'
 import { usePlayback } from './usePlayback'
 
 export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveMap(props, ref) {
@@ -56,6 +57,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveM
   const [activeUserId, setActiveUserId] = React.useState<string | null>(null)
   const [popupMember, setPopupMember] = React.useState<MemberStatus | null>(null)
   const [selectedMember, setSelectedMember] = React.useState<MemberStatus | null>(null)
+  const [spiderState, setSpiderState] = React.useState<{ centerPx: { x: number; y: number }; members: MemberStatus[] } | null>(null)
   const [ready, setReady] = React.useState(false)
 
   React.useEffect(() => { selectedMemberRef.current = selectedMember }, [selectedMember])
@@ -149,9 +151,31 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveM
             const f = features[0]
             if (f.layer.id === LAYER_CLUSTERS) { m.easeTo({ center: f.geometry.coordinates as [number, number], zoom: m.getZoom() + 3, duration: 500 }); return }
             if (f.layer.id === LAYER_POINTS) {
+              const px = ev.point as { x: number; y: number }
+              const clickedCoord = f.geometry.coordinates as [number, number]
+
+              // Check for overlapping points → spiderfy
+              const nearby = m.queryRenderedFeatures?.(
+                [[px.x - 12, px.y - 12], [px.x + 12, px.y + 12]] as [[number, number], [number, number]],
+                { layers: [LAYER_POINTS] }
+              ) ?? []
+              const overlapping = nearby.filter((feat) => {
+                const c = feat.geometry.coordinates as [number, number]
+                return Math.abs(c[0] - clickedCoord[0]) < 0.00002 && Math.abs(c[1] - clickedCoord[1]) < 0.00002
+              })
+
+              if (overlapping.length > 1) {
+                const spiderMembers = overlapping
+                  .map(feat => membersRef.current.find(x => x.userId === feat.properties.userId as string))
+                  .filter((x): x is MemberStatus => x != null)
+                const centerPx = m.project?.(clickedCoord) ?? { x: px.x, y: px.y }
+                popupRef.current?.remove(); popupRef.current = null; setPopupMember(null)
+                setSpiderState({ centerPx, members: spiderMembers })
+                return
+              }
+
               const member = membersRef.current.find((x) => x.userId === f.properties.userId as string)
               if (member && (onMarkerClickRef.current ? onMarkerClickRef.current(member) !== false : true)) {
-                // If history panel open → switch to new member's history
                 if (selectedMemberRef.current) {
                   openHistory(member)
                 } else {
@@ -163,7 +187,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveM
             }
           }
         }
-        if (ev.lngLat) onMapClickRef.current?.([ev.lngLat.lng, ev.lngLat.lat])
+        if (ev.lngLat) {
+          setSpiderState(null)
+          onMapClickRef.current?.([ev.lngLat.lng, ev.lngLat.lat])
+        }
       })
       map.on('mousemove', (e: unknown) => {
         const ev = e as { point?: { x: number; y: number } }
@@ -244,6 +271,18 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveM
       <Legend position="top-right" />
       <TileSwitcher value={tile} onChange={setTile} position="bottom-right" />
       {popupMember && popupContainerRef.current && createPortal(popupContent, popupContainerRef.current)}
+      {spiderState && (
+        <SpiderOverlay
+          centerPx={spiderState.centerPx}
+          members={spiderState.members}
+          onSelect={(m) => {
+            setSpiderState(null)
+            setActiveUserId(m.userId)
+            openPopup(m)
+          }}
+          onClose={() => setSpiderState(null)}
+        />
+      )}
       {selectedMember && (
         <HistoryPanel key={selectedMember.userId} member={selectedMember} onClose={closeHistory} onHistoryLoaded={handleHistoryLoaded} playIndex={playIndex} onSeek={seekHistory} />
       )}
