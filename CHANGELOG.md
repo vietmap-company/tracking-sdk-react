@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.4] - 2026-05-05
+
+### Added
+
+- **Auth error overlay (401/403)** — axios interceptor tự bắt response 401/403 và emit qua event bus; `FleetworkProvider` render overlay block UI với message từ backend (priority `message` → `status` → `detail` → `error` → `errors[0]`). Đóng bằng × / Esc / click backdrop. 401 có thêm nút "Tải lại trang". Consumer customize qua 3 props: `onAuthError(event)` callback song song, `disableAuthErrorOverlay` để tắt, `renderAuthError(event, dismiss)` để render UI riêng. Export `subscribeAuthError` cho advanced use cases ngoài React tree. Type `AuthErrorEvent` exposed.
+- **`memberNameKey` provider-level** — promote từ `<LiveMap memberNameKey="...">` lên `<FleetworkProvider memberNameKey="...">` để Dashboard MemberReport, Report tables (TripSummary/TripDetail/FuelSummary/FuelDetail), LiveMap markers tất cả đồng nhất hiển thị tên từ `metaData[key]`. Per-component prop vẫn override Provider (backward compat). Fallback chain: `metaData[key]` → `row.name` → `row.userId`. Helper `resolveMemberName(metaData, key, fallback)` exposed cho consumer dùng ngoài (custom render). Hỗ trợ `metaData` cả dạng object lẫn JSON-stringified.
+
+---
+
 ## [1.0.3] - 2026-05-05
 
 ### Rewrite — shadcn/ui + Tailwind CSS v4, no TanStack Query
@@ -39,7 +48,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Skeleton delay 150ms — không flash skeleton nếu request nhanh
   - Giữ data cũ khi refetch/poll — không blank trong lúc refresh
 - **i18n** hoàn toàn tiếng Việt, bao gồm `history.*`, `expenses.subtitle`, `reports.activity.subtitle`
-- **Auth error overlay (401/403)** — axios interceptor tự bắt response 401/403 và emit qua event bus; `FleetworkProvider` render overlay block UI với message từ backend (priority `message` → `status` → `detail` → `error` → `errors[0]`). Đóng bằng × / Esc / click backdrop. 401 có thêm nút "Tải lại trang". Consumer customize qua 3 props: `onAuthError(event)` callback song song, `disableAuthErrorOverlay` để tắt, `renderAuthError(event, dismiss)` để render UI riêng. Export `subscribeAuthError` cho advanced use cases ngoài React tree. Type `AuthErrorEvent` exposed.
 
 #### Changed
 

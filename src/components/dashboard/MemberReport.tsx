@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import { useMemberReport, type UseMemberReportOptions } from '@/hooks'
 import { cn } from '@/lib/utils'
+import { resolveMemberName } from '@/lib/member-name'
 import { STATUS_BADGE, STATUS_SUMMARY_DOT, MemberAvatar, ErrorBanner } from '@/components/shared'
 import { ReportShell, PaginationBar, ReportTableSkeletonRows, ReportEmptyRow } from '@/components/report/shared'
 
@@ -12,7 +13,7 @@ export interface MemberReportProps extends Omit<UseMemberReportOptions, 'page'> 
 }
 
 export function MemberReport({ className, ...options }: MemberReportProps) {
-  const { t } = useFleetwork()
+  const { t, memberNameKey } = useFleetwork()
   const [page, setPage] = useState(1)
   const { data, isLoading, error, refetch } = useMemberReport({ ...options, page })
 
@@ -57,13 +58,18 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
             ) : !data?.users?.length ? (
               <ReportEmptyRow colSpan={5} />
             ) : (
-              data.users?.map((user) => (
+              data.users?.map((user) => {
+                const displayName =
+                  resolveMemberName(user.metaData, memberNameKey) ??
+                  user.name ??
+                  user.userId
+                return (
                 <TableRow key={user.userId} className="border-border/30 hover:bg-muted/30 transition-colors animate-in fade-in duration-200">
                   <TableCell className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
-                      <MemberAvatar name={user.name ?? user.userId} avatarUrl={user.avatarUrl} size="sm" />
+                      <MemberAvatar name={displayName} avatarUrl={user.avatarUrl} size="sm" />
                       <div>
-                        <p className="text-[13px] font-semibold text-foreground leading-none">{user.name ?? user.userId}</p>
+                        <p className="text-[13px] font-semibold text-foreground leading-none">{displayName}</p>
                         {user.groupName && <p className="text-[11px] text-muted-foreground mt-0.5">{user.groupName}</p>}
                       </div>
                     </div>
@@ -77,7 +83,8 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
                     </Badge>
                   </TableCell>
                 </TableRow>
-              ))
+                )
+              })
             )}
           </TableBody>
         </Table>

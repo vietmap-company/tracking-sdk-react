@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useMembers } from '@/hooks'
+import { useOptionalFleetwork } from '@/provider/FleetworkProvider'
 import { loadVietmapGL, type VGL } from './vgl-loader'
 import { buildTileStyle } from './tiles'
 import { MEMBERS_SOURCE, LAYER_CLUSTERS, LAYER_POINTS, toGeoJSON, addClusterLayers } from './clusterLayers'
@@ -27,7 +28,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveM
     clusterRadius = 50,
     clusterMaxZoom = 14,
     members: membersProp,
-    memberNameKey,
+    memberNameKey: memberNameKeyProp,
     showList = true,
     className,
     style,
@@ -61,6 +62,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(function LiveM
   const [ready, setReady] = React.useState(false)
 
   React.useEffect(() => { selectedMemberRef.current = selectedMember }, [selectedMember])
+
+  // Per-component prop overrides Provider-level config.
+  const ctx = useOptionalFleetwork()
+  const memberNameKey = memberNameKeyProp ?? ctx?.memberNameKey
 
   const { data: apiMembers = [], isLoading: apiLoading } = useMembers({
     pollInterval, nameKey: memberNameKey, maxUsers, enabled: !membersProp,

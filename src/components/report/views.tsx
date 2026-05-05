@@ -10,6 +10,7 @@ import {
   useTripSummaryReport,
 } from "@/hooks";
 import { cn } from "@/lib/utils";
+import { resolveMemberName } from "@/lib/member-name";
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import * as React from "react";
@@ -113,7 +114,7 @@ export function TripSummaryReport({
   onError,
   pageSize = 20,
 }: ReportViewProps) {
-  const { t } = useFleetwork();
+  const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
   const [sort, setSort] = React.useState<SortState>({
     key: "totalDistance",
@@ -206,7 +207,7 @@ export function TripSummaryReport({
                   {(page - 1) * pageSize + i + 1}
                 </TableCell>
                 <TableCell className="text-[13px] font-medium">
-                  {r.userId}
+                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
                 </TableCell>
                 <TableCell className={NUM}>
                   {r.totalDistanceKm.toFixed(1)}
@@ -238,7 +239,7 @@ export function TripDetailReport({
   onError,
   pageSize = 50,
 }: ReportViewProps) {
-  const { t } = useFleetwork();
+  const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
   const [sort, setSort] = React.useState<SortState>({
     key: "date",
@@ -318,7 +319,7 @@ export function TripDetailReport({
                   {fmtDateShort(r.date)}
                 </TableCell>
                 <TableCell className="text-[13px] font-medium">
-                  {r.userId}
+                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
                 </TableCell>
                 <TableCell className={NUM}>{fmtTime(r.startTime)}</TableCell>
                 <TableCell className={NUM}>{fmtTime(r.endTime)}</TableCell>
@@ -359,7 +360,7 @@ export function FuelSummaryReport({
   onError,
   pageSize = 20,
 }: ReportViewProps) {
-  const { t } = useFleetwork();
+  const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
   const [sort, setSort] = React.useState<SortState>({
     key: "distanceKm",
@@ -446,7 +447,7 @@ export function FuelSummaryReport({
                   {(page - 1) * pageSize + i + 1}
                 </TableCell>
                 <TableCell className="text-[13px] font-medium">
-                  {r.userId}
+                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
                 </TableCell>
                 <TableCell className={NUM}>{r.distanceKm.toFixed(1)}</TableCell>
                 <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
@@ -497,7 +498,7 @@ export function FuelDetailReport({
   onError,
   pageSize = 50,
 }: ReportViewProps) {
-  const { t } = useFleetwork();
+  const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
   const [sort, setSort] = React.useState<SortState>({
     key: "date",
@@ -595,7 +596,7 @@ export function FuelDetailReport({
                   {fmtDateShort(r.date)}
                 </TableCell>
                 <TableCell className="text-[13px] font-medium">
-                  {r.userId}
+                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
                 </TableCell>
                 <TableCell className={NUM}>{r.distanceKm.toFixed(1)}</TableCell>
                 <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
@@ -650,7 +651,7 @@ export function ActivityTimeReport({
   onError,
   pageSize = 50,
 }: ReportViewProps) {
-  const { t } = useFleetwork();
+  const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
   const { data, isLoading, error } = useActivityTimeReport({
     ...range,

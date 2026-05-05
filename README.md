@@ -54,12 +54,32 @@ export default function App() {
 | `baseUrl`                 | `string`                        | `"https://live.fleetwork.vn/api/v1"` | Base URL của API server                |
 | `locale`                  | `"vi" \| "en"`                  | `"vi"`                               | Ngôn ngữ giao diện                     |
 | `theme`                   | `ThemeConfig`                   | —                                    | Tuỳ chỉnh CSS variables (xem Theming)  |
+| `memberNameKey`           | `string`                        | —                                    | Key trong `metaData` của row dùng làm tên hiển thị (LiveMap + Dashboard MemberReport + Report tables) |
 | `onAuthError`             | `(event) => void`               | —                                    | Callback khi backend trả 401/403       |
 | `disableAuthErrorOverlay` | `boolean`                       | `false`                              | Tắt overlay mặc định                   |
 | `renderAuthError`         | `(event, dismiss) => ReactNode` | —                                    | Render overlay riêng                   |
 
 > `baseUrl` và `locale` là optional — chỉ truyền khi cần override mặc định.  
 > `apiKeyTilemap` truyền trực tiếp vào prop của `<LiveMap>`, không qua Provider.
+
+### Tên hiển thị từ `metaData` (memberNameKey)
+
+Backend trả mỗi row user có field `metaData` chứa các thuộc tính tuỳ ý (object hoặc JSON string). Đặt `memberNameKey` ở Provider để tất cả LiveMap markers, Dashboard MemberReport, Report tables đồng nhất hiển thị tên từ field đó.
+
+```tsx
+<FleetworkProvider apiKey="..." memberNameKey="userName">
+  <Dashboard />          {/* MemberReport hiện metaData.userName */}
+  <LiveMap apiKeyTilemap="..." />  {/* Marker name từ metaData.userName */}
+  <Report />             {/* Trip / Fuel tables hiện metaData.userName */}
+</FleetworkProvider>
+```
+
+Override per-component vẫn ưu tiên Provider:
+```tsx
+<LiveMap apiKeyTilemap="..." memberNameKey="driverCode" />
+```
+
+Fallback chain mỗi row: `resolveMemberName(metaData, key)` → `row.name` (nếu có) → `row.userId`. Helper export sẵn `resolveMemberName` cho consumer dùng ngoài (custom render, etc.).
 
 ### Auth error handling (401 / 403)
 

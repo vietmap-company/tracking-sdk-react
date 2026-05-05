@@ -22,6 +22,12 @@ export interface FleetworkConfig {
   baseUrl?: string
   locale?: Locale
   theme?: ThemeConfig
+  /**
+   * Default key in each row's `metaData` to use as the displayed user name
+   * across LiveMap, Dashboard tables, and Report tables. Per-component
+   * overrides (e.g. `<LiveMap memberNameKey="...">`) take precedence.
+   */
+  memberNameKey?: string
 }
 
 export type MemberStatusKind = 'moving' | 'stopped' | 'signal_lost'

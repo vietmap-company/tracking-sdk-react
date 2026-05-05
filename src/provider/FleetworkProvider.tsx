@@ -17,6 +17,7 @@ interface FleetworkContextValue {
   baseUrl: string;
   locale: Locale;
   theme?: ThemeConfig;
+  memberNameKey?: string;
   t: TFn;
   client: AxiosInstance;
 }
@@ -55,6 +56,7 @@ export function FleetworkProvider({
   baseUrl,
   locale = "vi",
   theme,
+  memberNameKey,
   children,
   onAuthError,
   disableAuthErrorOverlay = false,
@@ -66,6 +68,7 @@ export function FleetworkProvider({
       baseUrl: baseUrl ?? DEFAULT_BASE_URL,
       locale,
       theme,
+      memberNameKey,
     };
     const client = createHttpClient(config);
     setGlobalClient(client, config);
@@ -74,10 +77,11 @@ export function FleetworkProvider({
       baseUrl: config.baseUrl!,
       locale,
       theme,
+      memberNameKey,
       t: createTranslator(locale),
       client,
     };
-  }, [apiKey, baseUrl, locale, theme]);
+  }, [apiKey, baseUrl, locale, theme, memberNameKey]);
 
   const [authError, setAuthError] = React.useState<AuthErrorEvent | null>(null);
 

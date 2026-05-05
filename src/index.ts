@@ -8,6 +8,9 @@ export type { FleetworkProviderProps } from '@/provider/FleetworkProvider'
 // Auth error events (advanced — usually not needed; Provider handles via prop)
 export { subscribeAuthError } from '@/lib/auth-events'
 
+// Member name resolution helper
+export { resolveMemberName } from '@/lib/member-name'
+
 // Controllers
 export { LiveMapController } from '@/controllers/LiveMapController'
 export { DashboardController } from '@/controllers/DashboardController'
