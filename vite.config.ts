@@ -19,6 +19,21 @@ const cssTypesPlugin = () => ({
   },
 })
 
+// Emit a top-level `dist/index.d.ts` that re-exports from
+// `dist/src/index.d.ts`. Without this, consumers see the awkward
+// `./dist/src/index.d.ts` path and some IDEs / TS plugins fail to pick up
+// IntelliSense even though the types resolve correctly.
+const dtsBarrelPlugin = () => ({
+  name: 'sdk-dts-barrel',
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'index.d.ts',
+      source: "export * from './src/index'\n",
+    })
+  },
+})
+
 const pkg = JSON.parse(
   readFileSync(resolve(__dirname, 'package.json'), 'utf-8'),
 ) as {
@@ -54,6 +69,7 @@ export default defineConfig({
       tsconfigPath: './tsconfig.build.json',
     }),
     cssTypesPlugin(),
+    dtsBarrelPlugin(),
   ],
   resolve: {
     alias: {

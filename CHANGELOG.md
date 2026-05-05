@@ -6,6 +6,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.5] - 2026-05-05
+
+### Added
+
+- **`HistoryRouteResponse`** type mới — phản ánh đúng response thực tế của `/gps-tracking/history` (object có `trackingData` + pagination), thay vì union `array | object` cũ (array branch không bao giờ trigger).
+- Top-level `dist/index.d.ts` barrel — `package.json#types` từ `./dist/src/index.d.ts` về `./dist/index.d.ts` chuẩn để IDE/TS plugin pick up IntelliSense ổn định hơn.
+- **Auto-spider cho overlapping markers (LiveMap)** — các member ở cùng toạ độ (group 2–8) tự động fan out ra spider khi map idle/zoom xong, **không cần click**. Map vẫn pan/zoom tự do (không backdrop). Spider reproject từ lat/lng mỗi animation frame (`map.on('move')` + RAF throttle) → bám đúng vị trí trong khi drag, không bị "đứng im rồi nhảy" như khi chỉ recompute trên `idle`. Group đông hơn 8 vẫn dùng pattern click-to-spider cũ để tránh nghẽn UI. Prop `interactive?: boolean` mới trên `SpiderOverlay` (default `true`); set `false` để dùng auto-spider mode trong custom UI.
+- **Selected marker visual indicator (LiveMap)** — marker được chọn giờ có viền xanh dày (4px, `#3b82f6`), kích thước to hơn ~40% (radius 8 → 11), và halo glow ring bên dưới. User nhìn thấy ngay đang select ai khi map có nhiều marker. Trong auto-spider, leaf của member được chọn cũng có viền xanh + scale 1.1. Prop `activeUserId` mới trên `SpiderOverlay` để custom UI tự highlight.
+- **Selected member không bao giờ bị cluster** — 2-source architecture: `dc-members` (cluster: true) chứa tất cả trừ `activeUserId`; `dc-selected` (cluster: false) chứa riêng member đang chọn. Selected member luôn hiển thị trên map dù xung quanh có bao nhiêu marker. Thêm `LAYER_SELECTED_HALO` (glow ring) và `LAYER_SELECTED_POINT` (border stroke xanh) cho selected source.
+
+### Performance
+
+- **LiveMap spider recompute O(1)** — xây `Map<userId, member>` một lần thay vì `Array.find` O(n) mỗi member; dùng `Set<string>` per-group để dedup thay vì `Array.includes` O(n); bail-out shallow compare trên `setAutoSpiderGroups` để skip React re-render khi groups không đổi.
+- **Spider RAF dedup** — `scheduleRecompute` gộp `idle + moveend` double-fire thành 1 RAF; `map.on('move')` skip RAF hoàn toàn khi `autoSpiderGroups` rỗng (không có spider nào cần reproject).
+- **SpiderOverlay positions[] compute once** — `spokePos()` chỉ tính 1 lần per member, dùng chung cho cả SVG line lẫn avatar button (trước đây tính 2 lần).
+
+### Fixed
+
+- **RAF memory leak (LiveMap)** — `recomputeRafId` và `rafId` trước đây khai báo trong `.then()` nên cleanup `useEffect` không cancel được. Đã hoist ra outer scope → `cancelAnimationFrame` trong cleanup hoạt động đúng.
+- **`prepublishOnly` build sai target** — trước chạy `npm run build` (demo app), giờ chạy `npm run build:lib` (thư viện).
+- **vgl-loader race condition** — nếu script tag đã có trong DOM và đã load xong trước khi listener kịp attach, `onload` không bao giờ fire. Fix bằng check `readyState === 'complete'` và call `ok()` ngay nếu đúng; thêm `error` listener cho cả trường hợp load lỗi.
+- **History total duration âm** — endpoint `/gps-tracking/history` trả data descending (mới nhất trước), nhưng `totalMs = pts[last].time - pts[0].time` giả định ascending → kết quả âm. Fix bằng `.sort((a, b) => a.time - b.time)` trong `LiveMapController.getHistoryRoute()`.
+- **HTTP timeout 30s → 10s** — giảm timeout axios từ 30s xuống 10s cho phản hồi nhanh hơn khi mạng kém.
+- **`queryRenderedFeatures` type error** — type signature yêu cầu `geometry` bắt buộc, nhưng gọi với chỉ `{ layers }` (toàn viewport) là API hợp lệ. Fix bằng `geometry?: PointLike | [PointLike, PointLike]` + overload không có geometry.
+- **`tsconfig.build.json` strict disabled** — bật `strict: true` + thêm `"ignoreDeprecations": "6.0"` để suppress TS6 baseUrl deprecation.
+- **Popup + selection persists when opening history (LiveMap)** — click marker → popup → "Xem lộ trình" trước đây gọi `closePopup()` riêng, làm `activeUserId` bị clear ngay trước khi `openHistory` set lại → marker mất select 1 frame và đôi khi state inconsistent. Giờ `openHistory` tự xử lý popup teardown và giữ nguyên `activeUserId` → marker luôn highlighted trong suốt session xem history.
+- **API contract alignment** — em curl thật từng endpoint với api key thật và phát hiện các mismatch giữa types và backend, đã fix:
+  - `reportType` literal × 5 reports: `'trip-summary'`/`'trip-detail'`/`'fuel-summary'`/`'fuel-detail'`/`'activity-time'` → snake_case `'trip_summary'`/`'trip_detail'`/`'fuel_summary'`/`'fuel_detail'`/`'activity_time'`. Discriminated union narrowing trên `reportType` giờ hoạt động đúng.
+  - `MemberRow` (`/dashboard/gps-manager/users`): bỏ các field **không tồn tại** trong response (`name`, `avatarUrl`, `groupName`, `metaData` top-level). Real `metadata` nằm trong `lastLocation.metadata` (JSON string) — đã expose. Dashboard `MemberReport` giờ resolve display name từ `user.lastLocation?.metadata` với `memberNameKey`, avatar từ `metadata.userAvatar`.
+  - `GpsPoint.metadata`: `string | null` → `string | Record<string, unknown> | null`. Endpoint `/gps-tracking/users` ship `metadata` dạng JSON string, còn `/gps-tracking/latest/users/:id` và `/gps-tracking/history` ship object đã parse — type giờ phản ánh đúng cả 2 shape. Helper `parseMeta` trong `LiveMapController` cũng accept cả 2.
+  - `LiveMapController.getLastLocation`: bỏ wrapper branch `{success, data} | GpsPoint` (backend trả thẳng `GpsPoint`, branch wrapper không bao giờ trigger). Type giờ là `GpsPoint | null`.
+  - `LiveMapController.getHistoryRoute`: bỏ array fallback (backend luôn trả object), dùng `HistoryRouteResponse` mới.
+
+---
+
 ## [1.0.4] - 2026-05-05
 
 ### Added

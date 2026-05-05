@@ -43,9 +43,6 @@ export interface SummaryCardsData {
 
 export interface MemberRow {
   userId: string
-  name?: string
-  avatarUrl?: string | null
-  groupName?: string | null
   distance: { value: number; unit: string }
   travelTime: { totalSeconds: number; formatted: string }
   fuel: {
@@ -62,9 +59,14 @@ export interface MemberRow {
     address: string | null
     speed: number
     time: number
+    /**
+     * Stringified JSON map of arbitrary attributes (e.g.
+     * `{"userName":"...","userAvatar":"..."}`). Use `resolveMemberName` to
+     * extract a display name via `memberNameKey`.
+     */
+    metadata?: string | null
   } | null
   lastSeenAt: number | null
-  metaData?: Record<string, unknown> | null
 }
 
 export interface MemberReportData {
@@ -144,11 +146,24 @@ export interface GpsPoint {
   lng: number
   speed: number
   heading: number
-  userId?: string
-  vehicleId?: string
-  deviceId?: string
-  metadata?: string | null
+  userId?: string | null
+  vehicleId?: string | null
+  deviceId?: string | null
+  /**
+   * Compact binary blob (msgpack/base64) shipped by the device — usually
+   * unused by consumers, kept for forward compat.
+   */
   data?: string | null
+  /**
+   * Arbitrary key/value attributes from the device. The shape is
+   * polymorphic across endpoints:
+   * - `/gps-tracking/users` returns it as a JSON string (`"{...}"`).
+   * - `/gps-tracking/latest/users/:id` and `/gps-tracking/history` return
+   *   it pre-parsed as an object.
+   *
+   * `resolveMemberName` and `parseMeta` accept both shapes.
+   */
+  metadata?: string | Record<string, unknown> | null
 }
 
 export interface GpsUserRow {
@@ -164,6 +179,16 @@ export interface GpsUserRow {
 
 export interface GpsUsersResponse {
   users: GpsUserRow[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
+export interface HistoryRouteResponse {
+  trackingData: GpsPoint[]
   totalCount: number
   page: number
   pageSize: number
@@ -202,7 +227,7 @@ export interface TripSummaryRow {
   metaData?: unknown | null
 }
 export interface TripSummaryReportData {
-  reportType: 'trip-summary'; from: number; to: number
+  reportType: 'trip_summary'; from: number; to: number
   users: TripSummaryRow[]; pagination: ReportPagination; generatedAt: number
 }
 
@@ -214,7 +239,7 @@ export interface TripDetailRow {
   metaData?: unknown | null
 }
 export interface TripDetailReportData {
-  reportType: 'trip-detail'; trips: TripDetailRow[]; pagination: ReportPagination; generatedAt: number
+  reportType: 'trip_detail'; trips: TripDetailRow[]; pagination: ReportPagination; generatedAt: number
 }
 
 export interface FuelSummaryRow {
@@ -224,7 +249,7 @@ export interface FuelSummaryRow {
 }
 export interface FuelReportTotals { distanceKm: number; fuelStandardLiters: number; totalCostVnd: number; totalCostFormatted: string }
 export interface FuelSummaryReportData {
-  reportType: 'fuel-summary'; fuelConfig: { efficiencyLper100km: number; pricePerLiterVnd: number }
+  reportType: 'fuel_summary'; fuelConfig: { efficiencyLper100km: number; pricePerLiterVnd: number }
   users: FuelSummaryRow[]; totals: FuelReportTotals; pagination: ReportPagination; generatedAt: number
 }
 
@@ -234,7 +259,7 @@ export interface FuelDetailRow {
   totalCostVnd: number; totalCostFormatted: string; metaData?: unknown | null
 }
 export interface FuelDetailReportData {
-  reportType: 'fuel-detail'; trips: FuelDetailRow[]; totals: FuelReportTotals
+  reportType: 'fuel_detail'; trips: FuelDetailRow[]; totals: FuelReportTotals
   pagination: ReportPagination; generatedAt: number
 }
 
@@ -242,6 +267,6 @@ export interface ActivityTimeRow {
   date: number; hour: number; activeUserCount: number; inactiveUserCount: number; totalDistanceKm: number
 }
 export interface ActivityTimeReportData {
-  reportType: 'activity-time'; totalUsers: number; rows: ActivityTimeRow[]
+  reportType: 'activity_time'; totalUsers: number; rows: ActivityTimeRow[]
   totals: { totalDistanceKm: number }; pagination: ReportPagination; generatedAt: number
 }

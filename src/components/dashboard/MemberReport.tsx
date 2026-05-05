@@ -59,18 +59,20 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
               <ReportEmptyRow colSpan={5} />
             ) : (
               data.users?.map((user) => {
+                // metadata sits inside `lastLocation`, shipped as a JSON string.
+                // `resolveMemberName` handles both string and object shapes.
+                const meta = user.lastLocation?.metadata
                 const displayName =
-                  resolveMemberName(user.metaData, memberNameKey) ??
-                  user.name ??
-                  user.userId
+                  resolveMemberName(meta, memberNameKey) ?? user.userId
+                const avatarUrl =
+                  resolveMemberName(meta, 'userAvatar') ?? null
                 return (
                 <TableRow key={user.userId} className="border-border/30 hover:bg-muted/30 transition-colors animate-in fade-in duration-200">
                   <TableCell className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
-                      <MemberAvatar name={displayName} avatarUrl={user.avatarUrl} size="sm" />
+                      <MemberAvatar name={displayName} avatarUrl={avatarUrl} size="sm" />
                       <div>
                         <p className="text-[13px] font-semibold text-foreground leading-none">{displayName}</p>
-                        {user.groupName && <p className="text-[11px] text-muted-foreground mt-0.5">{user.groupName}</p>}
                       </div>
                     </div>
                   </TableCell>

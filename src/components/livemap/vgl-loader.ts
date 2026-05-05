@@ -35,7 +35,20 @@ export function loadVietmapGL(): Promise<VGL> {
       v ? resolve(v as VGL) : reject(new Error("VietmapGL global not found"));
     };
     if (existing) {
-      existing.addEventListener("load", ok, { once: true });
+      // Script may have already finished loading before we attached the listener.
+      if (
+        (existing as HTMLScriptElement & { readyState?: string }).readyState ===
+        "complete"
+      ) {
+        ok();
+      } else {
+        existing.addEventListener("load", ok, { once: true });
+        existing.addEventListener(
+          "error",
+          () => reject(new Error("Failed to load VietmapGL from CDN")),
+          { once: true },
+        );
+      }
       return;
     }
     const script = document.createElement("script");

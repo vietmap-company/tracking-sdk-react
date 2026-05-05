@@ -18,7 +18,7 @@ function buildClient(config: FleetworkConfig): AxiosInstance {
       "Content-Type": "application/json",
       "X-API-Key": config.apiKey,
     },
-    timeout: 30_000,
+    timeout: 10_000,
     paramsSerializer: (params) => {
       const sp = new URLSearchParams();
       for (const [k, v] of Object.entries(params)) {

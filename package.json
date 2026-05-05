@@ -1,18 +1,18 @@
 {
   "name": "@vietmap/tracking-sdk-react",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "React SDK for DriveConnect — drop-in Dashboard, LiveMap, and Report components with VietmapGL.",
   "type": "module",
   "main": "./dist/tracking-sdk-react.cjs",
   "module": "./dist/tracking-sdk-react.js",
-  "types": "./dist/src/index.d.ts",
+  "types": "./dist/index.d.ts",
   "sideEffects": [
     "**/*.css",
     "./dist/tracking-sdk-react.css"
   ],
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
+      "types": "./dist/index.d.ts",
       "browser": "./dist/tracking-sdk-react.js",
       "import": "./dist/tracking-sdk-react.js",
       "require": "./dist/tracking-sdk-react.cjs"
@@ -37,7 +37,7 @@
     "build:lib": "vite build --mode lib",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build:lib"
   },
   "publishConfig": {
     "access": "public"
