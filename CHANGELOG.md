@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [1.1.0] - 2026-05-04
+## [1.0.3] - 2026-05-05
 
 ### Rewrite — shadcn/ui + Tailwind CSS v4, no TanStack Query
 
@@ -39,25 +39,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Skeleton delay 150ms — không flash skeleton nếu request nhanh
   - Giữ data cũ khi refetch/poll — không blank trong lúc refresh
 - **i18n** hoàn toàn tiếng Việt, bao gồm `history.*`, `expenses.subtitle`, `reports.activity.subtitle`
-- **Mock server** từ old SDK (3500 users, đầy đủ routes dashboard/livemap/report)
+- **Auth error overlay (401/403)** — axios interceptor tự bắt response 401/403 và emit qua event bus; `FleetworkProvider` render overlay block UI với message từ backend (priority `message` → `status` → `detail` → `error` → `errors[0]`). Đóng bằng × / Esc / click backdrop. 401 có thêm nút "Tải lại trang". Consumer customize qua 3 props: `onAuthError(event)` callback song song, `disableAuthErrorOverlay` để tắt, `renderAuthError(event, dismiss)` để render UI riêng. Export `subscribeAuthError` cho advanced use cases ngoài React tree. Type `AuthErrorEvent` exposed.
 
 #### Changed
 
-- Không dùng TanStack Query — không cần `QueryClientProvider` wrap ngoài
+- **Peer React**: giữ `>=16.8.0` (match 1.0.x). Source code không dùng React 18+ APIs (`useId`, `useSyncExternalStore`, `useTransition`, etc.); tất cả runtime deps đều declare peer ≥16.8. Khuyên React ≥18 cho production: Radix UI và Recharts test chủ yếu trên 18+; SSR `useId` của Radix có hành vi khác giữa 16/17 và 18+.
+- **Bundle**: ESM ~32 KB gzip (148 KB raw), CSS ~12 KB gzip — externalize toàn bộ runtime deps thay vì inline Radix/Recharts/axios. Consumer bundler tree-shake và pre-bundle riêng các deps này.
+- Bỏ TanStack Query — không cần `QueryClientProvider` wrap ngoài
 - `FleetworkProvider` không có `apiKeyTilemap` — tile key truyền trực tiếp vào `<LiveMap apiKeyTilemap="..." />`
 - Header table: bỏ `uppercase tracking-wide` — chữ hoa chữ cái đầu tự nhiên (sentence case)
 - Table wrapper: `overflow-x-auto` để scroll ngang khi bảng rộng
 - `DateRangePicker`: bỏ step indicator phức tạp, dùng Calendar `mode="range"` trực quan hơn
 - HistoryPanel: bỏ section "Số điểm GPS", giữ 2 stats chính quãng đường và thời gian
+- `package.json#types`: trỏ tới `./dist/src/index.d.ts` (TypeScript) — declarations preserve cấu trúc thư mục `src/`
+- `exports['./styles.css']`: chuyển từ string đơn → conditional object với `types` + `default`
+- API endpoint mặc định: `https://live.fleetwork.vn/api/v1` (đồng nhất giữa Provider, controllers, http client)
 
 #### Fixed
 
+- **`Calling require for "react" in an environment that doesn't expose the require function`** ở consumer browser — Rolldown (Vite 8) inject `require()` polyfill khi externalize `react` mà CJS deps (Radix `use-sync-external-store/shim`, Recharts) gọi `require("react")` nội bộ. Fix bằng cách externalize **tất cả** runtime deps trong vite config, để Vite/bundler của consumer pre-bundle CJS deps đúng cách.
+- **CSS không output**: lib entry `src/index.ts` không import CSS, build chỉ có JS. Thêm `import './index.css'` vào entry để Tailwind+Vite emit `dist/tracking-sdk-react.css`.
+- **Types empty (`export {}`)**: `vite-plugin-dts` `rollupTypes: true` fail im lặng do API Extractor (TS 5.9.3) không tương thích với TS 6 trong project. Tắt `rollupTypes`/`insertTypesEntry`, point `package.json#types` → `./dist/src/index.d.ts`.
+- **`import.meta.env.DEV` type error** trong dts generation — thêm `"types": ["vite/client"]` vào `tsconfig.build.json`.
+- **`TS2882: Cannot find module ... styles.css`** ở consumer dùng `moduleResolution: bundler` — emit `dist/styles.css.d.ts` stub qua plugin nhỏ trong `vite.config.ts`, thêm `types` vào `exports['./styles.css']`.
+- Typo URL fallback `https://https://...` → `https://live.fleetwork.vn/api/v1` trong `src/lib/http.ts`.
 - Popup bị double border/rounded corner — fix bằng strip toàn bộ VietmapGL native CSS chrome
 - Infinite API spam khi component mount — fix bằng `useStableDefault` cho time-based default values
 - Skeleton flash on fast responses — delay 150ms trước khi show skeleton
 - HistoryPanel không reload khi switch sang member mới — fix `useEffect` deps + `key={member.userId}`
 - PlaybackControls không hiện khi switch member — fix `openHistory` clear state đúng thứ tự
 - Report duplicate constants (`NUM`, `TH`, `IDX_H`...) gây parse error — đã cleanup
+
+#### Notes
+
+- Còn warning API Extractor về TS version mismatch (5.9.3 bundled vs 6.0.3 project) — không gây hại, sẽ resolve khi `vite-plugin-dts` upgrade.
 
 ---
 

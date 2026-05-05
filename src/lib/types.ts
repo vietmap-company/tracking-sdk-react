@@ -170,6 +170,19 @@ export interface SdkError extends Error {
   status?: number
 }
 
+export interface AuthErrorEvent {
+  /** HTTP status — 401 or 403. */
+  status: 401 | 403
+  /** Backend message if present, otherwise a localized default. */
+  message: string
+  /** Request URL that triggered the error (when available). */
+  url?: string
+  /** HTTP method (when available). */
+  method?: string
+  /** Raw response payload from the server, if any. */
+  payload?: unknown
+}
+
 export interface ReportPagination {
   page: number; pageSize: number; totalItems: number; totalPages: number
 }

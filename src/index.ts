@@ -1,7 +1,12 @@
+import './index.css'
+
 // Provider
 export { FleetworkProvider } from '@/provider/FleetworkProvider'
 export { useFleetwork, useOptionalFleetwork } from '@/provider/FleetworkProvider'
 export type { FleetworkProviderProps } from '@/provider/FleetworkProvider'
+
+// Auth error events (advanced — usually not needed; Provider handles via prop)
+export { subscribeAuthError } from '@/lib/auth-events'
 
 // Controllers
 export { LiveMapController } from '@/controllers/LiveMapController'
