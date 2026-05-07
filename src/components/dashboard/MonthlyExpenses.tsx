@@ -52,13 +52,22 @@ export function MonthlyExpenses({
   React.useEffect(() => { if (error && onError) onError(error) }, [error, onError])
   React.useEffect(() => { if (data && onDataChange) onDataChange(data) }, [data, onDataChange])
 
-  const chartData = data?.months.map((m) => ({
-    label: m.label,
-    fuel:        m.costs.fuel,
-    maintenance: m.costs.maintenance,
-    insurance:   m.costs.insurance,
-    other:       m.costs.other,
-  }))
+  // Always render T1–T12 so both charts share the same X-axis convention.
+  // Months missing from the API get 0 values.
+  const chartData = React.useMemo(() => {
+    if (!data) return undefined
+    const byMonth = new Map(data.months.map((m) => [m.month, m]))
+    return Array.from({ length: 12 }, (_, i) => {
+      const entry = byMonth.get(i + 1)
+      return {
+        label: `T${i + 1}`,
+        fuel:        entry?.costs.fuel        ?? 0,
+        maintenance: entry?.costs.maintenance ?? 0,
+        insurance:   entry?.costs.insurance   ?? 0,
+        other:       entry?.costs.other       ?? 0,
+      }
+    })
+  }, [data])
 
   const categoryColorMap: Record<string, string> = {
     fuel:        colors.chart1,

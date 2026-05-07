@@ -38,11 +38,21 @@ export function FuelTracking({
   React.useEffect(() => { if (error && onError) onError(error) }, [error, onError])
   React.useEffect(() => { if (data && onDataChange) onDataChange(data) }, [data, onDataChange])
 
-  const chartData = data?.series.map((s) => ({
-    label: s.label,
-    distanceKm: s.distanceKm,
-    fuelLiters: s.fuelLiters,
-  }))
+  // Always render all 12 months (or raw series for day/week groupBy).
+  // Months missing from the API response get 0 values so the X-axis is complete.
+  const chartData = React.useMemo(() => {
+    if (!data) return undefined
+    if (data.groupBy !== 'month') {
+      return data.series.map((s) => ({ label: s.label, distanceKm: s.distanceKm, fuelLiters: s.fuelLiters }))
+    }
+    const year = new Date(data.from).getFullYear()
+    const byPeriod = new Map(data.series.map((s) => [s.period, s]))
+    return Array.from({ length: 12 }, (_, i) => {
+      const period = `${year}-${String(i + 1).padStart(2, '0')}`
+      const entry = byPeriod.get(period)
+      return { label: `T${i + 1}`, distanceKm: entry?.distanceKm ?? 0, fuelLiters: entry?.fuelLiters ?? 0 }
+    })
+  }, [data])
 
   return (
     <Card className={cn('shadow-none rounded-xl border-border/50', className)} style={style}>
@@ -80,6 +90,17 @@ export function FuelTracking({
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: colors.axisTick }} tickLine={false} axisLine={false} />
                 <YAxis
+                  yAxisId="left"
+                  orientation="left"
+                  width={40}
+                  tick={{ fontSize: 11, fill: colors.axisTick }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(1)}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
                   width={40}
                   tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
@@ -94,8 +115,8 @@ export function FuelTracking({
                   formatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(2)}k` : v.toFixed(2)}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                <Line type="monotone" dataKey="distanceKm" name={t('fuel.distance')} stroke={colors.chart2} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="fuelLiters"  name={t('fuel.fuel')}     stroke={colors.chart1} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line yAxisId="left"  type="monotone" dataKey="distanceKm" name={t('fuel.distance')} stroke={colors.chart2} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line yAxisId="right" type="monotone" dataKey="fuelLiters"  name={t('fuel.fuel')}     stroke={colors.chart1} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

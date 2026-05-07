@@ -209,50 +209,43 @@ export function ActivityHeatmap({
 
         {data && (
           <div className="overflow-x-auto">
-            <div className="min-w-[600px]">
-              {/* Hour axis labels */}
-              <div className="flex items-center ml-[60px] mb-2">
+            <div className="min-w-[560px]">
+              {/* Shared grid: col-0 = day label (52px), col 1-24 = hours (equal) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(24, 1fr)', gap: '0 1px' }}>
+
+                {/* Hour axis header row */}
+                <div /> {/* empty label cell */}
                 {HOURS.map(h => (
-                  <div key={h} className="flex-1 text-center text-[10px] text-muted-foreground/60 font-medium">
+                  <div key={h} className="text-center text-[10px] text-muted-foreground/60 font-medium pb-1.5">
                     {h % 4 === 0 ? `${h}h` : ''}
                   </div>
                 ))}
-              </div>
 
-              {/* Grid rows */}
-              <div className="space-y-1.5">
+                {/* Data rows */}
                 {DAYS_VI.map(({ dayIndex, label }) => {
                   const row = grid.get(dayIndex)
                   const date = weekDates[dayIndex]
                   return (
-                    <div key={dayIndex} className="flex items-center gap-1.5">
-                      <div className="w-[52px] shrink-0 text-right pr-1">
-                        <div className="text-[11px] font-semibold text-muted-foreground leading-none">
-                          {label}
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground/70 leading-none tabular-nums">
-                          {shortDate(date)}
-                        </div>
+                    <React.Fragment key={dayIndex}>
+                      {/* Day label */}
+                      <div className="text-right pr-1.5 flex flex-col justify-center" style={{ marginTop: dayIndex === 0 ? 0 : 6 }}>
+                        <div className="text-[11px] font-semibold text-muted-foreground leading-none">{label}</div>
+                        <div className="mt-0.5 text-[10px] text-muted-foreground/70 leading-none tabular-nums">{shortDate(date)}</div>
                       </div>
-
-                      <div className="flex flex-1 gap-px">
-                        {HOURS.map(h => {
-                          const cell = row?.get(h)
-                          const tip = cell?.label
-                            ?? `${label} ${shortDate(date)} ${pad(h)}:00`
-                          return (
-                            <div
-                              key={h}
-                              title={tip}
-                              className={cn(
-                                'flex-1 h-6 rounded-[4px] cursor-default',
-                                cellStyle(cell?.value ?? 0, maxValue)
-                              )}
-                            />
-                          )
-                        })}
-                      </div>
-                    </div>
+                      {/* Hour cells */}
+                      {HOURS.map(h => {
+                        const cell = row?.get(h)
+                        const tip = cell?.label ?? `${label} ${shortDate(date)} ${pad(h)}:00`
+                        return (
+                          <div
+                            key={h}
+                            title={tip}
+                            style={{ marginTop: dayIndex === 0 ? 0 : 6 }}
+                            className={cn('h-6 rounded-[4px] cursor-default', cellStyle(cell?.value ?? 0, maxValue))}
+                          />
+                        )
+                      })}
+                    </React.Fragment>
                   )
                 })}
               </div>
