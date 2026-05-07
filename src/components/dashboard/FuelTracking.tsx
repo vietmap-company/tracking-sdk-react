@@ -92,7 +92,10 @@ export function FuelTracking({
                 <YAxis
                   yAxisId="left"
                   orientation="left"
-                  width={40}
+                  width={44}
+                  domain={[0, 'auto']}
+                  allowDataOverflow={false}
+                  tickCount={5}
                   tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
                   axisLine={false}
@@ -101,7 +104,10 @@ export function FuelTracking({
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  width={40}
+                  width={44}
+                  domain={[0, 'auto']}
+                  allowDataOverflow={false}
+                  tickCount={5}
                   tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
                   axisLine={false}
