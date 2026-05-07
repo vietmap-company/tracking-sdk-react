@@ -77,11 +77,14 @@ export interface MemberReportData {
 }
 
 export interface ActivityHeatmapCell {
-  dayOfWeek: string
+  /** May arrive as 'Mon', 'monday', 'T2', or absent — use `date` as fallback. */
+  dayOfWeek?: string | number | null
+  /** Bucket timestamp (ms). Source of truth for day/hour mapping. */
   date: number
-  hour: number
+  /** 0..23 in local time. May be missing — derive from `date`. */
+  hour?: number
   value: number
-  label: string
+  label?: string
 }
 
 export interface ActivityHeatmapData {

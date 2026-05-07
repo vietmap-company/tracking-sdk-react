@@ -10,6 +10,20 @@ import { useFleetwork } from '@/provider/FleetworkProvider'
 import { useChartColors, cn } from '@/lib/utils'
 import type { MonthlyExpensesData } from '@/lib/types'
 
+const VI = 'vi-VN'
+function fmtVndShort(v: number): string {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toLocaleString(VI, { maximumFractionDigits: 1 })} tỷ`
+  if (v >= 1_000_000)     return `${(v / 1_000_000).toLocaleString(VI, { maximumFractionDigits: 1 })} tr`
+  if (v >= 1_000)         return `${(v / 1_000).toLocaleString(VI, { maximumFractionDigits: 0 })}K`
+  return v === 0 ? '0' : `${v}`
+}
+
+function fmtVndFull(v: number): string {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} tỷ ₫`
+  if (v >= 1_000_000)     return `${(v / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} triệu ₫`
+  return v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+}
+
 export interface MonthlyExpensesProps extends UseMonthlyExpensesOptions {
   className?: string
   style?: React.CSSProperties
@@ -40,10 +54,10 @@ export function MonthlyExpenses({
 
   const chartData = data?.months.map((m) => ({
     label: m.label,
-    fuel:        m.costs.fuel        / 1_000_000,
-    maintenance: m.costs.maintenance / 1_000_000,
-    insurance:   m.costs.insurance   / 1_000_000,
-    other:       m.costs.other       / 1_000_000,
+    fuel:        m.costs.fuel,
+    maintenance: m.costs.maintenance,
+    insurance:   m.costs.insurance,
+    other:       m.costs.other,
   }))
 
   const categoryColorMap: Record<string, string> = {
@@ -76,18 +90,22 @@ export function MonthlyExpenses({
         ) : (
           <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: colors.axisTick }} tickLine={false} axisLine={false} />
                 <YAxis
-                  tick={{ fontSize: 11, fill: colors.axisTick }} tickLine={false} axisLine={false}
-                  label={{ value: t('expenses.unit') ?? 'Triệu VNĐ', angle: -90, position: 'insideLeft', fill: colors.axisTick, fontSize: 10 }}
+                  width={48}
+                  tick={{ fontSize: 11, fill: colors.axisTick }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={fmtVndShort}
                 />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 10, border: `1px solid ${colors.tooltipBorder}`,
                     background: colors.tooltipBg, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                   }}
+                  formatter={(v: number) => [fmtVndFull(v), undefined]}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
                 {categories.map((cat) => (

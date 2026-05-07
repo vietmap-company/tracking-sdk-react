@@ -469,7 +469,7 @@ export function FuelSummaryReport({
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>
                 {totals.distanceKm.toFixed(1)}
               </td>
-              <td className={`${NUM} px-3 py-2.5 text-muted-foreground`}>—</td>
+              <td className="px-3 py-2.5" />
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>
                 {totals.fuelStandardLiters.toFixed(1)}
               </td>
@@ -621,11 +621,11 @@ export function FuelDetailReport({
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>
                 {totals.distanceKm.toFixed(1)}
               </td>
-              <td className={`${NUM} px-3 py-2.5 text-muted-foreground`}>—</td>
+              <td className="px-3 py-2.5" />
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>
                 {totals.fuelStandardLiters.toFixed(1)}
               </td>
-              <td className={`${NUM} px-3 py-2.5 text-muted-foreground`}>—</td>
+              <td className="px-3 py-2.5" />
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>
                 {totals.totalCostFormatted}
               </td>

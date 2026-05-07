@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C D:/dev/dricon/products/SDK/.claude/worktrees/goofy-elion-730886 status)",
+      "Bash(git -C D:/dev/dricon/products/SDK/.claude/worktrees/goofy-elion-730886 log --oneline main..HEAD)",
+      "Bash(git diff *)",
+      "Read(//tmp/**)",
+      "Bash(git -C D:/dev/dricon/products/SDK apply --check /tmp/heatmap.patch)",
+      "Bash(git -C D:/dev/dricon/products/SDK apply /tmp/heatmap.patch)",
+      "Bash(git -C D:/dev/dricon/products/SDK status)",
+      "Bash(git checkout *)",
+      "Bash(git -C D:/dev/dricon/products/SDK diff --stat src/components/dashboard/ActivityHeatmap.tsx src/lib/i18n.ts src/lib/types.ts)",
+      "Bash(git -C D:/dev/dricon/products/SDK worktree remove D:/dev/dricon/products/SDK/.claude/worktrees/goofy-elion-730886 --force)",
+      "Bash(git -C D:/dev/dricon/products/SDK worktree remove D:/dev/dricon/products/SDK/.claude/worktrees/gracious-feistel-793fb9 --force)",
+      "Bash(git -C D:/dev/dricon/products/SDK worktree list)",
+      "Bash(git -C D:/dev/dricon/products/SDK branch -a)",
+      "Bash(git -C D:/dev/dricon/products/SDK branch -D claude/goofy-elion-730886 claude/gracious-feistel-793fb9)",
+      "Bash(npm --prefix D:/dev/dricon/products/SDK run typecheck)"
+    ]
+  }
+}

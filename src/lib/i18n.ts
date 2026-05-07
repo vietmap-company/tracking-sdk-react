@@ -108,6 +108,8 @@ const vi: Dict = {
   'heatmap.title':              'Giờ hoạt động',
   'heatmap.less':               'Ít',
   'heatmap.more':               'Nhiều',
+  'heatmap.prevWeek':           'Tuần trước',
+  'heatmap.nextWeek':           'Tuần sau',
 
   // History panel
   'history.title':              'Lộ trình',

@@ -648,9 +648,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             activeUserId={activeUserId}
             onItemClick={(m) => {
               if (onMemberClick ? onMemberClick(m) === false : false) return;
-              // If history panel is open → switch to history of new member
+              // If history panel is open → switch to history of new member,
+              // but ignore if the user clicks the member already being viewed.
               if (selectedMember) {
-                openHistory(m);
+                if (m.userId !== selectedMember.userId) openHistory(m);
                 return;
               }
               setActiveUserId(m.userId);

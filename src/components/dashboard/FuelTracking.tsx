@@ -76,15 +76,22 @@ export function FuelTracking({
         ) : (
           <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+              <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: colors.axisTick }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: colors.axisTick }} tickLine={false} axisLine={false} />
+                <YAxis
+                  width={40}
+                  tick={{ fontSize: 11, fill: colors.axisTick }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: number) => v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : String(v)}
+                />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 10, border: `1px solid ${colors.tooltipBorder}`,
                     background: colors.tooltipBg, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                   }}
+                  formatter={(v: number) => v >= 1000 ? `${+(v / 1000).toFixed(2)}k` : v}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
                 <Line type="monotone" dataKey="distanceKm" name={t('fuel.distance')} stroke={colors.chart2} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
