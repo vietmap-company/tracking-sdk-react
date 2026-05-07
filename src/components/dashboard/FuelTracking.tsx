@@ -84,14 +84,14 @@ export function FuelTracking({
                   tick={{ fontSize: 11, fill: colors.axisTick }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v: number) => v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : String(v)}
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(1)}
                 />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 10, border: `1px solid ${colors.tooltipBorder}`,
                     background: colors.tooltipBg, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                   }}
-                  formatter={(v: number) => v >= 1000 ? `${+(v / 1000).toFixed(2)}k` : v}
+                  formatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(2)}k` : v.toFixed(2)}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
                 <Line type="monotone" dataKey="distanceKm" name={t('fuel.distance')} stroke={colors.chart2} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />

@@ -10,18 +10,18 @@ import { useFleetwork } from '@/provider/FleetworkProvider'
 import { useChartColors, cn } from '@/lib/utils'
 import type { MonthlyExpensesData } from '@/lib/types'
 
-const VI = 'vi-VN'
 function fmtVndShort(v: number): string {
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toLocaleString(VI, { maximumFractionDigits: 1 })} tỷ`
-  if (v >= 1_000_000)     return `${(v / 1_000_000).toLocaleString(VI, { maximumFractionDigits: 1 })} tr`
-  if (v >= 1_000)         return `${(v / 1_000).toLocaleString(VI, { maximumFractionDigits: 0 })}K`
+  if (v >= 1_000_000_000) return `${+(v / 1_000_000_000).toFixed(1)} tỷ`
+  if (v >= 1_000_000)     return `${+(v / 1_000_000).toFixed(1)} tr`
+  if (v >= 1_000)         return `${+(v / 1_000).toFixed(0)}K`
   return v === 0 ? '0' : `${v}`
 }
 
 function fmtVndFull(v: number): string {
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} tỷ ₫`
-  if (v >= 1_000_000)     return `${(v / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} triệu ₫`
-  return v.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)} tỷ ₫`
+  if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(2)} triệu ₫`
+  if (v >= 1_000)         return `${(v / 1_000).toFixed(2)}K ₫`
+  return `${v.toFixed(2)} ₫`
 }
 
 export interface MonthlyExpensesProps extends UseMonthlyExpensesOptions {
