@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import { useActivityHeatmap, type UseActivityHeatmapOptions } from '@/hooks'
 import { cn } from '@/lib/utils'
@@ -97,6 +98,15 @@ export function ActivityHeatmap({
   className, initialDate, onWeekChange, ...options
 }: ActivityHeatmapProps) {
   const { t } = useFleetwork()
+  const [openCell, setOpenCell] = React.useState<string | null>(null)
+
+  // Close tooltip when tapping outside on mobile
+  React.useEffect(() => {
+    if (!openCell) return
+    const handler = () => setOpenCell(null)
+    document.addEventListener('touchend', handler, { passive: true })
+    return () => document.removeEventListener('touchend', handler)
+  }, [openCell])
 
   const [anchor, setAnchor] = React.useState(() => {
     const ts = initialDate instanceof Date ? initialDate.getTime()
@@ -235,14 +245,35 @@ export function ActivityHeatmap({
                       {/* Hour cells */}
                       {HOURS.map(h => {
                         const cell = row?.get(h)
-                        const tip = cell?.label ?? `${label} ${shortDate(date)} ${pad(h)}:00`
+                        const cellKey = `${dayIndex}-${h}`
+                        const dateLabel = `${label} ${shortDate(date)}`
+                        const timeLabel = `${pad(h)}:00 – ${pad(h)}:59`
+                        const count = cell?.value ?? 0
                         return (
-                          <div
-                            key={h}
-                            title={tip}
-                            style={{ marginTop: dayIndex === 0 ? 0 : 6 }}
-                            className={cn('h-6 rounded-[4px] cursor-default', cellStyle(cell?.value ?? 0, maxValue))}
-                          />
+                          <Tooltip key={h} delayDuration={100} open={openCell === cellKey}>
+                            <TooltipTrigger asChild>
+                              <div
+                                style={{ marginTop: dayIndex === 0 ? 0 : 6 }}
+                                className={cn('h-6 rounded-[4px] cursor-pointer', cellStyle(count, maxValue))}
+                                onMouseEnter={() => setOpenCell(cellKey)}
+                                onMouseLeave={() => setOpenCell(null)}
+                                onTouchEnd={(e) => {
+                                  e.stopPropagation()
+                                  setOpenCell(prev => prev === cellKey ? null : cellKey)
+                                }}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[11px] px-2.5 py-1.5">
+                              <p className="font-semibold">{dateLabel} · {timeLabel}</p>
+                              <p className="text-muted-foreground mt-0.5">
+                                {count > 0
+                                  ? data.metric === 'distance'
+                                    ? `${count.toFixed(1)} km`
+                                    : `${count} điểm GPS`
+                                  : 'Không có hoạt động'}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
                         )
                       })}
                     </React.Fragment>

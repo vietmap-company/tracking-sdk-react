@@ -12,8 +12,8 @@ const vi: Dict = {
   // Dashboard member report
   'report.title':               'Báo cáo nhân viên hôm nay',
   'report.total':               'Tổng nhân viên',
-  'report.moving':              'Đang hoạt động',
-  'report.stopped':             'Dừng / Nghỉ',
+  'report.moving':              'Đang di chuyển',
+  'report.stopped':             'Dừng',
   'report.signalLost':          'Mất tín hiệu',
   'report.col.employee':        'Nhân viên',
   'report.col.distance':        'Quãng đường (km)',
@@ -30,13 +30,13 @@ const vi: Dict = {
   // LiveMap member list
   'list.title':                 'Nhân viên',
   'list.search':                'Tìm kiếm...',
-  'list.moving':                'Hoạt động',
+  'list.moving':                'Đang di chuyển',
   'list.stopped':               'Dừng',
   'list.lost':                  'Mất tín hiệu',
 
   // Status labels
   'status.moving':              'Đang di chuyển',
-  'status.stopped':             'Đang dừng',
+  'status.stopped':             'Dừng',
   'status.signal_lost':         'Mất tín hiệu',
 
   // Common

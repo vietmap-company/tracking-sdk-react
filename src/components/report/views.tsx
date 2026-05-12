@@ -52,12 +52,14 @@ function SortableHead({
   sort,
   onSort,
   right = true,
+  className,
 }: {
   label: string;
   sortKey: string;
   sort: SortState;
   onSort: (k: string) => void;
   right?: boolean;
+  className?: string;
 }) {
   const active = sort.key === sortKey;
   return (
@@ -65,6 +67,7 @@ function SortableHead({
       className={cn(
         "cursor-pointer select-none h-10 px-3 text-[11px] font-semibold text-muted-foreground align-middle whitespace-nowrap",
         right ? "text-right" : "text-left",
+        className,
       )}
       onClick={() => onSort(sortKey)}
     >
@@ -87,6 +90,8 @@ function SortableHead({
 const NUM = "text-right tabular-nums text-[13px]";
 const TH =
   "h-10 px-3 text-[11px] font-semibold text-muted-foreground text-left  align-middle whitespace-nowrap";
+const TH_EMP =
+  "h-10 px-3 text-[11px] font-semibold text-muted-foreground text-left  align-middle whitespace-nowrap min-w-[160px]";
 const TH_R =
   "h-10 px-3 text-[11px] font-semibold text-muted-foreground text-right align-middle whitespace-nowrap";
 const IDX_H =
@@ -98,7 +103,7 @@ const STRIPE = (i: number) => (i % 2 === 1 ? "bg-muted/20" : "");
 function ScrollTable({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative overflow-auto max-h-[60vh]">
-      <table className="w-full caption-bottom text-sm border-collapse">
+      <table className="w-full min-w-[720px] caption-bottom text-sm border-collapse">
         {children}
       </table>
     </div>
@@ -154,7 +159,7 @@ export function TripSummaryReport({
         <thead className="sticky top-0 z-20 bg-card border-b border-border/40">
           <tr>
             <th className={IDX_H}>#</th>
-            <th className={TH}>{t("reports.col.employee")}</th>
+            <th className={TH_EMP}>{t("reports.col.employee")}</th>
             <SortableHead
               label={`${t("reports.col.distance")} (km)`}
               sortKey="totalDistance"
@@ -280,7 +285,7 @@ export function TripDetailReport({
           <tr>
             <th className={IDX_H}>#</th>
             <th className={TH}>{t("reports.col.date")}</th>
-            <th className={TH}>{t("reports.col.employee")}</th>
+            <th className={TH_EMP}>{t("reports.col.employee")}</th>
             <th className={TH_R}>{t("reports.col.startTime")}</th>
             <th className={TH_R}>{t("reports.col.endTime")}</th>
             <SortableHead
@@ -401,7 +406,7 @@ export function FuelSummaryReport({
         <thead className="sticky top-0 z-20 bg-card border-b border-border/40">
           <tr>
             <th className={IDX_H}>#</th>
-            <th className={TH}>{t("reports.col.employee")}</th>
+            <th className={TH_EMP}>{t("reports.col.employee")}</th>
             <SortableHead
               label={`${t("reports.col.distance")} (km)`}
               sortKey="distanceKm"
@@ -429,6 +434,7 @@ export function FuelSummaryReport({
               sort={sort}
               onSort={handleSort}
               right={true}
+              className="min-w-[120px]"
             />
           </tr>
         </thead>
@@ -540,7 +546,7 @@ export function FuelDetailReport({
           <tr>
             <th className={IDX_H}>#</th>
             <th className={TH}>{t("reports.col.date")}</th>
-            <th className={TH}>{t("reports.col.employee")}</th>
+            <th className={TH_EMP}>{t("reports.col.employee")}</th>
             <SortableHead
               label={`${t("reports.col.distance")} (km)`}
               sortKey="distanceKm"
@@ -575,6 +581,7 @@ export function FuelDetailReport({
               sort={sort}
               onSort={handleSort}
               right={true}
+              className="min-w-[120px]"
             />
           </tr>
         </thead>
@@ -651,7 +658,7 @@ export function ActivityTimeReport({
   onError,
   pageSize = 50,
 }: ReportViewProps) {
-  const { t, memberNameKey } = useFleetwork();
+  const { t } = useFleetwork();
   const [page, setPage] = React.useState(1);
   const { data, isLoading, error } = useActivityTimeReport({
     ...range,

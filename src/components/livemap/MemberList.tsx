@@ -37,6 +37,7 @@ export interface MemberListProps extends UseMembersOptions {
   isLoading?: boolean
   activeUserId?: string | null
   onItemClick?: (member: MemberStatus) => void
+  collapseOnSelect?: boolean
   renderItem?: (member: MemberStatus, defaultRender: React.ReactNode) => React.ReactNode
   position?: 'left' | 'right'
   className?: string
@@ -48,6 +49,7 @@ export function MemberList({
   isLoading: loadingProp,
   activeUserId,
   onItemClick,
+  collapseOnSelect = false,
   renderItem,
   position = 'left',
   className,
@@ -62,7 +64,9 @@ export function MemberList({
   const isLoading = loadingProp ?? (membersProp ? false : apiLoading)
 
   const [query, setQuery] = React.useState('')
-  const [collapsed, setCollapsed] = React.useState(false)
+  const [collapsed, setCollapsed] = React.useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 640
+  )
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
   const sentinelRef = React.useRef<HTMLDivElement>(null)
 
@@ -95,7 +99,7 @@ export function MemberList({
         type="button"
         onClick={() => setCollapsed(false)}
         className={cn(
-          'absolute top-3 z-10 flex items-center gap-2 rounded-full border border-border/60 bg-card/95 px-3 py-2 text-[12px] font-semibold text-foreground shadow-md backdrop-blur-sm hover:bg-card transition-colors',
+          'absolute top-3 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-card/95 px-3 py-2 text-[12px] font-semibold text-foreground shadow-md backdrop-blur-sm hover:bg-card transition-colors',
           position === 'left' ? 'left-3' : 'right-3',
           className
         )}
@@ -112,9 +116,9 @@ export function MemberList({
   return (
     <div
       className={cn(
-        'absolute top-3 z-10 flex flex-col overflow-hidden bg-card/95 backdrop-blur-md',
+        'absolute top-3 z-20 flex flex-col overflow-hidden bg-card/95 backdrop-blur-md',
         'rounded-2xl border border-border/60 shadow-lg',
-        'max-h-[calc(100%-24px)] w-[268px]',
+        'max-h-[calc(100%-24px)] w-[268px] max-sm:w-[calc(100%-24px)]',
         position === 'left' ? 'left-3' : 'right-3',
         className
       )}
@@ -243,7 +247,7 @@ export function MemberList({
 
             const content = renderItem ? renderItem(m, defaultItem) : defaultItem
             return (
-              <div key={m.userId} onClick={() => onItemClick?.(m)} className="cursor-pointer border-b border-border/30 last:border-0">
+              <div key={m.userId} onClick={() => { onItemClick?.(m); if (collapseOnSelect) setCollapsed(true) }} className="cursor-pointer border-b border-border/30 last:border-0">
                 {content}
               </div>
             )

@@ -42,10 +42,10 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
       {error && <ErrorBanner error={error} onRetry={refetch} />}
 
       <div className="overflow-x-auto">
-        <Table>
+        <table className="w-full min-w-[600px] caption-bottom text-sm border-collapse">
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow className="border-border/40 hover:bg-transparent">
-              <TableHead className="px-5 h-10 text-[11px] font-semibold text-muted-foreground">{t('report.col.employee')}</TableHead>
+              <TableHead className="px-5 h-10 text-[11px] font-semibold text-muted-foreground min-w-[160px]">{t('report.col.employee')}</TableHead>
               <TableHead className="h-10 text-[11px] font-semibold text-muted-foreground text-right whitespace-nowrap">{t('report.col.distance')}</TableHead>
               <TableHead className="h-10 text-[11px] font-semibold text-muted-foreground text-right whitespace-nowrap">{t('report.col.travelTime')}</TableHead>
               <TableHead className="h-10 text-[11px] font-semibold text-muted-foreground text-right whitespace-nowrap">{t('report.col.fuel')}</TableHead>
@@ -89,7 +89,7 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
               })
             )}
           </TableBody>
-        </Table>
+        </table>
       </div>
 
       {data && (

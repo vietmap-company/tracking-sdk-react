@@ -24,8 +24,8 @@ export function ReportShell({ title, subtitle, right, onBack, children, classNam
   return (
     <Card className={cn('shadow-none rounded-xl border-border/50 w-full overflow-hidden', className)}>
       {/* Header */}
-      <CardHeader className="px-5 py-4 border-b border-border/40 bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <CardHeader className="px-4 sm:px-5 py-3 sm:py-4 border-b border-border/40 bg-card">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
           <div className="flex items-center gap-2 min-w-0">
             {onBack && (
               <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 gap-1 text-[13px] shrink-0">
@@ -60,9 +60,9 @@ export function PaginationBar({ page, totalPages, onChange }: PaginationBarProps
   const pages = getPageNumbers(page, totalPages)
 
   return (
-    <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-border/40 bg-card">
+    <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 border-t border-border/40 bg-card">
       <span className="text-[11px] text-muted-foreground">
-        {t('report.page')} <span className="font-semibold text-foreground tabular-nums">{page}</span> {t('report.of')} <span className="tabular-nums">{totalPages}</span>
+        {t('report.page')} <span className="font-semibold text-foreground tabular-nums">{page}</span> / <span className="tabular-nums">{totalPages}</span>
       </span>
       <div className="flex items-center gap-0.5">
         <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => onChange(1)}>
@@ -73,13 +73,13 @@ export function PaginationBar({ page, totalPages, onChange }: PaginationBarProps
         </Button>
         {pages.map((p, i) =>
           p === '...' ? (
-            <span key={`e${i}`} className="flex h-7 w-5 items-center justify-center text-[11px] text-muted-foreground">…</span>
+            <span key={`e${i}`} className="hidden sm:flex h-7 w-5 items-center justify-center text-[11px] text-muted-foreground">…</span>
           ) : (
             <Button
               key={p}
               variant={p === page ? 'default' : 'ghost'}
               size="icon"
-              className="h-7 w-7 text-[11px]"
+              className="hidden sm:flex h-7 w-7 text-[11px]"
               onClick={() => onChange(p as number)}
             >
               {p}

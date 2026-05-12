@@ -15,9 +15,11 @@ export interface PlaybackControlsProps {
   onPlayToggle: () => void
   onSpeedCycle: () => void
   onAutoFollowToggle: () => void
+  /** Extra bottom offset in px, used on mobile to sit above the history bottom sheet */
+  bottomOffset?: number
 }
 
-export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle }: PlaybackControlsProps) {
+export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle, bottomOffset = 0 }: PlaybackControlsProps) {
   const total = points.length
   if (!total) return null
   const curr = points[index]
@@ -40,7 +42,10 @@ export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, 
   }, [calcIndex, onSeek])
 
   return (
-    <div className="absolute bottom-4 left-1/2 z-20 w-[min(480px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-border/60 bg-card/90 p-3 shadow-lg backdrop-blur-md">
+    <div
+      className="absolute left-1/2 z-20 w-[min(480px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-border/60 bg-card/90 p-3 shadow-lg backdrop-blur-md"
+      style={{ bottom: `${16 + bottomOffset}px` }}
+    >
       <div className="flex items-center gap-2">
         {/* Play/Pause */}
         <button type="button" onClick={onPlayToggle} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted">

@@ -74,12 +74,11 @@ export function PageController() {
   const lastLocation = useRun()
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="h-full overflow-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-xl font-bold text-foreground">Controller API</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Call controllers directly without hooks — useful for imperative flows, event handlers, or non-React contexts.
-        </p>
+        <p className="hidden text-sm text-muted-foreground mt-0.5">Call controllers directly without hooks — useful for imperative flows, event handlers, or non-React contexts.</p>
       </div>
 
       <Separator />
@@ -119,6 +118,7 @@ export function PageController() {
           onRun={() => lastLocation.run(() => LiveMapController.getLastLocation('user-001', { client }))}
         />
       </div>
+    </div>
     </div>
   )
 }

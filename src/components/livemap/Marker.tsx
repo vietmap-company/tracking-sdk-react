@@ -15,7 +15,7 @@ function formatLastSeen(ts: number): string {
 
 const STATUS_LABEL: Record<MemberStatus['status'], string> = {
   moving:      'Đang di chuyển',
-  stopped:     'Đang dừng',
+  stopped:     'Dừng',
   signal_lost: 'Mất tín hiệu',
 }
 

@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock3,
   MapPin,
   Navigation,
@@ -395,14 +396,99 @@ export interface HistoryPanelProps {
   onHistoryLoaded: (points: GpsPoint[]) => void;
   playIndex: number;
   onSeek: (index: number) => void;
+  // Playback controls (passed through so mobile sheet can embed them)
+  isPlaying: boolean;
+  playSpeed: 1 | 2 | 4;
+  autoFollow: boolean;
+  onPlayToggle: () => void;
+  onSpeedCycle: () => void;
+  onAutoFollowToggle: () => void;
+}
+
+// ── Inline playback bar (used inside the sheet on mobile) ─────────────────────
+function PlaybackBar({
+  points, index, isPlaying, speed, autoFollow,
+  onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle,
+}: {
+  points: GpsPoint[]; index: number; isPlaying: boolean; speed: 1 | 2 | 4;
+  autoFollow: boolean; onSeek: (i: number) => void;
+  onPlayToggle: () => void; onSpeedCycle: () => void; onAutoFollowToggle: () => void;
+}) {
+  const total = points.length;
+  if (!total) return null;
+  const curr = points[index];
+  const pct = (total > 1 ? index / (total - 1) : 0) * 100;
+  const trackRef = React.useRef<HTMLDivElement>(null);
+
+  const calcIndex = React.useCallback((clientX: number) => {
+    const r = trackRef.current?.getBoundingClientRect();
+    if (!r) return index;
+    return Math.round(Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * (total - 1));
+  }, [index, total]);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    onSeek(calcIndex(e.clientX));
+    const onMove = (ev: MouseEvent) => onSeek(calcIndex(ev.clientX));
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [calcIndex, onSeek]);
+
+  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+    onSeek(calcIndex(e.touches[0].clientX));
+    const onMove = (ev: TouchEvent) => onSeek(calcIndex(ev.touches[0].clientX));
+    const onUp = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+  }, [calcIndex, onSeek]);
+
+  return (
+    <div className="shrink-0 px-3 py-2.5 border-b border-border/40 bg-muted/10">
+      <div className="flex items-center gap-2">
+        {/* Play/Pause */}
+        <button type="button" onClick={onPlayToggle}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted">
+          {isPlaying
+            ? <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            : <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>}
+        </button>
+        {/* Speed */}
+        <button type="button" onClick={onSpeedCycle}
+          className="flex h-7 shrink-0 items-center rounded-full border border-border/60 bg-card px-2.5 text-[11px] font-bold text-foreground hover:bg-muted">
+          {speed}×
+        </button>
+        {/* Seek track */}
+        <div ref={trackRef}
+          className="relative flex h-8 flex-1 cursor-pointer select-none items-center px-1"
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}>
+          <div className="relative h-1.5 w-full rounded-full bg-muted">
+            <div className="absolute left-0 top-0 h-full rounded-full bg-primary" style={{ width: `${pct.toFixed(2)}%`, pointerEvents: 'none' }} />
+            <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-primary shadow-md" style={{ left: `${pct.toFixed(2)}%`, pointerEvents: 'none' }} />
+          </div>
+        </div>
+        {/* Auto-follow */}
+        <button type="button" onClick={onAutoFollowToggle}
+          className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
+            autoFollow ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border/60 bg-card text-muted-foreground hover:bg-muted')}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        </button>
+      </div>
+      {/* Time + count */}
+      <div className="mt-1.5 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+        <span className="font-mono">{curr ? fmtTime(curr.time) : '—'}</span>
+        <span className="tabular-nums">{index + 1} / {total}</span>
+      </div>
+    </div>
+  );
 }
 
 export function HistoryPanel({
-  member,
-  onClose,
-  onHistoryLoaded,
-  playIndex,
-  onSeek,
+  member, onClose, onHistoryLoaded,
+  playIndex, onSeek,
+  isPlaying, playSpeed, autoFollow,
+  onPlayToggle, onSpeedCycle, onAutoFollowToggle,
 }: HistoryPanelProps) {
   const { t } = useFleetwork();
   const [historyDate, setHistoryDate] = React.useState<Date>(() => new Date());
@@ -472,201 +558,204 @@ export function HistoryPanel({
     });
 
   const initials = (member.name ?? member.userId).slice(0, 2).toUpperCase();
+  const [sheetExpanded, setSheetExpanded] = React.useState(false);
 
   return (
-    <div className="absolute top-3 bottom-3 right-3 z-20 flex w-[300px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-xl">
-      {/* ── Member header ─────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          {/* Avatar */}
+    <div
+      className={cn(
+        // Desktop: right side panel
+        'sm:absolute sm:top-3 sm:bottom-3 sm:right-3 sm:z-20 sm:flex sm:w-[300px] sm:flex-col sm:overflow-hidden sm:rounded-2xl sm:border sm:border-border/60 sm:bg-card/95 sm:backdrop-blur-md sm:shadow-xl',
+        // Mobile: bottom sheet
+        'max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-30 max-sm:flex max-sm:flex-col max-sm:overflow-hidden max-sm:rounded-t-2xl max-sm:border-t max-sm:border-border/60 max-sm:bg-card/95 max-sm:backdrop-blur-md max-sm:shadow-[0_-4px_24px_rgba(0,0,0,0.15)]',
+        sheetExpanded ? 'max-sm:h-[68dvh]' : 'max-sm:min-h-[180px] max-sm:max-h-[320px]',
+        'max-sm:transition-[height] max-sm:duration-300 max-sm:ease-in-out',
+      )}
+    >
+      {/* Drag handle (mobile only) */}
+      <div
+        className="sm:hidden shrink-0 flex items-center justify-center pt-2.5 pb-1 cursor-pointer select-none"
+        onClick={() => setSheetExpanded((v) => !v)}
+      >
+        <div className="h-1 w-10 rounded-full bg-border/60" />
+      </div>
+
+      {/* Member header */}
+      <div className="shrink-0 px-3 pt-2 pb-2.5 sm:pt-4 sm:pb-3 sm:px-4 border-b border-border/40">
+        <div className="flex items-center gap-2.5">
           <div className="relative shrink-0">
-            <div
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold text-white",
-                STATUS_AVATAR_BG[member.status],
-              )}
-            >
+            <div className={cn('flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold text-white', STATUS_AVATAR_BG[member.status])}>
               {initials}
             </div>
-            <span
-              className={cn(
-                "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card",
-                STATUS_DOT_PLAIN[member.status],
-              )}
-            />
+            <span className={cn('absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card', STATUS_DOT_PLAIN[member.status])} />
           </div>
-          {/* Info */}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-foreground leading-tight">
-              {member.name ?? member.userId}
-            </p>
-            <span
-              className={cn(
-                "mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                STATUS_BADGE[member.status],
-              )}
-            >
-              <span
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  STATUS_DOT_PLAIN[member.status],
-                )}
-              />
+            <p className="truncate text-[13px] font-semibold text-foreground leading-tight">{member.name ?? member.userId}</p>
+            <span className={cn('mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', STATUS_BADGE[member.status])}>
+              <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_PLAIN[member.status])} />
               {member.statusLabel}
             </span>
+            {/* Stats inline — show when data loaded */}
+            {!historyLoading && pts.length > 0 && (
+              <div className="mt-1 flex items-center gap-2.5">
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Route className="h-3 w-3 text-primary shrink-0" />
+                  <span className="font-semibold text-foreground tabular-nums">{fmtDist(totalDistM)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Clock3 className="h-3 w-3 text-violet-500 shrink-0" />
+                  <span className="font-semibold text-foreground tabular-nums">{fmtDuration(totalMs)}</span>
+                </span>
+              </div>
+            )}
           </div>
-          {/* Close */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button type="button" onClick={() => setSheetExpanded((v) => !v)}
+              className="sm:hidden flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors">
+              {sheetExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </button>
+            <button type="button" onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Date navigator ────────────────────────────────────────── */}
-      <div className="shrink-0 px-3 py-2.5 border-b border-border/40 bg-muted/20">
+      {/* Date navigator */}
+      <div className="shrink-0 px-3 py-2 border-b border-border/40 bg-muted/20">
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              const p = subDays(historyDate, 1);
-              setHistoryDate(p);
-              loadHistory(p);
-            }}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
+          <button type="button"
+            onClick={() => { const p = subDays(historyDate, 1); setHistoryDate(p); loadHistory(p); }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted transition-colors">
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-
           <DatePicker
             value={historyDate}
-            onChange={(d) => {
-              setHistoryDate(d);
-              loadHistory(d);
-            }}
+            onChange={(d) => { setHistoryDate(d); loadHistory(d); }}
             maxDate={new Date()}
-            formatLabel={(d) =>
-              new Intl.DateTimeFormat("vi-VN", {
-                weekday: "short",
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              }).format(d)
-            }
+            formatLabel={(d) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)}
             className="h-7 flex-1 rounded-lg text-[12px] font-medium"
           />
-
-          <button
-            type="button"
-            onClick={() => {
-              const n = addDays(historyDate, 1);
-              setHistoryDate(n);
-              loadHistory(n);
-            }}
+          <button type="button"
+            onClick={() => { const n = addDays(historyDate, 1); setHistoryDate(n); loadHistory(n); }}
             disabled={startOfDay(historyDate) >= startOfDay(new Date())}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-          >
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none">
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* ── Content ───────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Loading */}
-        {historyLoading && (
-          <div className="flex flex-1 items-center justify-center gap-3">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-            <span className="text-[12px] text-muted-foreground">
-              {t("history.loading")}
-            </span>
+      {/* Loading */}
+      {historyLoading && (
+        <div className="flex shrink-0 items-center justify-center gap-2.5 py-6">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+          <span className="text-[12px] text-muted-foreground">{t('history.loading')}</span>
+        </div>
+      )}
+
+      {/* Empty */}
+      {!historyLoading && pts.length === 0 && (
+        <div className="flex shrink-0 flex-col items-center justify-center gap-2 py-8 px-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <MapPin className="h-6 w-6 text-muted-foreground/50" />
           </div>
-        )}
-
-        {/* Empty */}
-        {!historyLoading && pts.length === 0 && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <MapPin className="h-7 w-7 text-muted-foreground/50" />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-foreground">
-                {t("history.noData")}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                Không có dữ liệu di chuyển
-                <br />
-                trong ngày đã chọn
-              </p>
-            </div>
+          <div>
+            <p className="text-[13px] font-semibold text-foreground">{t('history.noData')}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Không có dữ liệu trong ngày này</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Data */}
-        {!historyLoading && pts.length > 0 && (
-          <>
-            {/* Stats row */}
-            <div className="grid grid-cols-2 divide-x divide-border/40 border-b border-border/40 shrink-0">
-              <div className="flex flex-col items-center gap-0.5 py-3">
-                <Route className="h-4 w-4 text-primary mb-0.5" />
-                <p className="text-[13px] font-bold text-foreground tabular-nums">
-                  {fmtDist(totalDistM)}
-                </p>
-                <p className="text-[9px] text-muted-foreground">
-                  {t("history.distance")}
-                </p>
-              </div>
-              <div className="flex flex-col items-center gap-0.5 py-3">
-                <Clock3 className="h-4 w-4 text-violet-500 mb-0.5" />
-                <p className="text-[13px] font-bold text-foreground tabular-nums">
-                  {fmtDuration(totalMs)}
-                </p>
-                <p className="text-[9px] text-muted-foreground">
-                  {t("history.duration")}
-                </p>
-              </div>
-              {/* GPS points stat removed */}
-            </div>
-
-            {/* Timeline */}
+      {/* Data */}
+      {!historyLoading && pts.length > 0 && (
+        <>
+          {/* ── Mobile bottom sheet content ───────────────────────────── */}
+          <div className="sm:hidden shrink-0 overflow-hidden">
+            {/* Timeline color bar + time labels */}
             {segments.length > 0 && (
-              <TimelineBar pts={pts} segments={segments} totalMs={totalMs} />
+              <div className="px-4 pt-3 pb-2 border-b border-border/40 bg-muted/10">
+                {/* Time labels */}
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{fmtTimeShort(pts[0].time)}</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{fmtTimeShort(pts[pts.length-1].time)}</span>
+                </div>
+                {/* Color bar */}
+                <div className="flex h-4 overflow-hidden rounded-md bg-muted/50">
+                  {segments.map((sg, i) => (
+                    <div key={i}
+                      style={{
+                        width: `${Math.max((sg.durationMs / totalMs) * 100, 0.5).toFixed(2)}%`,
+                        background: ({ moving: STATUS_HEX.moving, stopped: STATUS_HEX.stopped, lostGps: STATUS_HEX.signal_lost } as Record<string,string>)[sg.type],
+                      }}
+                    />
+                  ))}
+                </div>
+                {/* Legend chips */}
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                  {(['moving','stopped','lostGps'] as const)
+                    .filter(k => segments.some(s => s.type === k))
+                    .map(k => {
+                      const dur = segments.filter(s=>s.type===k).reduce((a,s)=>a+s.durationMs,0);
+                      const color = ({ moving: STATUS_HEX.moving, stopped: STATUS_HEX.stopped, lostGps: STATUS_HEX.signal_lost } as Record<string,string>)[k];
+                      const label = k==='moving'?'Di chuyển':k==='stopped'?'Dừng':'Mất GPS';
+                      return (
+                        <span key={k} className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{background:color}} />
+                          {label} · {fmtDuration(dur)}
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
             )}
 
-            {/* Column header */}
+            {/* Row 3: Playback controls — full width, touch-friendly */}
+            <div className="px-3 pt-3 pb-3 border-b border-border/40">
+              {/* Seek track — tall touch target */}
+              <PlaybackBar
+                points={pts}
+                index={playIndex}
+                isPlaying={isPlaying}
+                speed={playSpeed}
+                autoFollow={autoFollow}
+                onSeek={onSeek}
+                onPlayToggle={onPlayToggle}
+                onSpeedCycle={onSpeedCycle}
+                onAutoFollowToggle={onAutoFollowToggle}
+              />
+            </div>
+          </div>
+
+          {/* ── Desktop content (unchanged) ──────────────────────────────── */}
+          {/* Desktop timeline */}
+          {segments.length > 0 && (
+            <div className="hidden sm:block">
+              <TimelineBar pts={pts} segments={segments} totalMs={totalMs} />
+            </div>
+          )}
+
+          {/* GPS list — desktop always, mobile only when expanded */}
+          <div className={cn(
+            'flex flex-col overflow-hidden sm:flex-1',
+            sheetExpanded ? 'max-sm:flex-1 max-sm:min-h-0' : 'max-sm:hidden',
+          )}>
             <div className="flex items-center gap-3 border-b border-border/40 bg-muted/30 px-4 py-1.5 shrink-0">
               <span className="w-4 shrink-0" />
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                Giờ
-              </span>
-              <span className="ml-auto text-[10px] font-semibold text-muted-foreground">
-                Tốc độ
-              </span>
+              <span className="text-[10px] font-semibold text-muted-foreground">Giờ</span>
+              <span className="ml-auto text-[10px] font-semibold text-muted-foreground">Tốc độ</span>
             </div>
-
-            {/* Scrollable list */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto"
-              style={{ scrollbarWidth: "thin" }}
-            >
+            <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
               {groups.map((g, gi) => (
-                <HistoryRowItem
-                  key={gi}
-                  group={g}
-                  activeIndex={playIndex}
+                <HistoryRowItem key={gi} group={g} activeIndex={playIndex}
                   expanded={expandedGroups.has(gi)}
                   onToggle={() => toggleGroup(gi)}
                   onSeek={onSeek}
                 />
               ))}
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

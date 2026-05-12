@@ -223,7 +223,7 @@
 }
 .maplibregl-popup,
 .vietmapgl-popup {
-  z-index: 100;
+  z-index: 10;
 }
 .maplibregl-popup-tip,
 .vietmapgl-popup-tip {

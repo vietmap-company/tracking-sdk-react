@@ -275,6 +275,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             style: buildTileStyle(tile, apiKeyTilemap),
             center,
             zoom,
+            attributionControl: false,
           });
           mapRef.current = map;
           map.on("load", () => {
@@ -646,6 +647,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             members={members}
             isLoading={isLoading}
             activeUserId={activeUserId}
+            collapseOnSelect={typeof window !== 'undefined' && window.innerWidth < 640}
             onItemClick={(m) => {
               if (onMemberClick ? onMemberClick(m) === false : false) return;
               // If history panel is open → switch to history of new member,
@@ -669,7 +671,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             position="left"
           />
         )}
-        <Legend position="top-right" />
+        <Legend position="top-right" className="max-sm:hidden" />
         <TileSwitcher value={tile} onChange={setTile} position="bottom-right" />
         {popupMember &&
           popupContainerRef.current &&
@@ -712,22 +714,29 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             onHistoryLoaded={handleHistoryLoaded}
             playIndex={playIndex}
             onSeek={seekHistory}
-          />
-        )}
-        {selectedMember && historyPoints.length > 1 && (
-          <PlaybackControls
-            points={historyPoints}
-            index={playIndex}
             isPlaying={isPlaying}
-            speed={playSpeed}
+            playSpeed={playSpeed}
             autoFollow={autoFollow}
-            onSeek={seekHistory}
             onPlayToggle={() => setIsPlaying((v) => !v)}
-            onSpeedCycle={() =>
-              setPlaySpeed((sp) => (sp === 1 ? 2 : sp === 2 ? 4 : 1))
-            }
+            onSpeedCycle={() => setPlaySpeed((sp) => (sp === 1 ? 2 : sp === 2 ? 4 : 1))}
             onAutoFollowToggle={() => setAutoFollow((v) => !v)}
           />
+        )}
+        {/* Desktop-only float playback bar — on mobile it's embedded inside HistoryPanel sheet */}
+        {selectedMember && historyPoints.length > 1 && (
+          <div className="hidden sm:block">
+            <PlaybackControls
+              points={historyPoints}
+              index={playIndex}
+              isPlaying={isPlaying}
+              speed={playSpeed}
+              autoFollow={autoFollow}
+              onSeek={seekHistory}
+              onPlayToggle={() => setIsPlaying((v) => !v)}
+              onSpeedCycle={() => setPlaySpeed((sp) => (sp === 1 ? 2 : sp === 2 ? 4 : 1))}
+              onAutoFollowToggle={() => setAutoFollow((v) => !v)}
+            />
+          </div>
         )}
       </div>
     );
