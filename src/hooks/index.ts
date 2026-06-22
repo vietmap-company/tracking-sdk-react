@@ -207,12 +207,17 @@ export interface UseMembersOptions {
   maxUsers?: number
   pollInterval?: number
   enabled?: boolean
+  /** Only fetch/display these user ids. Empty or omitted means all users. */
+  userIds?: string[]
 }
 export function useMembers(options: UseMembersOptions = {}): QueryResult<MemberStatus[]> {
-  const { nameKey, maxUsers } = options
+  const { nameKey, maxUsers, userIds } = options
+  // Stable dep key so a fresh `userIds` array reference each render does not
+  // re-trigger the fetch when the ids are unchanged.
+  const userIdsKey = userIds?.join(',') ?? ''
   return useFetch(
-    () => LiveMapController.getMembers({ nameKey, pageSize: maxUsers }),
-    [nameKey, maxUsers],
+    () => LiveMapController.getMembers({ nameKey, pageSize: maxUsers, userIds }),
+    [nameKey, maxUsers, userIdsKey],
     options.enabled,
     options.pollInterval,
   )

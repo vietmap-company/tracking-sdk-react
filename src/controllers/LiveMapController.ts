@@ -12,6 +12,11 @@ export interface GetMembersOptions {
   client?: AxiosInstance;
   nameKey?: string;
   pageSize?: number;
+  /**
+   * Restrict the result to these user ids. Sent to the API which filters
+   * server-side. An empty array is treated as "no filter" (all users).
+   */
+  userIds?: string[];
 }
 
 function parseMeta(
@@ -78,10 +83,21 @@ function c(opts?: { client?: AxiosInstance }): AxiosInstance {
 
 export const LiveMapController = {
   async getMembers(options: GetMembersOptions = {}): Promise<MemberStatus[]> {
+    const userIds = options.userIds?.filter((id) => id != null && id !== "");
+    const hasFilter = userIds != null && userIds.length > 0;
+    // When filtering by userIds the result is already bounded by the id list,
+    // so there's no need to send the pageSize cap.
+    const params = hasFilter
+      ? { userIds }
+      : { pageSize: options.pageSize ?? 3000 };
     const data = await request<GpsUsersResponse>(c(options), {
       method: "GET",
       url: "gps-tracking/users",
-      params: { pageSize: options.pageSize ?? 3000 },
+      params,
+      // The API filters server-side and expects repeated `userIds=a&userIds=b`.
+      // axios' default array serializer emits `userIds[]=a`, which the API
+      // ignores — `indexes: null` drops the brackets.
+      paramsSerializer: { indexes: null },
     });
     return data.users.map((row) => rowToMember(row, options.nameKey));
   },

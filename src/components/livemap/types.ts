@@ -49,6 +49,12 @@ export interface LiveMapProps {
   apiKeyTilemap: string;
   pollInterval?: number;
   maxUsers?: number;
+  /**
+   * Restrict the map to these user ids. When provided, only these users are
+   * fetched/displayed instead of the whole fleet. Empty or omitted means all
+   * users. Ignored when `members` is supplied (caller controls the data).
+   */
+  userIds?: string[];
   clusterRadius?: number;
   clusterMaxZoom?: number;
   members?: MemberStatus[];

@@ -35,6 +35,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       apiKeyTilemap,
       pollInterval = 10_000,
       maxUsers = 3000,
+      userIds,
       clusterRadius = 50,
       clusterMaxZoom = 14,
       members: membersProp,
@@ -121,6 +122,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       pollInterval,
       nameKey: memberNameKey,
       maxUsers,
+      userIds,
       enabled: !membersProp,
     });
     const members = membersProp ?? apiMembers;
