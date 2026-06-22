@@ -51,7 +51,7 @@ export default function App() {
 | Prop                      | Type                            | Mặc định                             | Mô tả                                  |
 | ------------------------- | ------------------------------- | ------------------------------------ | -------------------------------------- |
 | `apiKey`                  | `string`                        | —                                    | API token (gửi qua header `X-API-Key`) |
-| `baseUrl`                 | `string`                        | `"https://live.fleetwork.vn/api/v1"` | Base URL của API server                |
+| `baseUrl`                 | `string`                        | `"https://app.fleetwork.vn/api/v1"` | Base URL của API server                |
 | `locale`                  | `"vi" \| "en"`                  | `"vi"`                               | Ngôn ngữ giao diện                     |
 | `theme`                   | `ThemeConfig`                   | —                                    | Tuỳ chỉnh CSS variables (xem Theming)  |
 | `memberNameKey`           | `string`                        | —                                    | Key trong `metaData` của row dùng làm tên hiển thị (LiveMap + Dashboard MemberReport + Report tables) |

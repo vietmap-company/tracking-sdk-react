@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Boxes } from 'lucide-react'
 
-const DEFAULT_BASE_URL = 'https://live.fleetwork.vn/api/v1'
+const DEFAULT_BASE_URL = 'https://app.fleetwork.vn/api/v1'
 
 interface SdkKeyGateProps {
   apiKey: string

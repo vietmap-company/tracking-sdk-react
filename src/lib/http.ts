@@ -13,7 +13,7 @@ const isDev = import.meta.env.DEV;
 
 function buildClient(config: FleetworkConfig): AxiosInstance {
   const instance = axios.create({
-    baseURL: config.baseUrl ?? "https://live.fleetwork.vn/api/v1",
+    baseURL: config.baseUrl ?? "https://app.fleetwork.vn/api/v1",
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": config.apiKey,

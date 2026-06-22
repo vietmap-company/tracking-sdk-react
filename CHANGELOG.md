@@ -107,7 +107,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Externalize tất cả runtime deps trong vite config — tránh `require()` polyfill inject từ Rolldown
 - Bundle size: ESM ~32 KB gzip, CSS ~12 KB gzip
 - `DateRangePicker` bỏ step indicator, dùng Calendar `mode="range"` trực quan hơn
-- Default base URL: `https://live.fleetwork.vn/api/v1`
+- Default base URL: `https://app.fleetwork.vn/api/v1`
 
 #### Fixed
 

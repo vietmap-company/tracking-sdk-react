@@ -49,7 +49,7 @@ export interface FleetworkProviderProps extends FleetworkConfig {
   ) => React.ReactNode;
 }
 
-const DEFAULT_BASE_URL = 'https://live.fleetwork.vn/api/v1';
+const DEFAULT_BASE_URL = 'https://app.fleetwork.vn/api/v1';
 
 export function FleetworkProvider({
   apiKey,
