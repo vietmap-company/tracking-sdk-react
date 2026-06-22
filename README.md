@@ -186,6 +186,7 @@ Bản đồ fleet real-time dùng VietmapGL (CDN loader) với GPU-accelerated c
 - Click marker → popup → **Xem lộ trình** → animated playback với route overlay
 - History panel: thống kê quãng đường + thời gian, timeline bar, danh sách điểm theo nhóm, date picker
 - Khi đang xem lịch sử, chọn nhân viên khác sẽ tự tải lại lịch sử của người đó
+- Lọc theo `userIds` — chỉ tải/hiển thị một tập user cụ thể (API lọc server-side)
 - `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`
 
 ```tsx
@@ -222,7 +223,8 @@ const mapRef = useRef<LiveMapRef>(null)
 | `zoom`              | `number`                    | `11`            | Mức zoom ban đầu                           |
 | `defaultTile`       | `TileType`                  | `"terrain"`     | Loại tile mặc định                         |
 | `pollInterval`      | `number`                    | `10000`         | Chu kỳ refresh vị trí (ms)                 |
-| `maxUsers`          | `number`                    | `3000`          | Số nhân viên tối đa mỗi lần poll           |
+| `maxUsers`          | `number`                    | `3000`          | Số nhân viên tối đa mỗi lần poll (chỉ áp dụng khi không lọc `userIds`) |
+| `userIds`           | `string[]`                  | —               | Chỉ tải/hiển thị các user này. API lọc server-side; bỏ trống = tất cả |
 | `clusterRadius`     | `number`                    | `50`            | Bán kính cluster (px)                      |
 | `clusterMaxZoom`    | `number`                    | `14`            | Mức zoom tắt cluster                       |
 | `memberNameKey`     | `string`                    | —               | Key trong `metadata` dùng làm tên hiển thị |
@@ -246,6 +248,15 @@ mapRef.current?.fitBounds([
 mapRef.current?.focusMember("user-123"); // Bay đến + mở popup
 mapRef.current?.getMembers(); // MemberStatus[]
 mapRef.current?.getMap(); // MapInstance
+```
+
+**Lọc theo nhóm user (`userIds`)**
+
+Mặc định LiveMap tải toàn bộ fleet. Truyền `userIds` để chỉ tải/hiển thị một tập user — API lọc server-side nên không kéo về thừa data:
+
+```tsx
+// Chỉ hiện 3 user này; bỏ trống/`undefined` -> hiện tất cả như cũ
+<LiveMap apiKeyTilemap="..." userIds={["driver-01", "driver-02", "driver-03"]} />
 ```
 
 ---
@@ -302,7 +313,7 @@ const { data } = useFuelTracking({ from?, to?, groupBy? })
 const { data } = useMonthlyExpenses({ from?, to?, currency? })
 
 // LiveMap
-const { data } = useMembers({ pollInterval?, nameKey?, maxUsers? })
+const { data } = useMembers({ pollInterval?, nameKey?, maxUsers?, userIds? })
 const { data } = useMember(userId)
 const { data } = useHistoryRoute({ userId, startTime, endTime })
 
@@ -332,6 +343,7 @@ initFleetwork({ apiKey: "...", baseUrl: "..." });
 
 const summary = await DashboardController.getSummaryCards();
 const members = await LiveMapController.getMembers({ pageSize: 3000 });
+const some = await LiveMapController.getMembers({ userIds: ["u1", "u2"] }); // lọc server-side
 const history = await LiveMapController.getHistoryRoute(userId, from, to);
 const trips = await ReportController.getTripSummary({ from, to });
 const fuel = await ReportController.getFuelSummary({ from, to });

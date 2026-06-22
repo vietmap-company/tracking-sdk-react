@@ -6,6 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.7] - 2026-06-22
+
+### Added
+
+- **Lọc LiveMap theo `userIds`** — prop mới `userIds?: string[]` trên `<LiveMap>`, option `userIds` cho hook `useMembers` và `LiveMapController.getMembers()`. Khi truyền, chỉ fetch/hiển thị các user trong danh sách (API lọc server-side); bỏ trống = tất cả như cũ. Hữu ích khi khách hàng chỉ muốn theo dõi một nhóm user nhất định.
+
+### Changed
+
+- **`getMembers` bỏ `pageSize` khi lọc `userIds`** — kết quả đã bị giới hạn bởi danh sách id nên không gửi kèm cap phân trang. Khi không lọc vẫn dùng `pageSize` (mặc định 3000) như cũ.
+- **Serialize `userIds` không dùng `[]`** — request thêm `paramsSerializer: { indexes: null }` để sinh `userIds=a&userIds=b` (định dạng API yêu cầu) thay vì `userIds[]=a` mặc định của axios (API bỏ qua dạng có ngoặc).
+
+---
+
 ## [1.0.6] - 2026-05-12
 
 ### Added
