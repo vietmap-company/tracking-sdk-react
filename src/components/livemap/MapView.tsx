@@ -25,6 +25,29 @@ import { PlaybackControls } from "./PlaybackControls";
 import { SpiderOverlay } from "./SpiderOverlay";
 import { usePlayback } from "./usePlayback";
 
+/**
+ * `queryRenderedFeatures` an toàn — chỉ truy vấn các layer đang tồn tại trong
+ * style, bỏ qua layer chưa add. Tránh lỗi "The layer '...' does not exist in
+ * the map's style" khi click/hover/recompute lúc cluster layer chưa kịp thêm
+ * (ví dụ ngay sau khi đổi tile/`setStyle`, hoặc trước khi members tải xong).
+ */
+function queryLayers(
+  m: MapInstance,
+  geometry:
+    | [number, number]
+    | [[number, number], [number, number]]
+    | undefined,
+  layerIds: string[],
+) {
+  const layers = layerIds.filter((id) => m.getLayer(id));
+  if (!layers.length) return [];
+  return (
+    (geometry === undefined
+      ? m.queryRenderedFeatures?.({ layers })
+      : m.queryRenderedFeatures?.(geometry, { layers })) ?? []
+  );
+}
+
 export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
   function LiveMap(props, ref) {
     const {
@@ -36,6 +59,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       pollInterval = 10_000,
       maxUsers = 3000,
       userIds,
+      autoFit = true,
       clusterRadius = 50,
       clusterMaxZoom = 14,
       members: membersProp,
@@ -286,16 +310,28 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
               onMapReady?.(map as MapInstance);
             }
           });
+          // Khi người dùng TỰ pan/zoom/xoay bản đồ (gesture có `originalEvent`),
+          // khoá auto-fit vĩnh viễn để các lần poll members sau không đè view họ
+          // đang xem. fitBounds lập trình không có `originalEvent` nên không tự khoá.
+          const lockAutoFit = (e: unknown) => {
+            if ((e as { originalEvent?: unknown })?.originalEvent) {
+              hasFitRef.current = true;
+            }
+          };
+          map.on("dragstart", lockAutoFit);
+          map.on("zoomstart", lockAutoFit);
+          map.on("rotatestart", lockAutoFit);
           map.on("click", (e: unknown) => {
             const ev = e as {
               lngLat?: { lng: number; lat: number };
               point?: { x: number; y: number };
             };
             const m = mapRef.current;
-            if (ev.point && m?.queryRenderedFeatures) {
-              const features = m.queryRenderedFeatures(
+            if (ev.point && m) {
+              const features = queryLayers(
+                m,
                 [ev.point.x, ev.point.y],
-                { layers: [LAYER_CLUSTERS, LAYER_POINTS, LAYER_SELECTED_POINT] },
+                [LAYER_CLUSTERS, LAYER_POINTS, LAYER_SELECTED_POINT],
               );
               if (features && features.length > 0) {
                 const f = features[0];
@@ -315,14 +351,14 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
                   ];
 
                   // Check for overlapping points → spiderfy
-                  const nearby =
-                    m.queryRenderedFeatures?.(
-                      [
-                        [px.x - 12, px.y - 12],
-                        [px.x + 12, px.y + 12],
-                      ] as [[number, number], [number, number]],
-                      { layers: [LAYER_POINTS] },
-                    ) ?? [];
+                  const nearby = queryLayers(
+                    m,
+                    [
+                      [px.x - 12, px.y - 12],
+                      [px.x + 12, px.y + 12],
+                    ] as [[number, number], [number, number]],
+                    [LAYER_POINTS],
+                  );
                   const overlapping = nearby.filter((feat) => {
                     const c = feat.geometry.coordinates as [number, number];
                     return (
@@ -387,11 +423,11 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           map.on("mousemove", (e: unknown) => {
             const ev = e as { point?: { x: number; y: number } };
             const canvas = mapRef.current?.getCanvas?.();
-            if (!canvas || !ev.point || !mapRef.current?.queryRenderedFeatures)
-              return;
-            const features = mapRef.current.queryRenderedFeatures(
+            if (!canvas || !ev.point || !mapRef.current) return;
+            const features = queryLayers(
+              mapRef.current,
               [ev.point.x, ev.point.y],
-              { layers: [LAYER_CLUSTERS, LAYER_POINTS, LAYER_SELECTED_POINT] },
+              [LAYER_CLUSTERS, LAYER_POINTS, LAYER_SELECTED_POINT],
             );
             canvas.style.cursor =
               features && features.length > 0 ? "pointer" : "";
@@ -417,12 +453,11 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           // as fanned-out spiders without requiring an extra click.
           const recompute = () => {
             const m = mapRef.current;
-            if (!m?.queryRenderedFeatures) {
+            if (!m) {
               setAutoSpiderGroups((prev) => (prev.length === 0 ? prev : []));
               return;
             }
-            const features =
-              m.queryRenderedFeatures({ layers: [LAYER_POINTS] }) ?? [];
+            const features = queryLayers(m, undefined, [LAYER_POINTS]);
             if (features.length === 0) {
               setAutoSpiderGroups((prev) => (prev.length === 0 ? prev : []));
               return;
@@ -551,7 +586,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       } catch (e) {
         console.warn("[LiveMap] sync members:", e);
       }
-      if (!hasFitRef.current) {
+      if (autoFit && !hasFitRef.current) {
         const pts = members.filter((m) => m.lat && m.lng);
         if (pts.length >= 2) {
           hasFitRef.current = true;

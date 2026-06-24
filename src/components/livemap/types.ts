@@ -55,6 +55,13 @@ export interface LiveMapProps {
    * users. Ignored when `members` is supplied (caller controls the data).
    */
   userIds?: string[];
+  /**
+   * Auto-fit the viewport to all members on first data load. Default `true`.
+   * It only ever fits once and stops as soon as the user pans/zooms, so polling
+   * never overrides the user's view. Set `false` to disable entirely and keep
+   * the configured `center`/`zoom`.
+   */
+  autoFit?: boolean;
   clusterRadius?: number;
   clusterMaxZoom?: number;
   members?: MemberStatus[];

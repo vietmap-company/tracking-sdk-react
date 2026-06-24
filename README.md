@@ -154,17 +154,19 @@ Dashboard tổng hợp với 5 widgets. Mỗi widget có thể dùng độc lậ
 import { Dashboard, SummaryCards, MemberReport } from "@vietmap/tracking-sdk-react"
 
 <Dashboard pollInterval={30_000} />
+<Dashboard userIds={["u1", "u2"]} />  {/* Member report chỉ hiện tập user này */}
 <SummaryCards date={Date.now()} />
-<MemberReport pageSize={20} />
+<MemberReport pageSize={20} userIds={["u1", "u2"]} />
 ```
 
 **`DashboardProps`**
 
 | Prop                  | Type      | Mặc định | Mô tả                |
 | --------------------- | --------- | -------- | -------------------- |
-| `date`                | `number`  | hôm nay  | Timestamp ms         |
-| `pollInterval`        | `number`  | `30000`  | Tự động refresh (ms) |
-| `showSummaryCards`    | `boolean` | `true`   | Hiện/ẩn widget       |
+| `date`                | `number`   | hôm nay  | Timestamp ms         |
+| `pollInterval`        | `number`   | `30000`  | Tự động refresh (ms) |
+| `userIds`             | `string[]` | —        | Lọc Member report theo tập user (API lọc server-side); bỏ trống = tất cả |
+| `showSummaryCards`    | `boolean`  | `true`   | Hiện/ẩn widget       |
 | `showMemberReport`    | `boolean` | `true`   | Hiện/ẩn widget       |
 | `showActivityHeatmap` | `boolean` | `true`   | Hiện/ẩn widget       |
 | `showFuelTracking`    | `boolean` | `true`   | Hiện/ẩn widget       |
@@ -225,6 +227,7 @@ const mapRef = useRef<LiveMapRef>(null)
 | `pollInterval`      | `number`                    | `10000`         | Chu kỳ refresh vị trí (ms)                 |
 | `maxUsers`          | `number`                    | `3000`          | Số nhân viên tối đa mỗi lần poll (chỉ áp dụng khi không lọc `userIds`) |
 | `userIds`           | `string[]`                  | —               | Chỉ tải/hiển thị các user này. API lọc server-side; bỏ trống = tất cả |
+| `autoFit`           | `boolean`                   | `true`          | Tự fit viewport vào tất cả member ở lần tải đầu. Chỉ fit 1 lần và dừng ngay khi người dùng pan/zoom → poll không đè view. `false` để tắt hẳn, giữ `center`/`zoom` |
 | `clusterRadius`     | `number`                    | `50`            | Bán kính cluster (px)                      |
 | `clusterMaxZoom`    | `number`                    | `14`            | Mức zoom tắt cluster                       |
 | `memberNameKey`     | `string`                    | —               | Key trong `metadata` dùng làm tên hiển thị |
@@ -265,17 +268,24 @@ Mặc định LiveMap tải toàn bộ fleet. Truyền `userIds` để chỉ t�
 
 Hub báo cáo — màn hình chính với 3 thẻ, điều hướng vào từng loại.
 
-| Báo cáo       | Tabs                | Mô tả                           |
-| ------------- | ------------------- | ------------------------------- |
-| Hành trình    | Tổng hợp / Chi tiết | Quãng đường, thời gian, tốc độ  |
-| Nhiên liệu    | Tổng hợp / Chi tiết | Định mức và chi phí nhiên liệu  |
-| Giờ hoạt động | —                   | Số nhân viên hoạt động theo giờ |
+| Báo cáo       | Mô tả                                                                    |
+| ------------- | ------------------------------------------------------------------------ |
+| Hành trình    | Bảng tổng hợp per-user → click 1 user mở **chi tiết hành trình** của user đó |
+| Nhiên liệu    | Bảng tổng hợp per-user → click 1 user mở **chi tiết nhiên liệu** của user đó |
+| Giờ hoạt động | Số nhân viên hoạt động theo giờ                                          |
+
+**Drill-down theo user:** Hành trình & Nhiên liệu hiển thị **bảng Tổng hợp**; cột cuối "Thao tác" có nút **Xem chi tiết** (👁, click cả dòng cũng được) → mở **trang chi tiết riêng** của user đó (phân trang/sort/đổi khoảng ngày + nút quay lại, ẩn cột nhân viên). _(Trước đây dùng 2 tab Tổng hợp/Chi tiết — đã thay bằng drill-down.)_
 
 Tất cả bảng: header có thể sort, sticky header + sticky hàng tổng, scroll ngang/dọc, `DateRangePicker` 2 tháng với nút xác nhận.
 
 ```tsx
 <Report from={Date.now() - 30 * 86_400_000} to={Date.now()} />
+
+// userIds: chỉ lấy một tập user cho mọi báo cáo (API lọc server-side)
+<Report from={from} to={to} userIds={["u1", "u2"]} />
 ```
+
+**`ReportProps`**: `from?`, `to?`, `userIds?`, `className?`, `style?`, `onError?`.
 
 Dùng từng sub-report độc lập:
 
@@ -288,11 +298,20 @@ import {
   ActivityTimeReport,
 } from "@vietmap/tracking-sdk-react";
 
-// Tất cả nhận: range, onRangeChange, onBack, onError, pageSize
+// Summary: range, onRangeChange, onBack, onError, pageSize, userIds, onUserClick
 <TripSummaryReport
   range={{ from, to }}
   onRangeChange={setRange}
-  pageSize={20}
+  onUserClick={(userId, name) => openDetail(userId, name)}
+/>;
+
+// Detail: thêm userId + userName để drill-down 1 user
+// (ẩn cột nhân viên, lọc theo userId, tên hiện ở tiêu đề)
+<TripDetailReport
+  range={{ from, to }}
+  onRangeChange={setRange}
+  userId="u1"
+  userName="Nguyễn Văn A"
 />;
 ```
 
@@ -307,7 +326,7 @@ Tất cả hooks cần `FleetworkProvider` trong tree. Trả về `{ data, isLoa
 ```tsx
 // Dashboard
 const { data } = useSummaryCards({ date?, pollInterval? })
-const { data } = useMemberReport({ date?, page?, pageSize?, status? })
+const { data } = useMemberReport({ date?, page?, pageSize?, status?, userIds? })
 const { data } = useActivityHeatmap({ from?, to?, metric? })
 const { data } = useFuelTracking({ from?, to?, groupBy? })
 const { data } = useMonthlyExpenses({ from?, to?, currency? })
@@ -318,10 +337,11 @@ const { data } = useMember(userId)
 const { data } = useHistoryRoute({ userId, startTime, endTime })
 
 // Report
-const { data } = useTripSummaryReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
-const { data } = useTripDetailReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
-const { data } = useFuelSummaryReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
-const { data } = useFuelDetailReport({ from, to, page?, pageSize?, sortBy?, sortDesc? })
+// userId? (1 user, drill-down) hoặc userIds? (nhiều user, summary lọc server-side)
+const { data } = useTripSummaryReport({ from, to, page?, pageSize?, sortBy?, sortDesc?, userId?, userIds? })
+const { data } = useTripDetailReport({ from, to, page?, pageSize?, sortBy?, sortDesc?, userId? })
+const { data } = useFuelSummaryReport({ from, to, page?, pageSize?, sortBy?, sortDesc?, userId?, userIds? })
+const { data } = useFuelDetailReport({ from, to, page?, pageSize?, sortBy?, sortDesc?, userId? })
 const { data } = useActivityTimeReport({ from, to, page?, pageSize? })
 ```
 
@@ -344,10 +364,14 @@ initFleetwork({ apiKey: "...", baseUrl: "..." });
 const summary = await DashboardController.getSummaryCards();
 const members = await LiveMapController.getMembers({ pageSize: 3000 });
 const some = await LiveMapController.getMembers({ userIds: ["u1", "u2"] }); // lọc server-side
+const report = await DashboardController.getMemberReport(Date.now(), { userIds: ["u1", "u2"] });
 const history = await LiveMapController.getHistoryRoute(userId, from, to);
-const trips = await ReportController.getTripSummary({ from, to });
+const trips = await ReportController.getTripSummary({ from, to, userIds: ["u1", "u2"] });
 const fuel = await ReportController.getFuelSummary({ from, to });
+const userTrips = await ReportController.getTripDetail({ from, to, userId: "u1" }); // chi tiết 1 user
 ```
+
+> **Lọc `userIds`:** `LiveMapController.getMembers`, `DashboardController.getMemberReport`, và `ReportController.getTripSummary`/`getFuelSummary` gọi bản **POST** (body) của API để backend lọc nhiều user server-side; vượt **1000** id sẽ tự tách nhiều call rồi gộp. Báo cáo **chi tiết** (`getTripDetail`/`getFuelDetail`) lọc **1 user** qua `userId` (GET).
 
 ---
 
