@@ -116,6 +116,8 @@ export interface UseMemberReportOptions {
   page?: number
   pageSize?: number
   status?: MemberStatusKind
+  /** Chỉ lấy các user này (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   pollInterval?: number
   enabled?: boolean
 }
@@ -125,9 +127,12 @@ export function useMemberReport(options: UseMemberReportOptions = {}): QueryResu
   const page = options.page ?? 1
   const pageSize = options.pageSize ?? 10
   const status = options.status
+  const userIds = options.userIds
+  // Dep key ổn định để array userIds mới mỗi render không re-fetch khi id không đổi.
+  const userIdsKey = userIds?.join(',') ?? ''
   return useFetch(
-    () => DashboardController.getMemberReport(date, { page, pageSize, status }),
-    [date, page, pageSize, status],
+    () => DashboardController.getMemberReport(date, { page, pageSize, status, userIds }),
+    [date, page, pageSize, status, userIdsKey],
     options.enabled,
     options.pollInterval,
   )
@@ -258,6 +263,8 @@ export interface UseReportOptions {
   from: number
   to: number
   userId?: string
+  /** Chỉ lấy các user này (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   groupId?: string
   page?: number
   pageSize?: number
@@ -272,11 +279,16 @@ function reportEnabled(o: { enabled?: boolean; from?: number; to?: number }): bo
   return (o.enabled ?? true) && !!o.from && !!o.to
 }
 
+// Dep key ổn định cho mảng userIds (array mới mỗi render không re-fetch khi id không đổi).
+function userIdsKeyOf(userIds?: string[]): string {
+  return userIds?.join(',') ?? ''
+}
+
 export function useTripSummaryReport(options: UseReportOptions): QueryResult<TripSummaryReportData> {
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
   return useFetch(
     () => ReportController.getTripSummary(options),
-    [from, to, userId, groupId, page, pageSize, sortBy, sortDesc],
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
   )
@@ -286,7 +298,7 @@ export function useTripDetailReport(options: UseReportOptions): QueryResult<Trip
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
   return useFetch(
     () => ReportController.getTripDetail(options),
-    [from, to, userId, groupId, page, pageSize, sortBy, sortDesc],
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
   )
@@ -296,7 +308,7 @@ export function useFuelSummaryReport(options: UseReportOptions): QueryResult<Fue
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
   return useFetch(
     () => ReportController.getFuelSummary(options),
-    [from, to, userId, groupId, page, pageSize, sortBy, sortDesc],
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
   )
@@ -306,7 +318,7 @@ export function useFuelDetailReport(options: UseReportOptions): QueryResult<Fuel
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
   return useFetch(
     () => ReportController.getFuelDetail(options),
-    [from, to, userId, groupId, page, pageSize, sortBy, sortDesc],
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
   )

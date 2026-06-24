@@ -9,6 +9,8 @@ import { MonthlyExpenses } from './MonthlyExpenses'
 export interface DashboardProps {
   date?: number
   pollInterval?: number
+  /** Chỉ hiển thị các user này trong Member report (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   showSummaryCards?: boolean
   showMemberReport?: boolean
   showActivityHeatmap?: boolean
@@ -22,6 +24,7 @@ export interface DashboardProps {
 export function Dashboard({
   date,
   pollInterval = 30_000,
+  userIds,
   showSummaryCards = true,
   showMemberReport = true,
   showActivityHeatmap = true,
@@ -41,7 +44,7 @@ export function Dashboard({
 
       {/* Row 2: Member report */}
       {showMemberReport && (
-        <MemberReport date={date} pollInterval={pollInterval} />
+        <MemberReport date={date} pollInterval={pollInterval} userIds={userIds} />
       )}
 
       {/* Row 3: Heatmap */}

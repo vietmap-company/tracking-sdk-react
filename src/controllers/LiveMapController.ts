@@ -81,25 +81,37 @@ function c(opts?: { client?: AxiosInstance }): AxiosInstance {
   return opts?.client ?? getGlobalClient();
 }
 
+// Backend giới hạn tối đa 1000 userId mỗi request → vượt thì tách call.
+const MAX_USER_IDS = 1000;
+
 export const LiveMapController = {
   async getMembers(options: GetMembersOptions = {}): Promise<MemberStatus[]> {
     const userIds = options.userIds?.filter((id) => id != null && id !== "");
-    const hasFilter = userIds != null && userIds.length > 0;
-    // When filtering by userIds the result is already bounded by the id list,
-    // so there's no need to send the pageSize cap.
-    const params = hasFilter
-      ? { userIds }
-      : { pageSize: options.pageSize ?? 3000 };
-    const data = await request<GpsUsersResponse>(c(options), {
-      method: "GET",
-      url: "gps-tracking/users",
-      params,
-      // The API filters server-side and expects repeated `userIds=a&userIds=b`.
-      // axios' default array serializer emits `userIds[]=a`, which the API
-      // ignores — `indexes: null` drops the brackets.
-      paramsSerializer: { indexes: null },
-    });
-    return data.users.map((row) => rowToMember(row, options.nameKey));
+    const pageSize = options.pageSize ?? 3000;
+    const client = c(options);
+
+    // Dùng bản POST (body) cho gps-tracking/users — lọc userIds server-side.
+    const fetchPage = (ids?: string[]) =>
+      request<GpsUsersResponse>(client, {
+        method: "POST",
+        url: "gps-tracking/users",
+        data: { userIds: ids, pageNumber: 1, pageSize },
+      });
+
+    // ≤ 1000 ids (hoặc không lọc): 1 POST.
+    if (!userIds?.length || userIds.length <= MAX_USER_IDS) {
+      const data = await fetchPage(userIds?.length ? userIds : undefined);
+      return data.users.map((row) => rowToMember(row, options.nameKey));
+    }
+
+    // > 1000 ids: tách chunk ≤1000, gộp users (id rời nhau nên không trùng).
+    const chunks: string[][] = [];
+    for (let i = 0; i < userIds.length; i += MAX_USER_IDS)
+      chunks.push(userIds.slice(i, i + MAX_USER_IDS));
+    const parts = await Promise.all(chunks.map((ids) => fetchPage(ids)));
+    return parts
+      .flatMap((d) => d.users)
+      .map((row) => rowToMember(row, options.nameKey));
   },
 
   async getMember(

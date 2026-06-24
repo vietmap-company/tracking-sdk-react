@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { resolveMemberName } from "@/lib/member-name";
 import { useFleetwork } from "@/provider/FleetworkProvider";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
 import * as React from "react";
 import {
   DateRangeBar,
@@ -35,6 +35,14 @@ export interface ReportViewProps {
   onBack?: () => void;
   onError?: (err: Error) => void;
   pageSize?: number;
+  /** Chỉ lấy các user này (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[];
+  /** Drill-down: chỉ xem chi tiết của 1 user (dùng cho màn detail riêng). */
+  userId?: string;
+  /** Tên hiển thị của user đang xem chi tiết (cho tiêu đề màn detail). */
+  userName?: string;
+  /** Summary: click 1 user để mở màn chi tiết riêng của user đó. */
+  onUserClick?: (userId: string, userName: string) => void;
 }
 
 interface SortState {
@@ -110,6 +118,19 @@ function ScrollTable({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Icon "Xem chi tiết" ở cột Thao tác — điều hướng nhờ click cả dòng. */
+function DetailLink({ label }: { label: string }) {
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className="inline-flex items-center justify-center text-muted-foreground transition-colors hover:text-primary"
+    >
+      <Eye className="h-4 w-4" />
+    </span>
+  );
+}
+
 // ── Trip Summary ─────────────────────────────────────────────────────────────
 
 export function TripSummaryReport({
@@ -118,6 +139,8 @@ export function TripSummaryReport({
   onBack,
   onError,
   pageSize = 20,
+  userIds,
+  onUserClick,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
@@ -133,6 +156,7 @@ export function TripSummaryReport({
     ...range,
     page,
     pageSize,
+    userIds,
     sortBy: sort.key,
     sortDesc: sort.desc,
   });
@@ -140,11 +164,11 @@ export function TripSummaryReport({
     if (error && onError) onError(error);
   }, [error, onError]);
   const rows = data?.users ?? [];
-  const COLS = 7;
+  const COLS = 8;
 
   return (
     <ReportShell
-      title={`${t("reports.trip.title")} — ${t("reports.tab.summary")}`}
+      title={t("reports.trip.title")}
       subtitle={t("reports.trip.subtitle")}
       onBack={onBack}
       right={
@@ -195,6 +219,7 @@ export function TripSummaryReport({
               onSort={handleSort}
               right={true}
             />
+            <th className={TH_R}>{t("reports.col.action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -203,26 +228,34 @@ export function TripSummaryReport({
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (
-            rows.map((r, i) => (
-              <TableRow
-                key={r.userId}
-                className={cn("border-border/30 hover:bg-muted/30", STRIPE(i))}
-              >
-                <TableCell className={IDX_C}>
-                  {(page - 1) * pageSize + i + 1}
-                </TableCell>
-                <TableCell className="text-[13px] font-medium">
-                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
-                </TableCell>
-                <TableCell className={NUM}>
-                  {r.totalDistanceKm.toFixed(1)}
-                </TableCell>
-                <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
-                <TableCell className={NUM}>{r.stopTime.formatted}</TableCell>
-                <TableCell className={NUM}>{r.maxSpeedKmh}</TableCell>
-                <TableCell className={NUM}>{r.tripDays}</TableCell>
-              </TableRow>
-            ))
+            rows.map((r, i) => {
+              const name = resolveMemberName(r.metaData, memberNameKey) ?? r.userId;
+              return (
+                <TableRow
+                  key={r.userId}
+                  className={cn(
+                    "border-border/30 hover:bg-muted/30 cursor-pointer",
+                    STRIPE(i),
+                  )}
+                  onClick={() => onUserClick?.(r.userId, name)}
+                >
+                  <TableCell className={IDX_C}>
+                    {(page - 1) * pageSize + i + 1}
+                  </TableCell>
+                  <TableCell className="text-[13px] font-medium">{name}</TableCell>
+                  <TableCell className={NUM}>
+                    {r.totalDistanceKm.toFixed(1)}
+                  </TableCell>
+                  <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
+                  <TableCell className={NUM}>{r.stopTime.formatted}</TableCell>
+                  <TableCell className={NUM}>{r.maxSpeedKmh}</TableCell>
+                  <TableCell className={NUM}>{r.tripDays}</TableCell>
+                  <TableCell className="text-right">
+                    <DetailLink label={t("reports.viewDetail")} />
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </tbody>
       </ScrollTable>
@@ -243,6 +276,9 @@ export function TripDetailReport({
   onBack,
   onError,
   pageSize = 50,
+  userIds,
+  userId,
+  userName,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
@@ -258,19 +294,23 @@ export function TripDetailReport({
     ...range,
     page,
     pageSize,
+    userIds,
+    userId,
     sortBy: sort.key,
     sortDesc: sort.desc,
   });
   React.useEffect(() => {
     if (error && onError) onError(error);
   }, [error, onError]);
+  // Drill-down 1 user: ẩn cột nhân viên (đã biết là ai), tên hiện ở tiêu đề.
+  const showEmployee = !userId;
   const rows = data?.trips ?? [];
-  const COLS = 9;
+  const COLS = showEmployee ? 9 : 8;
 
   return (
     <ReportShell
-      title={`${t("reports.trip.title")} — ${t("reports.tab.detail")}`}
-      subtitle={t("reports.trip.subtitle")}
+      title={userId ? (userName ?? userId) : `${t("reports.trip.title")} — ${t("reports.tab.detail")}`}
+      subtitle={userId ? t("reports.trip.title") : t("reports.trip.subtitle")}
       onBack={onBack}
       right={
         <DateRangeBar
@@ -285,7 +325,9 @@ export function TripDetailReport({
           <tr>
             <th className={IDX_H}>#</th>
             <th className={TH}>{t("reports.col.date")}</th>
-            <th className={TH_EMP}>{t("reports.col.employee")}</th>
+            {showEmployee && (
+              <th className={TH_EMP}>{t("reports.col.employee")}</th>
+            )}
             <th className={TH_R}>{t("reports.col.startTime")}</th>
             <th className={TH_R}>{t("reports.col.endTime")}</th>
             <SortableHead
@@ -323,9 +365,11 @@ export function TripDetailReport({
                 <TableCell className="text-[13px]">
                   {fmtDateShort(r.date)}
                 </TableCell>
-                <TableCell className="text-[13px] font-medium">
-                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
-                </TableCell>
+                {showEmployee && (
+                  <TableCell className="text-[13px] font-medium">
+                    {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
+                  </TableCell>
+                )}
                 <TableCell className={NUM}>{fmtTime(r.startTime)}</TableCell>
                 <TableCell className={NUM}>{fmtTime(r.endTime)}</TableCell>
                 <TableCell className={NUM}>{r.distanceKm.toFixed(1)}</TableCell>
@@ -364,6 +408,8 @@ export function FuelSummaryReport({
   onBack,
   onError,
   pageSize = 20,
+  userIds,
+  onUserClick,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
@@ -379,6 +425,7 @@ export function FuelSummaryReport({
     ...range,
     page,
     pageSize,
+    userIds,
     sortBy: sort.key,
     sortDesc: sort.desc,
   });
@@ -387,11 +434,11 @@ export function FuelSummaryReport({
   }, [error, onError]);
   const rows = data?.users ?? [];
   const totals = data?.totals;
-  const COLS = 6;
+  const COLS = 7;
 
   return (
     <ReportShell
-      title={`${t("reports.fuel.title")} — ${t("reports.tab.summary")}`}
+      title={t("reports.fuel.title")}
       subtitle={t("reports.fuel.subtitle")}
       onBack={onBack}
       right={
@@ -436,6 +483,7 @@ export function FuelSummaryReport({
               right={true}
               className="min-w-[120px]"
             />
+            <th className={TH_R}>{t("reports.col.action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -444,25 +492,33 @@ export function FuelSummaryReport({
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (
-            rows.map((r, i) => (
-              <TableRow
-                key={r.userId}
-                className={cn("border-border/30 hover:bg-muted/30", STRIPE(i))}
-              >
-                <TableCell className={IDX_C}>
-                  {(page - 1) * pageSize + i + 1}
-                </TableCell>
-                <TableCell className="text-[13px] font-medium">
-                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
-                </TableCell>
-                <TableCell className={NUM}>{r.distanceKm.toFixed(1)}</TableCell>
-                <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
-                <TableCell className={NUM}>
-                  {r.fuelStandardLiters.toFixed(1)}
-                </TableCell>
-                <TableCell className={NUM}>{r.totalCostFormatted}</TableCell>
-              </TableRow>
-            ))
+            rows.map((r, i) => {
+              const name = resolveMemberName(r.metaData, memberNameKey) ?? r.userId;
+              return (
+                <TableRow
+                  key={r.userId}
+                  className={cn(
+                    "border-border/30 hover:bg-muted/30 cursor-pointer",
+                    STRIPE(i),
+                  )}
+                  onClick={() => onUserClick?.(r.userId, name)}
+                >
+                  <TableCell className={IDX_C}>
+                    {(page - 1) * pageSize + i + 1}
+                  </TableCell>
+                  <TableCell className="text-[13px] font-medium">{name}</TableCell>
+                  <TableCell className={NUM}>{r.distanceKm.toFixed(1)}</TableCell>
+                  <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
+                  <TableCell className={NUM}>
+                    {r.fuelStandardLiters.toFixed(1)}
+                  </TableCell>
+                  <TableCell className={NUM}>{r.totalCostFormatted}</TableCell>
+                  <TableCell className="text-right">
+                    <DetailLink label={t("reports.viewDetail")} />
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </tbody>
         {totals && (
@@ -482,6 +538,7 @@ export function FuelSummaryReport({
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>
                 {totals.totalCostFormatted}
               </td>
+              <td className="px-3 py-2.5" />
             </tr>
           </tfoot>
         )}
@@ -503,6 +560,9 @@ export function FuelDetailReport({
   onBack,
   onError,
   pageSize = 50,
+  userIds,
+  userId,
+  userName,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
   const [page, setPage] = React.useState(1);
@@ -518,20 +578,24 @@ export function FuelDetailReport({
     ...range,
     page,
     pageSize,
+    userIds,
+    userId,
     sortBy: sort.key,
     sortDesc: sort.desc,
   });
   React.useEffect(() => {
     if (error && onError) onError(error);
   }, [error, onError]);
+  // Drill-down 1 user: ẩn cột nhân viên (đã biết là ai), tên hiện ở tiêu đề.
+  const showEmployee = !userId;
   const rows = data?.trips ?? [];
   const totals = data?.totals;
-  const COLS = 8;
+  const COLS = showEmployee ? 8 : 7;
 
   return (
     <ReportShell
-      title={`${t("reports.fuel.title")} — ${t("reports.tab.detail")}`}
-      subtitle={t("reports.fuel.subtitle")}
+      title={userId ? (userName ?? userId) : `${t("reports.fuel.title")} — ${t("reports.tab.detail")}`}
+      subtitle={userId ? t("reports.fuel.title") : t("reports.fuel.subtitle")}
       onBack={onBack}
       right={
         <DateRangeBar
@@ -546,7 +610,9 @@ export function FuelDetailReport({
           <tr>
             <th className={IDX_H}>#</th>
             <th className={TH}>{t("reports.col.date")}</th>
-            <th className={TH_EMP}>{t("reports.col.employee")}</th>
+            {showEmployee && (
+              <th className={TH_EMP}>{t("reports.col.employee")}</th>
+            )}
             <SortableHead
               label={`${t("reports.col.distance")} (km)`}
               sortKey="distanceKm"
@@ -602,9 +668,11 @@ export function FuelDetailReport({
                 <TableCell className="text-[13px]">
                   {fmtDateShort(r.date)}
                 </TableCell>
-                <TableCell className="text-[13px] font-medium">
-                  {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
-                </TableCell>
+                {showEmployee && (
+                  <TableCell className="text-[13px] font-medium">
+                    {resolveMemberName(r.metaData, memberNameKey) ?? r.userId}
+                  </TableCell>
+                )}
                 <TableCell className={NUM}>{r.distanceKm.toFixed(1)}</TableCell>
                 <TableCell className={NUM}>{r.travelTime.formatted}</TableCell>
                 <TableCell className={NUM}>
@@ -622,7 +690,7 @@ export function FuelDetailReport({
           <tfoot className="sticky bottom-0 z-20 border-t-2 border-border/60 bg-muted/60 backdrop-blur-sm">
             <tr>
               <td />
-              <td colSpan={2} className="px-3 py-2.5 text-[13px] font-semibold">
+              <td colSpan={showEmployee ? 2 : 1} className="px-3 py-2.5 text-[13px] font-semibold">
                 {t("reports.totals")}
               </td>
               <td className={`${NUM} px-3 py-2.5 font-semibold`}>

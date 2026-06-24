@@ -59,9 +59,11 @@ const vi: Dict = {
   'reports.activity.subtitle':  'Số nhân viên hoạt động theo giờ',
   'reports.tab.summary':        'Tổng hợp',
   'reports.tab.detail':         'Chi tiết',
+  'reports.viewDetail':         'Xem chi tiết',
 
   // Report columns
   'reports.col.employee':       'Nhân viên',
+  'reports.col.action':         'Thao tác',
   'reports.col.group':          'Nhóm',
   'reports.col.date':           'Ngày',
   'reports.col.distance':       'Quãng đường',

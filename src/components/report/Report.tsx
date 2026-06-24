@@ -1,7 +1,5 @@
 import * as React from 'react'
-import { Activity, ChevronRight, Droplet, Route, ChevronLeft } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
+import { Activity, ChevronRight, Droplet, Route } from 'lucide-react'
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import { cn, daysAgoMs } from '@/lib/utils'
 import {
@@ -14,36 +12,64 @@ type ReportMode = 'home' | 'trip' | 'fuel' | 'activity'
 export interface ReportProps {
   from?: number
   to?: number
+  /** Chỉ lấy các user này cho mọi báo cáo (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   className?: string
   style?: React.CSSProperties
   onError?: (error: Error) => void
 }
 
-export function Report({ from, to, className, style, onError }: ReportProps) {
+export function Report({ from, to, userIds, className, style, onError }: ReportProps) {
   const { t } = useFleetwork()
   const [mode, setMode] = React.useState<ReportMode>('home')
   const [range, setRange] = React.useState<ReportRangeState>({
     from: from ?? daysAgoMs(30),
     to: to ?? Date.now(),
   })
-  const back = React.useCallback(() => setMode('home'), [])
+  // Drill-down: click 1 user ở bảng tổng hợp -> mở màn chi tiết riêng của user đó.
+  const [detailUser, setDetailUser] = React.useState<{ userId: string; name: string } | null>(null)
+  const back = React.useCallback(() => {
+    setDetailUser(null)
+    setMode('home')
+  }, [])
+  const backToSummary = React.useCallback(() => setDetailUser(null), [])
+  const openUser = React.useCallback(
+    (userId: string, name: string) => setDetailUser({ userId, name }),
+    [],
+  )
 
   if (mode === 'trip') {
     return (
-      <TripFuelTabs className={className} style={style}
-        title={t('reports.trip.title')} subtitle={t('reports.trip.subtitle')} onBack={back}
-        Summary={() => <TripSummaryReport range={range} onRangeChange={setRange} onError={onError} />}
-        Detail={() => <TripDetailReport range={range} onRangeChange={setRange} onError={onError} />}
-      />
+      <div className={cn('w-full', className)} style={style}>
+        {detailUser ? (
+          <TripDetailReport
+            range={range} onRangeChange={setRange} onBack={backToSummary} onError={onError}
+            userId={detailUser.userId} userName={detailUser.name}
+          />
+        ) : (
+          <TripSummaryReport
+            range={range} onRangeChange={setRange} onBack={back} onError={onError}
+            userIds={userIds} onUserClick={openUser}
+          />
+        )}
+      </div>
     )
   }
   if (mode === 'fuel') {
     return (
-      <TripFuelTabs className={className} style={style}
-        title={t('reports.fuel.title')} subtitle={t('reports.fuel.subtitle')} onBack={back}
-        Summary={() => <FuelSummaryReport range={range} onRangeChange={setRange} onError={onError} />}
-        Detail={() => <FuelDetailReport range={range} onRangeChange={setRange} onError={onError} />}
-      />
+      <div className={cn('w-full', className)} style={style}>
+        {detailUser ? (
+          <FuelDetailReport
+            range={range} onRangeChange={setRange} onBack={backToSummary} onError={onError}
+            userId={detailUser.userId} userName={detailUser.name}
+          />
+        ) : (
+          <FuelSummaryReport
+            range={range} onRangeChange={setRange} onBack={back} onError={onError}
+            userIds={userIds} onUserClick={openUser}
+          />
+        )}
+      </div>
     )
   }
   if (mode === 'activity') {
@@ -92,53 +118,6 @@ export function Report({ from, to, className, style, onError }: ReportProps) {
           </button>
         ))}
       </div>
-    </div>
-  )
-}
-
-// ── TripFuelTabs ──────────────────────────────────────────────────────────────
-
-function TripFuelTabs({
-  title, subtitle, onBack, Summary, Detail, className, style,
-}: {
-  title: string; subtitle: string; onBack: () => void
-  Summary: React.ComponentType; Detail: React.ComponentType
-  className?: string; style?: React.CSSProperties
-}) {
-  const { t } = useFleetwork()
-  return (
-    <div className={cn('w-full space-y-5', className)} style={style}>
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 gap-1 text-[13px]">
-          <ChevronLeft className="h-4 w-4" />
-          {t('common.back')}
-        </Button>
-        <div>
-          <h2 className="text-[18px] font-semibold tracking-tight text-foreground">{title}</h2>
-          <p className="text-[12px] text-muted-foreground mt-0.5">{subtitle}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="summary">
-        <TabsList className="h-9 bg-muted/50 rounded-lg p-0.5 gap-0.5 mb-4">
-          <TabsTrigger
-            value="summary"
-            className="h-8 px-4 text-[13px] rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm font-medium"
-          >
-            {t('reports.tab.summary')}
-          </TabsTrigger>
-          <TabsTrigger
-            value="detail"
-            className="h-8 px-4 text-[13px] rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm font-medium"
-          >
-            {t('reports.tab.detail')}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="summary" className="mt-0"><Summary /></TabsContent>
-        <TabsContent value="detail"  className="mt-0"><Detail /></TabsContent>
-      </Tabs>
     </div>
   )
 }
