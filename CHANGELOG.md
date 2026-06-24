@@ -6,6 +6,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.8] - 2026-06-24
+
+### Fixed
+
+- **LiveMap không còn đè pan/zoom của người dùng** — auto-fit chỉ chạy 1 lần ở lần tải đầu và tự khoá ngay khi người dùng pan/zoom/xoay bản đồ, nên các lần poll members sau không kéo viewport về fit-all nữa. Thêm prop `autoFit` (mặc định `true`) để tắt hẳn nếu muốn giữ `center`/`zoom`.
+- **LiveMap hết lỗi `The layer 'dc-clusters' does not exist`** — mọi `queryRenderedFeatures` (click/hover/recompute spider) đi qua helper chỉ truy vấn layer đang tồn tại trong style; tránh crash khi tương tác lúc cluster layer chưa kịp add (ngay sau đổi tile/`setStyle` hoặc trước khi members tải xong).
+
+### Added
+
+- **Lọc `userIds` cho Dashboard & Report** — prop `userIds` trên `<Dashboard>` (Member report) và `<Report>`; option `userIds` cho `useMemberReport`, `useTripSummaryReport`, `useFuelSummaryReport` và `DashboardController.getMemberReport`, `ReportController.getTripSummary`/`getFuelSummary`. Lọc nhiều user server-side; vượt 1000 id tự tách call rồi gộp.
+- **Drill-down báo cáo theo user** — bảng Tổng hợp (Hành trình/Nhiên liệu) có cột "Thao tác" với nút Xem chi tiết (👁); click 1 user mở trang chi tiết riêng của user đó. `TripDetailReport`/`FuelDetailReport` nhận thêm `userId`, `userName`; summary view nhận `onUserClick`.
+
+### Changed
+
+- **Dùng bản POST cho lọc nhiều user** — `gps-tracking/users`, `dashboard/gps-manager/users`, `reports/trip/summary`, `reports/fuel/summary` chuyển sang gọi POST (body) theo API mới của backend. Báo cáo chi tiết (`trip/detail`, `fuel/detail`) vẫn GET, lọc 1 user qua `userId`.
+- **Report bỏ 2 tab Tổng hợp/Chi tiết** — thay bằng drill-down theo user (trang chi tiết riêng có phân trang/sort/đổi khoảng ngày, ẩn cột nhân viên).
+
+---
+
 ## [1.0.7] - 2026-06-22
 
 ### Added
