@@ -97,15 +97,19 @@ function useFetch<T>(
 
 export interface UseSummaryCardsOptions {
   date?: number
+  /** Lọc theo tập user (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   pollInterval?: number
   enabled?: boolean
 }
 export function useSummaryCards(options: UseSummaryCardsOptions = {}): QueryResult<SummaryCardsData> {
   const defaultDate = useStableDefault(startOfTodayMs)
   const date = options.date ?? defaultDate
+  const userIds = options.userIds
+  const userIdsKey = userIds?.join(',') ?? ''
   return useFetch(
-    () => DashboardController.getSummaryCards({ date }),
-    [date],
+    () => DashboardController.getSummaryCards({ date, userIds }),
+    [date, userIdsKey],
     options.enabled,
     options.pollInterval,
   )
@@ -143,6 +147,8 @@ export interface UseActivityHeatmapOptions {
   to?: number
   metric?: 'distance' | 'points'
   userId?: string
+  /** Lọc theo tập user (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   pollInterval?: number
   enabled?: boolean
 }
@@ -153,9 +159,11 @@ export function useActivityHeatmap(options: UseActivityHeatmapOptions = {}): Que
   const to = options.to ?? defaultTo
   const metric = options.metric ?? 'distance'
   const userId = options.userId
+  const userIds = options.userIds
+  const userIdsKey = userIds?.join(',') ?? ''
   return useFetch(
-    () => DashboardController.getActivityHeatmap(from, to, { metric, userId }),
-    [from, to, metric, userId],
+    () => DashboardController.getActivityHeatmap(from, to, { metric, userId, userIds }),
+    [from, to, metric, userId, userIdsKey],
     options.enabled,
     options.pollInterval,
   )
@@ -166,6 +174,8 @@ export interface UseFuelTrackingOptions {
   to?: number
   groupBy?: FuelGroupBy
   userId?: string
+  /** Lọc theo tập user (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   pollInterval?: number
   enabled?: boolean
 }
@@ -176,9 +186,11 @@ export function useFuelTracking(options: UseFuelTrackingOptions = {}): QueryResu
   const to = options.to ?? defaultTo
   const groupBy = options.groupBy ?? 'month'
   const userId = options.userId
+  const userIds = options.userIds
+  const userIdsKey = userIds?.join(',') ?? ''
   return useFetch(
-    () => DashboardController.getFuelTracking(from, to, { groupBy, userId }),
-    [from, to, groupBy, userId],
+    () => DashboardController.getFuelTracking(from, to, { groupBy, userId, userIds }),
+    [from, to, groupBy, userId, userIdsKey],
     options.enabled,
     options.pollInterval,
   )
@@ -188,6 +200,8 @@ export interface UseMonthlyExpensesOptions {
   from?: number
   to?: number
   currency?: string
+  /** Lọc theo tập user (API lọc server-side). Bỏ trống = tất cả. */
+  userIds?: string[]
   pollInterval?: number
   enabled?: boolean
 }
@@ -197,9 +211,11 @@ export function useMonthlyExpenses(options: UseMonthlyExpensesOptions = {}): Que
   const from = options.from ?? defaultFrom
   const to = options.to ?? defaultTo
   const currency = options.currency ?? 'VND'
+  const userIds = options.userIds
+  const userIdsKey = userIds?.join(',') ?? ''
   return useFetch(
-    () => DashboardController.getMonthlyExpenses(from, to, { currency }),
-    [from, to, currency],
+    () => DashboardController.getMonthlyExpenses(from, to, { currency, userIds }),
+    [from, to, currency, userIdsKey],
     options.enabled,
     options.pollInterval,
   )

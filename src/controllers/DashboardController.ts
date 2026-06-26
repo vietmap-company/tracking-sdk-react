@@ -6,11 +6,11 @@ import type {
   MemberReportData, MemberRow, MemberStatusKind, MonthlyExpensesData, SummaryCardsData,
 } from '@/lib/types'
 
-export interface GetSummaryOptions { date?: number; client?: AxiosInstance }
+export interface GetSummaryOptions { date?: number; userIds?: string[]; client?: AxiosInstance }
 export interface GetMemberReportOptions { page?: number; pageSize?: number; status?: MemberStatusKind; userIds?: string[]; client?: AxiosInstance }
-export interface GetActivityHeatmapOptions { metric?: 'distance' | 'points'; userId?: string; client?: AxiosInstance }
-export interface GetFuelOptions { groupBy?: FuelGroupBy; userId?: string; client?: AxiosInstance }
-export interface GetExpensesOptions { currency?: string; client?: AxiosInstance }
+export interface GetActivityHeatmapOptions { metric?: 'distance' | 'points'; userId?: string; userIds?: string[]; client?: AxiosInstance }
+export interface GetFuelOptions { groupBy?: FuelGroupBy; userId?: string; userIds?: string[]; client?: AxiosInstance }
+export interface GetExpensesOptions { currency?: string; userIds?: string[]; client?: AxiosInstance }
 
 function c(opts?: { client?: AxiosInstance }): AxiosInstance { return opts?.client ?? getGlobalClient() }
 
@@ -53,7 +53,7 @@ async function fetchAllMemberRows(
 export const DashboardController = {
   async getSummaryCards(options: GetSummaryOptions = {}): Promise<SummaryCardsData> {
     const date = options.date ?? startOfTodayMs()
-    return request<SummaryCardsData>(c(options), { method: 'GET', url: 'dashboard/gps-manager/summary', params: { date } })
+    return request<SummaryCardsData>(c(options), { method: 'POST', url: 'dashboard/gps-manager/summary', data: { date, userIds: cleanIds(options.userIds) } })
   },
 
   async getMemberReport(date: number = startOfTodayMs(), options: GetMemberReportOptions = {}): Promise<MemberReportData> {
@@ -95,22 +95,22 @@ export const DashboardController = {
 
   async getActivityHeatmap(from: number, to: number, options: GetActivityHeatmapOptions = {}): Promise<ActivityHeatmapData> {
     return request<ActivityHeatmapData>(c(options), {
-      method: 'GET', url: 'dashboard/gps-manager/activity-heatmap',
-      params: { from, to, metric: options.metric ?? 'distance', userId: options.userId },
+      method: 'POST', url: 'dashboard/gps-manager/activity-heatmap',
+      data: { from, to, metric: options.metric ?? 'distance', userId: options.userId, userIds: cleanIds(options.userIds) },
     })
   },
 
   async getFuelTracking(from: number, to: number, options: GetFuelOptions = {}): Promise<FuelTrackingData> {
     return request<FuelTrackingData>(c(options), {
-      method: 'GET', url: 'dashboard/gps-manager/fuel-tracking',
-      params: { from, to, groupBy: options.groupBy ?? 'month', userId: options.userId },
+      method: 'POST', url: 'dashboard/gps-manager/fuel-tracking',
+      data: { from, to, groupBy: options.groupBy ?? 'month', userId: options.userId, userIds: cleanIds(options.userIds) },
     })
   },
 
   async getMonthlyExpenses(from: number, to: number, options: GetExpensesOptions = {}): Promise<MonthlyExpensesData> {
     return request<MonthlyExpensesData>(c(options), {
-      method: 'GET', url: 'dashboard/gps-manager/monthly-costs',
-      params: { from, to, currency: options.currency ?? 'VND' },
+      method: 'POST', url: 'dashboard/gps-manager/monthly-costs',
+      data: { from, to, currency: options.currency ?? 'VND', userIds: cleanIds(options.userIds) },
     })
   },
 }

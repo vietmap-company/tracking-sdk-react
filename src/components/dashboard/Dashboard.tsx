@@ -9,7 +9,7 @@ import { MonthlyExpenses } from './MonthlyExpenses'
 export interface DashboardProps {
   date?: number
   pollInterval?: number
-  /** Chỉ hiển thị các user này trong Member report (API lọc server-side). Bỏ trống = tất cả. */
+  /** Lọc toàn bộ dashboard theo tập user này (API lọc server-side). Bỏ trống = tất cả. */
   userIds?: string[]
   showSummaryCards?: boolean
   showMemberReport?: boolean
@@ -39,7 +39,7 @@ export function Dashboard({
 
       {/* Row 1: Summary cards */}
       {showSummaryCards && (
-        <SummaryCards date={date} pollInterval={pollInterval} />
+        <SummaryCards date={date} pollInterval={pollInterval} userIds={userIds} />
       )}
 
       {/* Row 2: Member report */}
@@ -49,17 +49,17 @@ export function Dashboard({
 
       {/* Row 3: Heatmap */}
       {showActivityHeatmap && (
-        <ActivityHeatmap pollInterval={pollInterval} />
+        <ActivityHeatmap pollInterval={pollInterval} userIds={userIds} />
       )}
 
       {/* Row 4: Charts side by side */}
       {(showFuelTracking || showMonthlyExpenses) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {showFuelTracking && (
-            <FuelTracking pollInterval={pollInterval} onError={onError} />
+            <FuelTracking pollInterval={pollInterval} onError={onError} userIds={userIds} />
           )}
           {showMonthlyExpenses && (
-            <MonthlyExpenses pollInterval={pollInterval} onError={onError} />
+            <MonthlyExpenses pollInterval={pollInterval} onError={onError} userIds={userIds} />
           )}
         </div>
       )}
