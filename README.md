@@ -154,8 +154,10 @@ Dashboard tổng hợp với 5 widgets. Mỗi widget có thể dùng độc lậ
 import { Dashboard, SummaryCards, MemberReport } from "@vietmap/tracking-sdk-react"
 
 <Dashboard pollInterval={30_000} />
-<Dashboard userIds={["u1", "u2"]} />  {/* Member report chỉ hiện tập user này */}
-<SummaryCards date={Date.now()} />
+<Dashboard userIds={["u1", "u2"]} />  {/* lọc toàn bộ dashboard theo tập user */}
+
+// Mọi widget cũng nhận `userIds` khi dùng độc lập:
+<SummaryCards userIds={["u1", "u2"]} />
 <MemberReport pageSize={20} userIds={["u1", "u2"]} />
 ```
 
@@ -165,7 +167,7 @@ import { Dashboard, SummaryCards, MemberReport } from "@vietmap/tracking-sdk-rea
 | --------------------- | --------- | -------- | -------------------- |
 | `date`                | `number`   | hôm nay  | Timestamp ms         |
 | `pollInterval`        | `number`   | `30000`  | Tự động refresh (ms) |
-| `userIds`             | `string[]` | —        | Lọc Member report theo tập user (API lọc server-side); bỏ trống = tất cả |
+| `userIds`             | `string[]` | —        | Lọc **toàn bộ dashboard** (mọi widget) theo tập user (API lọc server-side); bỏ trống = tất cả |
 | `showSummaryCards`    | `boolean`  | `true`   | Hiện/ẩn widget       |
 | `showMemberReport`    | `boolean` | `true`   | Hiện/ẩn widget       |
 | `showActivityHeatmap` | `boolean` | `true`   | Hiện/ẩn widget       |
@@ -325,11 +327,11 @@ Tất cả hooks cần `FleetworkProvider` trong tree. Trả về `{ data, isLoa
 
 ```tsx
 // Dashboard
-const { data } = useSummaryCards({ date?, pollInterval? })
+const { data } = useSummaryCards({ date?, userIds?, pollInterval? })
 const { data } = useMemberReport({ date?, page?, pageSize?, status?, userIds? })
-const { data } = useActivityHeatmap({ from?, to?, metric? })
-const { data } = useFuelTracking({ from?, to?, groupBy? })
-const { data } = useMonthlyExpenses({ from?, to?, currency? })
+const { data } = useActivityHeatmap({ from?, to?, metric?, userId?, userIds? })
+const { data } = useFuelTracking({ from?, to?, groupBy?, userId?, userIds? })
+const { data } = useMonthlyExpenses({ from?, to?, currency?, userIds? })
 
 // LiveMap
 const { data } = useMembers({ pollInterval?, nameKey?, maxUsers?, userIds? })
@@ -371,7 +373,7 @@ const fuel = await ReportController.getFuelSummary({ from, to });
 const userTrips = await ReportController.getTripDetail({ from, to, userId: "u1" }); // chi tiết 1 user
 ```
 
-> **Lọc `userIds`:** `LiveMapController.getMembers`, `DashboardController.getMemberReport`, và `ReportController.getTripSummary`/`getFuelSummary` gọi bản **POST** (body) của API để backend lọc nhiều user server-side; vượt **1000** id sẽ tự tách nhiều call rồi gộp. Báo cáo **chi tiết** (`getTripDetail`/`getFuelDetail`) lọc **1 user** qua `userId` (GET).
+> **POST + `userIds`:** Toàn bộ `DashboardController.*` và `LiveMapController.getMembers`, `ReportController.getTripSummary`/`getFuelSummary` gọi bản **POST** (body) của API. Truyền `userIds` (mảng) để backend lọc nhiều user server-side; vượt **1000** id sẽ tự tách nhiều call rồi gộp. Báo cáo **chi tiết** (`getTripDetail`/`getFuelDetail`), `getActivityTime`, history/latest vẫn **GET**; chi tiết lọc **1 user** qua `userId`.
 
 ---
 

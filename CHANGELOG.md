@@ -15,12 +15,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Lọc `userIds` cho Dashboard & Report** — prop `userIds` trên `<Dashboard>` (Member report) và `<Report>`; option `userIds` cho `useMemberReport`, `useTripSummaryReport`, `useFuelSummaryReport` và `DashboardController.getMemberReport`, `ReportController.getTripSummary`/`getFuelSummary`. Lọc nhiều user server-side; vượt 1000 id tự tách call rồi gộp.
+- **Lọc `userIds` cho toàn bộ Dashboard & Report** — prop `userIds` trên `<Dashboard>` (thread xuống **cả 5 widget**: SummaryCards, MemberReport, ActivityHeatmap, FuelTracking, MonthlyExpenses) và `<Report>`. Mọi widget/hook dashboard (`useSummaryCards`, `useMemberReport`, `useActivityHeatmap`, `useFuelTracking`, `useMonthlyExpenses`) và report summary hook đều nhận `userIds`. Lọc nhiều user server-side; vượt 1000 id tự tách call rồi gộp.
 - **Drill-down báo cáo theo user** — bảng Tổng hợp (Hành trình/Nhiên liệu) có cột "Thao tác" với nút Xem chi tiết (👁); click 1 user mở trang chi tiết riêng của user đó. `TripDetailReport`/`FuelDetailReport` nhận thêm `userId`, `userName`; summary view nhận `onUserClick`.
 
 ### Changed
 
-- **Dùng bản POST cho lọc nhiều user** — `gps-tracking/users`, `dashboard/gps-manager/users`, `reports/trip/summary`, `reports/fuel/summary` chuyển sang gọi POST (body) theo API mới của backend. Báo cáo chi tiết (`trip/detail`, `fuel/detail`) vẫn GET, lọc 1 user qua `userId`.
+- **Toàn bộ Dashboard + LiveMap + Report summary chuyển sang POST (body)** — `gps-tracking/users`, tất cả `dashboard/gps-manager/*` (summary, users, activity-heatmap, fuel-tracking, monthly-costs), `reports/trip/summary`, `reports/fuel/summary`. Báo cáo chi tiết (`trip/detail`, `fuel/detail`), `reports/activity-time`, history/latest vẫn GET; chi tiết lọc 1 user qua `userId`.
 - **Report bỏ 2 tab Tổng hợp/Chi tiết** — thay bằng drill-down theo user (trang chi tiết riêng có phân trang/sort/đổi khoảng ngày, ẩn cột nhân viên).
 
 ---
