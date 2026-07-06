@@ -5,7 +5,7 @@ import {
 } from "@/components/shared";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LiveMapController } from "@/controllers/LiveMapController";
-import type { GpsPoint, MemberStatus } from "@/lib/types";
+import type { GpsPoint, MemberStatus, RouteSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { addDays, startOfDay, subDays } from "date-fns";
@@ -393,7 +393,7 @@ function HistoryRowItem({
 export interface HistoryPanelProps {
   member: MemberStatus;
   onClose: () => void;
-  onHistoryLoaded: (points: GpsPoint[]) => void;
+  onHistoryLoaded: (points: GpsPoint[], rawPoints?: GpsPoint[] | null, enrichedSegments?: GpsPoint[][] | null) => void;
   playIndex: number;
   onSeek: (index: number) => void;
   // Playback controls (passed through so mobile sheet can embed them)
@@ -403,16 +403,20 @@ export interface HistoryPanelProps {
   onPlayToggle: () => void;
   onSpeedCycle: () => void;
   onAutoFollowToggle: () => void;
+  showRawRoute?: boolean;
+  onRawRouteToggle?: () => void;
 }
 
 // ── Inline playback bar (used inside the sheet on mobile) ─────────────────────
 function PlaybackBar({
   points, index, isPlaying, speed, autoFollow,
   onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle,
+  showRawRoute, onRawRouteToggle,
 }: {
   points: GpsPoint[]; index: number; isPlaying: boolean; speed: 1 | 2 | 4;
   autoFollow: boolean; onSeek: (i: number) => void;
   onPlayToggle: () => void; onSpeedCycle: () => void; onAutoFollowToggle: () => void;
+  showRawRoute?: boolean; onRawRouteToggle?: () => void;
 }) {
   const total = points.length;
   if (!total) return null;
@@ -468,6 +472,25 @@ function PlaybackBar({
             <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-primary shadow-md" style={{ left: `${pct.toFixed(2)}%`, pointerEvents: 'none' }} />
           </div>
         </div>
+        {/* Raw route toggle — only when raw data available */}
+        {onRawRouteToggle != null && (
+          <button
+            type="button"
+            onClick={onRawRouteToggle}
+            title={showRawRoute ? 'Ẩn GPS gốc (raw)' : 'Hiện GPS gốc (raw)'}
+            className={cn(
+              'flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-semibold shadow-sm transition-colors',
+              showRawRoute
+                ? 'border-orange-300 bg-orange-50 text-orange-600'
+                : 'border-border/60 bg-card text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+              <line x1="0" y1="4" x2="12" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2"/>
+            </svg>
+            RAW
+          </button>
+        )}
         {/* Auto-follow */}
         <button type="button" onClick={onAutoFollowToggle}
           className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
@@ -489,11 +512,13 @@ export function HistoryPanel({
   playIndex, onSeek,
   isPlaying, playSpeed, autoFollow,
   onPlayToggle, onSpeedCycle, onAutoFollowToggle,
+  showRawRoute, onRawRouteToggle,
 }: HistoryPanelProps) {
   const { t } = useFleetwork();
   const [historyDate, setHistoryDate] = React.useState<Date>(() => new Date());
   const [historyPoints, setHistoryPoints] = React.useState<GpsPoint[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
+  const [routeSummary, setRouteSummary] = React.useState<RouteSummary | null>(null);
   const [expandedGroups, setExpandedGroups] = React.useState(new Set<number>());
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const onHistoryLoadedRef = React.useRef(onHistoryLoaded);
@@ -505,20 +530,23 @@ export function HistoryPanel({
     async (date: Date) => {
       setHistoryLoading(true);
       setHistoryPoints([]);
+      setRouteSummary(null);
       setExpandedGroups(new Set());
       try {
         const startMs = new Date(date).setHours(0, 0, 0, 0);
         const endMs = new Date(date).setHours(23, 59, 59, 999);
-        const pts = await LiveMapController.getHistoryRoute(
+        const route = await LiveMapController.getHistoryComparison(
           member.userId,
           startMs,
           endMs,
         );
-        setHistoryPoints(pts);
-        onHistoryLoadedRef.current(pts);
+        setHistoryPoints(route.points);
+        setRouteSummary(route.routeSummary);
+        onHistoryLoadedRef.current(route.points, route.rawPoints, route.enrichedSegments);
       } catch {
         setHistoryPoints([]);
-        onHistoryLoadedRef.current([]);
+        setRouteSummary(null);
+        onHistoryLoadedRef.current([], null, null);
       }
       setHistoryLoading(false);
     },
@@ -541,13 +569,8 @@ export function HistoryPanel({
   }, [playIndex]);
 
   const pts = historyPoints;
+  // Wall-clock span — kept for TimelineBar proportional width calculations only.
   const totalMs = pts.length > 1 ? pts[pts.length - 1].time - pts[0].time : 0;
-  const totalDistM = React.useMemo(() => {
-    let d = 0;
-    for (let i = 1; i < pts.length; i++)
-      d += haversineM(pts[i - 1].lat, pts[i - 1].lng, pts[i].lat, pts[i].lng);
-    return d;
-  }, [pts]);
   const segments = React.useMemo(() => computeSegments(pts), [pts]);
   const groups = React.useMemo(() => computeGroups(pts), [pts]);
   const toggleGroup = (gi: number) =>
@@ -599,11 +622,15 @@ export function HistoryPanel({
               <div className="mt-1 flex items-center gap-2.5">
                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Route className="h-3 w-3 text-primary shrink-0" />
-                  <span className="font-semibold text-foreground tabular-nums">{fmtDist(totalDistM)}</span>
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {routeSummary != null ? fmtDist(routeSummary.distanceMeters) : '—'}
+                  </span>
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Clock3 className="h-3 w-3 text-violet-500 shrink-0" />
-                  <span className="font-semibold text-foreground tabular-nums">{fmtDuration(totalMs)}</span>
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {routeSummary != null ? fmtDuration(routeSummary.movingDurationMs) : '—'}
+                  </span>
                 </span>
               </div>
             )}
@@ -692,19 +719,18 @@ export function HistoryPanel({
                 </div>
                 {/* Legend chips */}
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                  {(['moving','stopped','lostGps'] as const)
-                    .filter(k => segments.some(s => s.type === k))
-                    .map(k => {
-                      const dur = segments.filter(s=>s.type===k).reduce((a,s)=>a+s.durationMs,0);
-                      const color = ({ moving: STATUS_HEX.moving, stopped: STATUS_HEX.stopped, lostGps: STATUS_HEX.signal_lost } as Record<string,string>)[k];
-                      const label = k==='moving'?'Di chuyển':k==='stopped'?'Dừng':'Mất GPS';
-                      return (
-                        <span key={k} className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{background:color}} />
-                          {label} · {fmtDuration(dur)}
-                        </span>
-                      );
-                    })}
+                  {([
+                    { key: 'moving',  label: 'Di chuyển', color: STATUS_HEX.moving,       ms: routeSummary?.movingDurationMs  },
+                    { key: 'stopped', label: 'Dừng',       color: STATUS_HEX.stopped,      ms: routeSummary?.stoppedDurationMs },
+                    { key: 'lostGps', label: 'Mất GPS',    color: STATUS_HEX.signal_lost,  ms: routeSummary?.lostGpsDurationMs },
+                  ] as const)
+                    .filter(({ key, ms }) => (ms != null && ms > 0) || segments.some(s => s.type === key))
+                    .map(({ key, label, color, ms }) => (
+                      <span key={key} className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+                        {label} · {ms != null ? fmtDuration(ms) : '—'}
+                      </span>
+                    ))}
                 </div>
               </div>
             )}
@@ -722,6 +748,8 @@ export function HistoryPanel({
                 onPlayToggle={onPlayToggle}
                 onSpeedCycle={onSpeedCycle}
                 onAutoFollowToggle={onAutoFollowToggle}
+                showRawRoute={showRawRoute}
+                onRawRouteToggle={onRawRouteToggle}
               />
             </div>
           </div>

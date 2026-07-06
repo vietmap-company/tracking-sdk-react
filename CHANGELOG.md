@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.9] - 2026-06-30
+
+### Added
+
+- **So sánh quỹ đạo gốc vs đã làm mượt trên LiveMap** — request `gps-tracking/history` tự thêm `DataSource=both`. Nếu backend trả cả hai, LiveMap vẽ 2 đường: xám `#888` nét liền (enriched / map-matched, dùng cho playback) + cam `#ff7f0e` nét đứt (GPS gốc), kèm legend góc trên-trái.
+- **Vẽ route đúng cách — tránh đường "chim bay"** — đường enriched được vẽ qua `enrichedSegments[]` (GeoJSON `MultiLineString`), mỗi segment là một polyline độc lập; các khoảng trống do matcher cắt không bị nối thẳng.
+- **`LiveMapController.getHistoryComparison()`** — method mới trả về `HistoryRoute` (`points` / `rawPoints` / `enrichedPoints` / `enrichedSegments` / `enriched`). Fallback: ưu tiên flatten segments → `enrichedData` → `trackingData` → `rawData`. `getHistoryRoute()` cũ giữ nguyên chữ ký.
+
+### Changed
+
+- **Type `HistoryRouteResponse`** bổ sung `enriched`, `enrichedSegments`, `rawData`, `enrichedData` (đều optional/nullable); thêm type `EnrichedSegment` và `HistoryRoute`.
+- **Màu route** theo đúng quy ước API: enriched/remaining = xám `#888`, raw = cam `#ff7f0e` nét đứt, traveled (playback overlay) = xanh `#3b82f6`.
+
+---
+
 ## [1.0.8] - 2026-06-24
 
 ### Fixed

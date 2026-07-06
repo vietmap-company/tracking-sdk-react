@@ -15,7 +15,7 @@ import {
   addClusterLayers,
 } from "./clusterLayers";
 import type { LiveMapProps, LiveMapRef, MapInstance } from "./types";
-import type { MemberStatus, TileType } from "@/lib/types";
+import type { GpsPoint, MemberStatus, TileType } from "@/lib/types";
 import { MemberList } from "./MemberList";
 import { TileSwitcher } from "./TileSwitcher";
 import { Legend } from "./Legend";
@@ -167,9 +167,22 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       setPlaySpeed,
       autoFollow,
       setAutoFollow,
+      enrichedSegments,
+      setEnrichedSegments,
+      rawPoints,
+      setRawPoints,
       seekHistory,
+      drawRawRoute,
       clearHistoryRoute,
     } = usePlayback({ mapRef, vglRef, selectedMemberRef, ready });
+
+    const [showRawRoute, setShowRawRoute] = React.useState(true);
+
+    // Show or hide raw route whenever rawPoints or the toggle changes.
+    React.useEffect(() => {
+      if (!ready) return;
+      drawRawRoute(showRawRoute ? rawPoints : []);
+    }, [showRawRoute, rawPoints, ready, drawRawRoute]);
 
     // ── Open popup ──────────────────────────────────────────────────────────────
     const openPopup = React.useCallback((m: MemberStatus) => {
@@ -213,27 +226,34 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         setSelectedMember(m);
         setActiveUserId(m.userId);
         setHistoryPoints([]);
+        setEnrichedSegments(null);
+        setRawPoints([]);
+        setShowRawRoute(true);
         setPlayIndex(0);
         setIsPlaying(false);
         clearHistoryRoute();
         mapRef.current?.jumpTo({ center: [m.lng, m.lat], zoom: 14 });
       },
-      [clearHistoryRoute, setHistoryPoints, setPlayIndex, setIsPlaying],
+      [clearHistoryRoute, setHistoryPoints, setEnrichedSegments, setRawPoints, setPlayIndex, setIsPlaying],
     );
 
     const closeHistory = React.useCallback(() => {
       setSelectedMember(null);
       setHistoryPoints([]);
+      setEnrichedSegments(null);
+      setRawPoints([]);
       setPlayIndex(0);
       setIsPlaying(false);
       setActiveUserId(null);
       clearHistoryRoute();
-    }, [clearHistoryRoute, setHistoryPoints, setPlayIndex, setIsPlaying]);
+    }, [clearHistoryRoute, setHistoryPoints, setEnrichedSegments, setRawPoints, setPlayIndex, setIsPlaying]);
 
     const handleHistoryLoaded = React.useCallback(
-      (pts: typeof historyPoints) => {
+      (pts: typeof historyPoints, rawPts?: GpsPoint[] | null, segs?: GpsPoint[][] | null) => {
         historyPointsRef.current = pts;
         setHistoryPoints(pts);
+        setEnrichedSegments(segs ?? null);
+        setRawPoints(rawPts ?? []);
         setPlayIndex(0);
         setIsPlaying(false);
         seekHistory(0);
@@ -253,6 +273,8 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         historyPointsRef,
         seekHistory,
         setHistoryPoints,
+        setEnrichedSegments,
+        setRawPoints,
         setPlayIndex,
         setIsPlaying,
       ],
@@ -757,6 +779,8 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             onPlayToggle={() => setIsPlaying((v) => !v)}
             onSpeedCycle={() => setPlaySpeed((sp) => (sp === 1 ? 2 : sp === 2 ? 4 : 1))}
             onAutoFollowToggle={() => setAutoFollow((v) => !v)}
+            showRawRoute={rawPoints.length > 1 ? showRawRoute : undefined}
+            onRawRouteToggle={rawPoints.length > 1 ? () => setShowRawRoute((v) => !v) : undefined}
           />
         )}
         {/* Desktop-only float playback bar — on mobile it's embedded inside HistoryPanel sheet */}
@@ -772,6 +796,8 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
               onPlayToggle={() => setIsPlaying((v) => !v)}
               onSpeedCycle={() => setPlaySpeed((sp) => (sp === 1 ? 2 : sp === 2 ? 4 : 1))}
               onAutoFollowToggle={() => setAutoFollow((v) => !v)}
+              showRawRoute={rawPoints.length > 1 ? showRawRoute : undefined}
+              onRawRouteToggle={rawPoints.length > 1 ? () => setShowRawRoute((v) => !v) : undefined}
             />
           </div>
         )}

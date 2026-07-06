@@ -8,6 +8,8 @@ const ROUTE_REM_BG = 'dc-route-remaining-bg'
 const ROUTE_REM_LINE = 'dc-route-remaining-line'
 const ROUTE_TRAV_SRC = 'dc-route-traveled'
 const ROUTE_TRAV_LINE = 'dc-route-traveled-line'
+const ROUTE_RAW_SRC = 'dc-route-raw'
+const ROUTE_RAW_LINE = 'dc-route-raw-line'
 
 interface UsePlaybackParams {
   mapRef: React.MutableRefObject<unknown>
@@ -20,6 +22,10 @@ export interface UsePlaybackReturn {
   historyPoints: GpsPoint[]
   setHistoryPoints: React.Dispatch<React.SetStateAction<GpsPoint[]>>
   historyPointsRef: React.MutableRefObject<GpsPoint[]>
+  enrichedSegments: GpsPoint[][] | null
+  setEnrichedSegments: React.Dispatch<React.SetStateAction<GpsPoint[][] | null>>
+  rawPoints: GpsPoint[]
+  setRawPoints: React.Dispatch<React.SetStateAction<GpsPoint[]>>
   playIndex: number
   setPlayIndex: React.Dispatch<React.SetStateAction<number>>
   isPlaying: boolean
@@ -31,11 +37,15 @@ export interface UsePlaybackReturn {
   historyMarkerRef: React.MutableRefObject<unknown>
   seekHistory: (idx: number) => void
   drawHistoryRoute: (pts: GpsPoint[], playIdx: number) => void
+  drawRawRoute: (pts: GpsPoint[]) => void
   clearHistoryRoute: () => void
 }
 
 export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready }: UsePlaybackParams): UsePlaybackReturn {
   const [historyPoints, setHistoryPoints] = React.useState<GpsPoint[]>([])
+  const [enrichedSegments, setEnrichedSegments] = React.useState<GpsPoint[][] | null>(null)
+  const [rawPoints, setRawPoints] = React.useState<GpsPoint[]>([])
+  const enrichedSegmentsRef = React.useRef<GpsPoint[][] | null>(null)
   const [playIndex, setPlayIndex] = React.useState(0)
   const [isPlaying, setIsPlaying] = React.useState(false)
   const [playSpeed, setPlaySpeed] = React.useState<1 | 2 | 4>(1)
@@ -47,21 +57,45 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready }: UsePla
   const autoFollowRef = React.useRef(autoFollow)
 
   React.useEffect(() => { historyPointsRef.current = historyPoints }, [historyPoints])
+  React.useEffect(() => { enrichedSegmentsRef.current = enrichedSegments }, [enrichedSegments])
   React.useEffect(() => { autoFollowRef.current = autoFollow }, [autoFollow])
 
   const drawHistoryRoute = React.useCallback((pts: GpsPoint[], playIdx: number) => {
     const map = mapRef.current as MapInstance | null
     if (!map || pts.length < 2) return
     const ci = Math.max(0, Math.min(playIdx, pts.length - 1))
+    const segs = enrichedSegmentsRef.current
+
+    // Traveled: flat 0..ci as a single LineString (blue playback overlay).
     const travGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: pts.slice(0, ci + 1).map((p) => [p.lng, p.lat]) } }
-    const remGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: pts.slice(ci).map((p) => [p.lng, p.lat]) } }
+
+    // Remaining: MultiLineString per segment to avoid bird-flight across gaps.
+    // Falls back to a single LineString when no segment data is available.
+    let remGeo: object
+    if (segs && segs.length > 0) {
+      const coords: [number, number][][] = []
+      let offset = 0
+      for (const seg of segs) {
+        const segEnd = offset + seg.length - 1
+        if (segEnd >= ci) {
+          const from = Math.max(0, ci - offset)
+          const segCoords = seg.slice(from).map((p): [number, number] => [p.lng, p.lat])
+          if (segCoords.length >= 1) coords.push(segCoords)
+        }
+        offset += seg.length
+      }
+      remGeo = { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: coords } }
+    } else {
+      remGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: pts.slice(ci).map((p) => [p.lng, p.lat]) } }
+    }
+
     try {
       const remSrc = map.getSource(ROUTE_REM_SRC)
       if (remSrc) { remSrc.setData(remGeo) }
       else {
         map.addSource(ROUTE_REM_SRC, { type: 'geojson', data: remGeo } as Record<string, unknown>)
-        map.addLayer({ id: ROUTE_REM_BG, type: 'line', source: ROUTE_REM_SRC, paint: { 'line-color': '#94a3b8', 'line-width': 6, 'line-opacity': 0.08 } } as Record<string, unknown>)
-        map.addLayer({ id: ROUTE_REM_LINE, type: 'line', source: ROUTE_REM_SRC, paint: { 'line-color': '#94a3b8', 'line-width': 3, 'line-opacity': 0.45 } } as Record<string, unknown>)
+        map.addLayer({ id: ROUTE_REM_BG, type: 'line', source: ROUTE_REM_SRC, paint: { 'line-color': '#888888', 'line-width': 6, 'line-opacity': 0.1 } } as Record<string, unknown>)
+        map.addLayer({ id: ROUTE_REM_LINE, type: 'line', source: ROUTE_REM_SRC, paint: { 'line-color': '#888888', 'line-width': 3, 'line-opacity': 0.6 } } as Record<string, unknown>)
       }
       const travSrc = map.getSource(ROUTE_TRAV_SRC)
       if (travSrc) { travSrc.setData(travGeo) }
@@ -72,6 +106,29 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready }: UsePla
     } catch (e) { console.warn('[LiveMap] drawHistoryRoute', e) }
   }, [mapRef])
 
+  // Raw GPS track drawn as a dashed comparison line on top of the (enriched)
+  // main route. Pass an empty/short array to remove it.
+  const drawRawRoute = React.useCallback((pts: GpsPoint[]) => {
+    const map = mapRef.current as MapInstance | null
+    if (!map) return
+    const removeRaw = () => {
+      try {
+        if (map.getLayer(ROUTE_RAW_LINE)) map.removeLayer(ROUTE_RAW_LINE)
+        if (map.getSource(ROUTE_RAW_SRC)) map.removeSource(ROUTE_RAW_SRC)
+      } catch { /* ignore */ }
+    }
+    if (!pts || pts.length < 2) { removeRaw(); return }
+    const rawGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: pts.map((p) => [p.lng, p.lat]) } }
+    try {
+      const rawSrc = map.getSource(ROUTE_RAW_SRC)
+      if (rawSrc) { rawSrc.setData(rawGeo) }
+      else {
+        map.addSource(ROUTE_RAW_SRC, { type: 'geojson', data: rawGeo } as Record<string, unknown>)
+        map.addLayer({ id: ROUTE_RAW_LINE, type: 'line', source: ROUTE_RAW_SRC, paint: { 'line-color': '#ff7f0e', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2] } } as Record<string, unknown>)
+      }
+    } catch (e) { console.warn('[LiveMap] drawRawRoute', e) }
+  }, [mapRef])
+
   const clearHistoryRoute = React.useCallback(() => {
     const map = mapRef.current as MapInstance | null
     if (!map) return
@@ -79,8 +136,10 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready }: UsePla
       if (map.getLayer(ROUTE_TRAV_LINE)) map.removeLayer(ROUTE_TRAV_LINE)
       if (map.getLayer(ROUTE_REM_LINE)) map.removeLayer(ROUTE_REM_LINE)
       if (map.getLayer(ROUTE_REM_BG)) map.removeLayer(ROUTE_REM_BG)
+      if (map.getLayer(ROUTE_RAW_LINE)) map.removeLayer(ROUTE_RAW_LINE)
       if (map.getSource(ROUTE_TRAV_SRC)) map.removeSource(ROUTE_TRAV_SRC)
       if (map.getSource(ROUTE_REM_SRC)) map.removeSource(ROUTE_REM_SRC)
+      if (map.getSource(ROUTE_RAW_SRC)) map.removeSource(ROUTE_RAW_SRC)
     } catch { /* ignore */ }
     ;(historyMarkerRef.current as { remove: () => void } | null)?.remove()
     historyMarkerRef.current = null
@@ -149,13 +208,25 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready }: UsePla
     else clearHistoryRoute()
   }, [historyPoints, ready, drawHistoryRoute, clearHistoryRoute])
 
+  // Raw route drawing is intentionally NOT triggered here — MapView owns the
+  // showRawRoute toggle and calls drawRawRoute(pts | []) directly so the user
+  // can show/hide it without re-fetching data.
+
+  // Re-draw when segments arrive (ref syncs async; fire after ref is updated).
+  React.useEffect(() => {
+    if (!ready || historyPoints.length < 2) return
+    drawHistoryRoute(historyPoints, 0)
+  }, [enrichedSegments, ready]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return {
     historyPoints, setHistoryPoints, historyPointsRef,
+    enrichedSegments, setEnrichedSegments,
+    rawPoints, setRawPoints,
     playIndex, setPlayIndex,
     isPlaying, setIsPlaying,
     playSpeed, setPlaySpeed,
     autoFollow, setAutoFollow,
     historyMarkerRef,
-    seekHistory, drawHistoryRoute, clearHistoryRoute,
+    seekHistory, drawHistoryRoute, drawRawRoute, clearHistoryRoute,
   }
 }
