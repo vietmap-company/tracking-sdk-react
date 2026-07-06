@@ -4,9 +4,14 @@ import type {
   GpsPoint,
   GpsUsersResponse,
   GpsUserRow,
+  HistoryRoute,
   HistoryRouteResponse,
   MemberStatus,
+  RouteSummary,
 } from "@/lib/types";
+
+const sortByTime = (arr: GpsPoint[] | null | undefined): GpsPoint[] =>
+  (arr ?? []).slice().sort((a, b) => a.time - b.time);
 
 export interface GetMembersOptions {
   client?: AxiosInstance;
@@ -134,17 +139,69 @@ export const LiveMapController = {
     );
   },
 
+  /**
+   * Fetch the history route for a user with `DataSource=both` — backend returns
+   * the enriched route in `trackingData` + `enrichedSegments` (for correct
+   * multi-polyline rendering), and the raw GPS track in `rawData` for the
+   * side-by-side comparison overlay.
+   *
+   * Primary points for playback: flattened `enrichedSegments` when available,
+   * then `trackingData`, then `rawData`.
+   */
+  async getHistoryComparison(
+    userId: string,
+    startTime: number,
+    endTime: number,
+    options: { client?: AxiosInstance } = {},
+  ): Promise<HistoryRoute> {
+    const res = await request<HistoryRouteResponse>(c(options), {
+      method: "GET",
+      url: "gps-tracking/history",
+      params: {
+        UserId: userId,
+        FromTime: startTime,
+        ToTime: endTime,
+        DataSource: "both",
+      },
+    });
+
+    const rawPoints = res?.rawData != null ? sortByTime(res.rawData) : null;
+    const enrichedPoints = res?.enrichedData != null ? sortByTime(res.enrichedData) : null;
+    const trackingPoints = sortByTime(res?.trackingData);
+
+    // Each segment is one continuous map-matched polyline — draw separately to
+    // avoid bird-flight lines at matcher-cut gaps.
+    const enrichedSegments: GpsPoint[][] | null =
+      res?.enrichedSegments?.length
+        ? res.enrichedSegments.map((s) => sortByTime(s.points))
+        : null;
+
+    // Flat list for playback/timeline/marker: prefer flattened segments (the
+    // canonical enriched route), then trackingData, then rawData.
+    const flatSegments = enrichedSegments?.flat() ?? [];
+    const points = flatSegments.length
+      ? flatSegments
+      : trackingPoints.length
+        ? trackingPoints
+        : (rawPoints ?? []);
+
+    const routeSummary: RouteSummary | null = res?.routeSummary ?? null;
+
+    return { points, rawPoints, enrichedPoints, enrichedSegments, enriched: !!res?.enriched, routeSummary };
+  },
+
   async getHistoryRoute(
     userId: string,
     startTime: number,
     endTime: number,
     options: { client?: AxiosInstance } = {},
   ): Promise<GpsPoint[]> {
-    const res = await request<HistoryRouteResponse>(c(options), {
-      method: "GET",
-      url: "gps-tracking/history",
-      params: { UserId: userId, FromTime: startTime, ToTime: endTime },
-    });
-    return (res?.trackingData ?? []).sort((a, b) => a.time - b.time);
+    const route = await this.getHistoryComparison(
+      userId,
+      startTime,
+      endTime,
+      options,
+    );
+    return route.points;
   },
 };

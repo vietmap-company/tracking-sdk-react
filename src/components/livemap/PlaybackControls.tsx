@@ -15,11 +15,14 @@ export interface PlaybackControlsProps {
   onPlayToggle: () => void
   onSpeedCycle: () => void
   onAutoFollowToggle: () => void
+  /** Present only when a raw GPS track is available alongside the enriched route. */
+  showRawRoute?: boolean
+  onRawRouteToggle?: () => void
   /** Extra bottom offset in px, used on mobile to sit above the history bottom sheet */
   bottomOffset?: number
 }
 
-export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle, bottomOffset = 0 }: PlaybackControlsProps) {
+export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle, showRawRoute, onRawRouteToggle, bottomOffset = 0 }: PlaybackControlsProps) {
   const total = points.length
   if (!total) return null
   const curr = points[index]
@@ -70,6 +73,29 @@ export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, 
             <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-primary shadow-md" style={{ left: `${pct.toFixed(2)}%`, pointerEvents: 'none' }} />
           </div>
         </div>
+        {/* Raw route toggle — only shown when raw GPS data is available */}
+        {onRawRouteToggle != null && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onRawRouteToggle}
+                className={cn(
+                  'flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-semibold shadow-sm transition-colors',
+                  showRawRoute
+                    ? 'border-orange-300 bg-orange-50 text-orange-600'
+                    : 'border-border/60 bg-card text-muted-foreground hover:bg-muted',
+                )}
+              >
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+                  <line x1="0" y1="4" x2="12" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2"/>
+                </svg>
+                RAW
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{showRawRoute ? 'Ẩn GPS gốc (raw)' : 'Hiện GPS gốc (raw)'}</TooltipContent>
+          </Tooltip>
+        )}
         {/* Auto-follow */}
         <Tooltip>
           <TooltipTrigger asChild>

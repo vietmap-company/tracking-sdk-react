@@ -190,14 +190,67 @@ export interface GpsUsersResponse {
   hasPreviousPage: boolean
 }
 
+/** One continuous map-matched polyline segment. Draw each as a separate polyline to avoid bird-flight lines at gaps. */
+export interface EnrichedSegment {
+  segmentIndex: number
+  points: GpsPoint[]
+}
+
+export interface RouteSummary {
+  /** Total distance actually traveled (metres). Does NOT include lost-GPS gaps. */
+  distanceMeters: number
+  /** Time moving (speed > 0 on at least one endpoint), ms. */
+  movingDurationMs: number
+  /** Time stopped but GPS still active, ms. */
+  stoppedDurationMs: number
+  /** Time with no GPS signal — NOT included in the other three fields. */
+  lostGpsDurationMs: number
+}
+
 export interface HistoryRouteResponse {
   trackingData: GpsPoint[]
   totalCount: number
   page: number
-  pageSize: number
+  pageSize: number | null
   totalPages: number
   hasNextPage: boolean
   hasPreviousPage: boolean
+  /** True when the backend map-matched / smoothed the route. */
+  enriched?: boolean | null
+  /**
+   * Only present when `enriched=true`. Each element is one continuous
+   * map-matched segment — draw each as a **separate** polyline to avoid
+   * bird-flight lines where the matcher cut a gap.
+   */
+  enrichedSegments?: EnrichedSegment[] | null
+  /** Raw GPS track — only populated when `DataSource=both` is requested. */
+  rawData?: GpsPoint[] | null
+  /** Map-matched track — only populated when `DataSource=both` is requested. */
+  enrichedData?: GpsPoint[] | null
+  /** Always returned regardless of DataSource. Computed server-side; prefer over client-side calculations. */
+  routeSummary?: RouteSummary | null
+}
+
+/**
+ * Normalised result of a history request — exposes raw and enriched tracks
+ * separately so the caller can draw both for comparison.
+ */
+export interface HistoryRoute {
+  /** Flat point list used for playback / timeline / marker. Flattened from segments when available. */
+  points: GpsPoint[]
+  /** Raw GPS track, sorted by time. `null` when the backend didn't return it. */
+  rawPoints: GpsPoint[] | null
+  /** Map-matched track, sorted by time. `null` when not enriched. */
+  enrichedPoints: GpsPoint[] | null
+  /**
+   * Segments to draw as separate polylines (avoid bird-flight). `null` when
+   * the backend didn't return segment data.
+   */
+  enrichedSegments: GpsPoint[][] | null
+  /** Whether the backend reported the route as enriched. */
+  enriched: boolean
+  /** Server-computed summary — distance, moving/stopped/lostGps durations. */
+  routeSummary: RouteSummary | null
 }
 
 export interface SdkError extends Error {
