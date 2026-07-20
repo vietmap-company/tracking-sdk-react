@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Report } from '@/components/report/Report'
 
 // Vài userId có thật để bấm thử nhanh.
@@ -6,6 +6,13 @@ const SAMPLE_IDS = ['kpg-fix', 'kpg-fix-test']
 
 export function PageReport() {
   const [raw, setRaw] = useState('')
+
+  // Mặc định báo cáo cho đúng 1 ngày hôm nay (00:00:00 → 23:59:59.999).
+  const today = useMemo(() => {
+    const from = new Date().setHours(0, 0, 0, 0)
+    const to = new Date().setHours(23, 59, 59, 999)
+    return { from, to }
+  }, [])
 
   // "a, b, c" -> ["a","b","c"]. Rỗng -> undefined = hiện tất cả.
   const userIds = raw.split(',').map((s) => s.trim()).filter(Boolean)
@@ -41,7 +48,7 @@ export function PageReport() {
           </span>
         </div>
 
-        <Report userIds={filter} />
+        <Report from={today.from} to={today.to} userIds={filter} />
       </div>
     </div>
   )

@@ -12,7 +12,11 @@ import type {
 
 export interface QueryResult<T> {
   data: T | undefined
+  /** First-load skeleton signal — true only while fetching with no data yet. */
   isLoading: boolean
+  /** True whenever a request is in flight, including background refetches
+   * (pagination, sort, range/filter changes) where stale data stays on screen. */
+  isFetching: boolean
   error: Error | null
   refetch: () => void
 }
@@ -35,15 +39,23 @@ const SKELETON_DELAY_MS = 150
  * - Delays isLoading=true by 150ms → no skeleton flash for fast requests
  * - Keeps stale data while refetching → no jarring blank→data transition
  * - On error, stops retrying (no spam). User calls `refetch` manually.
+ *
+ * `skeletonOnRefetch`: by default the skeleton (isLoading) only shows on the
+ * first load; refetches keep stale data. Pass true to also raise isLoading on
+ * every refetch (page/sort/filter changes) so each reload looks like the
+ * initial load. Still delayed by 150ms. Leave false for polled data (map /
+ * dashboard) so the poll doesn't flash a skeleton each tick.
  */
 function useFetch<T>(
   fetcher: () => Promise<T>,
   deps: unknown[],
   enabled = true,
   pollInterval?: number,
+  skeletonOnRefetch = false,
 ): QueryResult<T> {
   const [data, setData] = useState<T | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const fetcherRef = useRef(fetcher)
   fetcherRef.current = fetcher
@@ -56,9 +68,12 @@ function useFetch<T>(
     setError(null)
 
     const fetchId = ++fetchIdRef.current
+    // Always signal an in-flight request — even refetches that keep stale data
+    // (pagination, sort, range/filter). isLoading stays first-load-only below.
+    setIsFetching(true)
 
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null
-    if (!hasDataRef.current) {
+    if (skeletonOnRefetch || !hasDataRef.current) {
       skeletonTimer = setTimeout(() => {
         if (fetchId === fetchIdRef.current) setIsLoading(true)
       }, SKELETON_DELAY_MS)
@@ -77,7 +92,10 @@ function useFetch<T>(
       }
     } finally {
       if (skeletonTimer) clearTimeout(skeletonTimer)
-      if (fetchId === fetchIdRef.current) setIsLoading(false)
+      if (fetchId === fetchIdRef.current) {
+        setIsLoading(false)
+        setIsFetching(false)
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...deps])
@@ -90,7 +108,7 @@ function useFetch<T>(
     return () => clearInterval(id)
   }, [doFetch, pollInterval, enabled])
 
-  return { data, isLoading, error, refetch: doFetch }
+  return { data, isLoading, isFetching, error, refetch: doFetch }
 }
 
 // ─── Dashboard Hooks ──────────────────────────────────────────────────────────
@@ -307,6 +325,7 @@ export function useTripSummaryReport(options: UseReportOptions): QueryResult<Tri
     [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
+    true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
   )
 }
 
@@ -317,6 +336,7 @@ export function useTripDetailReport(options: UseReportOptions): QueryResult<Trip
     [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
+    true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
   )
 }
 
@@ -327,6 +347,7 @@ export function useFuelSummaryReport(options: UseReportOptions): QueryResult<Fue
     [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
+    true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
   )
 }
 
@@ -337,6 +358,7 @@ export function useFuelDetailReport(options: UseReportOptions): QueryResult<Fuel
     [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
     reportEnabled(options),
     options.pollInterval,
+    true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
   )
 }
 
@@ -347,5 +369,6 @@ export function useActivityTimeReport(options: UseActivityTimeReportOptions): Qu
     [from, to, userId, groupId, page, pageSize],
     reportEnabled(options),
     options.pollInterval,
+    true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
   )
 }

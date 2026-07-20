@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -17,9 +17,12 @@ export interface ReportShellProps {
   onBack?: () => void
   children: React.ReactNode
   className?: string
+  /** Show an in-flight indicator (spinner + top bar) while an API call runs,
+   * including background refetches that keep stale rows on screen. */
+  loading?: boolean
 }
 
-export function ReportShell({ title, subtitle, right, onBack, children, className }: ReportShellProps) {
+export function ReportShell({ title, subtitle, right, onBack, children, className, loading }: ReportShellProps) {
   const { t } = useFleetwork()
   return (
     <Card className={cn('shadow-none rounded-xl border-border/50 w-full overflow-hidden', className)}>
@@ -34,14 +37,25 @@ export function ReportShell({ title, subtitle, right, onBack, children, classNam
               </Button>
             )}
             <div className="min-w-0">
-              <CardTitle className="text-[15px] font-semibold text-foreground truncate">{title}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+                <span className="truncate">{title}</span>
+                {loading && (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" aria-label={t('common.loading')} />
+                )}
+              </CardTitle>
               {subtitle && <p className="mt-0.5 text-[11px] text-muted-foreground truncate">{subtitle}</p>}
             </div>
           </div>
           {right && <div className="flex items-center gap-2 shrink-0">{right}</div>}
         </div>
       </CardHeader>
-      <CardContent className="p-0">{children}</CardContent>
+      <CardContent className="relative p-0">
+        {/* Indeterminate top bar — visible on every fetch, not just first load */}
+        {loading && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 animate-pulse bg-primary" />
+        )}
+        {children}
+      </CardContent>
     </Card>
   )
 }

@@ -5,7 +5,7 @@ import {
 } from "@/components/shared";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LiveMapController } from "@/controllers/LiveMapController";
-import type { GpsPoint, MemberStatus, RouteSummary } from "@/lib/types";
+import type { GpsPoint, HistoryDataSource, MemberStatus, RouteSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { addDays, startOfDay, subDays } from "date-fns";
@@ -405,6 +405,8 @@ export interface HistoryPanelProps {
   onAutoFollowToggle: () => void;
   showRawRoute?: boolean;
   onRawRouteToggle?: () => void;
+  /** Forwarded to `getHistoryComparison`. `null`/omitted = backend decides. */
+  dataSource?: HistoryDataSource | null;
 }
 
 // ── Inline playback bar (used inside the sheet on mobile) ─────────────────────
@@ -512,7 +514,7 @@ export function HistoryPanel({
   playIndex, onSeek,
   isPlaying, playSpeed, autoFollow,
   onPlayToggle, onSpeedCycle, onAutoFollowToggle,
-  showRawRoute, onRawRouteToggle,
+  showRawRoute, onRawRouteToggle, dataSource,
 }: HistoryPanelProps) {
   const { t } = useFleetwork();
   const [historyDate, setHistoryDate] = React.useState<Date>(() => new Date());
@@ -539,6 +541,7 @@ export function HistoryPanel({
           member.userId,
           startMs,
           endMs,
+          { dataSource },
         );
         setHistoryPoints(route.points);
         setRouteSummary(route.routeSummary);
@@ -550,7 +553,7 @@ export function HistoryPanel({
       }
       setHistoryLoading(false);
     },
-    [member.userId],
+    [member.userId, dataSource],
   );
 
   React.useEffect(() => {
@@ -560,6 +563,17 @@ export function HistoryPanel({
     setExpandedGroups(new Set());
     loadHistory(today);
   }, [member.userId]);
+
+  // Re-fetch when the caller switches track mode, keeping the chosen date.
+  // Skips the first run so it doesn't duplicate the mount fetch above.
+  const dataSourceSettled = React.useRef(false);
+  React.useEffect(() => {
+    if (!dataSourceSettled.current) {
+      dataSourceSettled.current = true;
+      return;
+    }
+    loadHistory(historyDate);
+  }, [dataSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     const el = scrollRef.current?.querySelector(

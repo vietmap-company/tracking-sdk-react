@@ -207,7 +207,27 @@ export interface RouteSummary {
   lostGpsDurationMs: number
 }
 
+/**
+ * Which track the backend should build for a history request.
+ *
+ * - `raw` — skip map-matching entirely; `trackingData` is the untouched GPS trace.
+ * - `both` — return the enriched route in `trackingData` plus `rawData` and
+ *   `enrichedData` side by side, so the caller can draw a comparison overlay.
+ * - `merged` — enriched route as the backbone, with raw points spliced into the
+ *   gaps the matcher could not match; `trackingData` is one unbroken track.
+ *
+ * Pass `null` (or omit it) to send no `DataSource` at all — the backend then
+ * prefers the enriched route and falls back to raw when the requested window
+ * has not been map-matched yet.
+ */
+export type HistoryDataSource = 'raw' | 'both' | 'merged'
+
 export interface HistoryRouteResponse {
+  /**
+   * The primary track. Its meaning depends on the requested `DataSource`:
+   * raw GPS (`raw`), the map-matched route (`both`), or the gap-filled
+   * merge of the two (`merged`).
+   */
   trackingData: GpsPoint[]
   totalCount: number
   page: number
@@ -236,7 +256,12 @@ export interface HistoryRouteResponse {
  * separately so the caller can draw both for comparison.
  */
 export interface HistoryRoute {
-  /** Flat point list used for playback / timeline / marker. Flattened from segments when available. */
+  /**
+   * Flat point list used for playback / timeline / marker. Built from
+   * `enrichedSegments` under `both` and under the backend default, and from
+   * `trackingData` under `raw` and `merged` — splitting a merged track back
+   * into segments would reintroduce the very gaps the merge closed.
+   */
   points: GpsPoint[]
   /** Raw GPS track, sorted by time. `null` when the backend didn't return it. */
   rawPoints: GpsPoint[] | null
@@ -251,6 +276,11 @@ export interface HistoryRoute {
   enriched: boolean
   /** Server-computed summary — distance, moving/stopped/lostGps durations. */
   routeSummary: RouteSummary | null
+  /**
+   * The `DataSource` this result was built from. `null` when none was sent and
+   * the backend picked (enriched, falling back to raw).
+   */
+  dataSource: HistoryDataSource | null
 }
 
 export interface SdkError extends Error {

@@ -152,7 +152,7 @@ export function TripSummaryReport({
     setSort((p) => toggleSort(p, k));
     setPage(1);
   }, []);
-  const { data, isLoading, error } = useTripSummaryReport({
+  const { data, isLoading, isFetching, error } = useTripSummaryReport({
     ...range,
     page,
     pageSize,
@@ -168,6 +168,7 @@ export function TripSummaryReport({
 
   return (
     <ReportShell
+      loading={isFetching}
       title={t("reports.trip.title")}
       subtitle={t("reports.trip.subtitle")}
       onBack={onBack}
@@ -290,7 +291,7 @@ export function TripDetailReport({
     setSort((p) => toggleSort(p, k));
     setPage(1);
   }, []);
-  const { data, isLoading, error } = useTripDetailReport({
+  const { data, isLoading, isFetching, error } = useTripDetailReport({
     ...range,
     page,
     pageSize,
@@ -309,6 +310,7 @@ export function TripDetailReport({
 
   return (
     <ReportShell
+      loading={isFetching}
       title={userId ? (userName ?? userId) : `${t("reports.trip.title")} — ${t("reports.tab.detail")}`}
       subtitle={userId ? t("reports.trip.title") : t("reports.trip.subtitle")}
       onBack={onBack}
@@ -421,7 +423,7 @@ export function FuelSummaryReport({
     setSort((p) => toggleSort(p, k));
     setPage(1);
   }, []);
-  const { data, isLoading, error } = useFuelSummaryReport({
+  const { data, isLoading, isFetching, error } = useFuelSummaryReport({
     ...range,
     page,
     pageSize,
@@ -438,6 +440,7 @@ export function FuelSummaryReport({
 
   return (
     <ReportShell
+      loading={isFetching}
       title={t("reports.fuel.title")}
       subtitle={t("reports.fuel.subtitle")}
       onBack={onBack}
@@ -574,7 +577,7 @@ export function FuelDetailReport({
     setSort((p) => toggleSort(p, k));
     setPage(1);
   }, []);
-  const { data, isLoading, error } = useFuelDetailReport({
+  const { data, isLoading, isFetching, error } = useFuelDetailReport({
     ...range,
     page,
     pageSize,
@@ -594,6 +597,7 @@ export function FuelDetailReport({
 
   return (
     <ReportShell
+      loading={isFetching}
       title={userId ? (userName ?? userId) : `${t("reports.fuel.title")} — ${t("reports.tab.detail")}`}
       subtitle={userId ? t("reports.fuel.title") : t("reports.fuel.subtitle")}
       onBack={onBack}
@@ -724,11 +728,11 @@ export function ActivityTimeReport({
   onRangeChange,
   onBack,
   onError,
-  pageSize = 50,
+  pageSize = 10,
 }: ReportViewProps) {
   const { t } = useFleetwork();
   const [page, setPage] = React.useState(1);
-  const { data, isLoading, error } = useActivityTimeReport({
+  const { data, isLoading, isFetching, error } = useActivityTimeReport({
     ...range,
     page,
     pageSize,
@@ -742,6 +746,7 @@ export function ActivityTimeReport({
 
   return (
     <ReportShell
+      loading={isFetching}
       title={t("reports.activity.title")}
       subtitle={
         typeof data?.totalUsers === "number"

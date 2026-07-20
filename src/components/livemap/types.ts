@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { MemberStatus, TileType } from "@/lib/types";
+import type { HistoryDataSource, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
 
 export type MapInstance = {
   flyTo: (opts: { center: [number, number]; zoom?: number }) => void;
@@ -56,6 +56,24 @@ export interface LiveMapProps {
    */
   userIds?: string[];
   /**
+   * Restrict the map/list to members with these statuses. Empty or omitted
+   * means all statuses. This is controlled: while set, it wins over any
+   * imperative `setStatusFilter` from the ref. Leave it undefined to drive the
+   * filter imperatively instead (uncontrolled).
+   */
+  statusFilter?: MemberStatusKind[];
+  /**
+   * Which track the history panel requests. Omit (or pass `null`) to let the
+   * backend prefer enriched and fall back to raw. Only `"both"` and `"raw"`
+   * return a raw track, so the raw-overlay toggle is hidden under `"merged"`.
+   */
+  dataSource?: HistoryDataSource | null;
+  /**
+   * Show the 🔄 markers at each history segment boundary (hover shows the
+   * time-gap that made the matcher cut there). Default `false`.
+   */
+  showTransitionMarkers?: boolean;
+  /**
    * Auto-fit the viewport to all members on first data load. Default `true`.
    * It only ever fits once and stops as soon as the user pans/zooms, so polling
    * never overrides the user's view. Set `false` to disable entirely and keep
@@ -86,4 +104,12 @@ export interface LiveMapRef {
   focusMember: (userId: string) => void;
   getMembers: () => MemberStatus[];
   getMap: () => MapInstance | null;
+  /**
+   * Imperatively filter the map/list by status. Pass an empty array (or
+   * `undefined`) to clear. Ignored while the `statusFilter` prop is set
+   * (controlled mode).
+   */
+  setStatusFilter: (statuses?: MemberStatusKind[]) => void;
+  /** The status filter currently in effect (prop or imperative). */
+  getStatusFilter: () => MemberStatusKind[] | undefined;
 }

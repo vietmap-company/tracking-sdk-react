@@ -15,7 +15,7 @@ import {
   addClusterLayers,
 } from "./clusterLayers";
 import type { LiveMapProps, LiveMapRef, MapInstance } from "./types";
-import type { GpsPoint, MemberStatus, TileType } from "@/lib/types";
+import type { GpsPoint, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
 import { MemberList } from "./MemberList";
 import { TileSwitcher } from "./TileSwitcher";
 import { Legend } from "./Legend";
@@ -59,6 +59,9 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       pollInterval = 10_000,
       maxUsers = 3000,
       userIds,
+      statusFilter: statusFilterProp,
+      dataSource,
+      showTransitionMarkers = false,
       autoFit = true,
       clusterRadius = 50,
       clusterMaxZoom = 14,
@@ -149,8 +152,27 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       userIds,
       enabled: !membersProp,
     });
-    const members = membersProp ?? apiMembers;
+    const baseMembers = membersProp ?? apiMembers;
     const isLoading = membersProp != null ? false : apiLoading;
+
+    // Status filter — controlled by the `statusFilter` prop when provided,
+    // otherwise driven imperatively via the ref (`setStatusFilter`). Empty /
+    // undefined means "all statuses".
+    const [imperativeStatusFilter, setImperativeStatusFilter] =
+      React.useState<MemberStatusKind[] | undefined>(undefined);
+    const statusFilter = statusFilterProp ?? imperativeStatusFilter;
+    // Mirror into a ref so the imperative handle's getStatusFilter reads the
+    // latest value without rebuilding the handle on every filter change.
+    const statusFilterRef = React.useRef(statusFilter);
+    React.useEffect(() => {
+      statusFilterRef.current = statusFilter;
+    }, [statusFilter]);
+    const members = React.useMemo(() => {
+      if (!statusFilter || statusFilter.length === 0) return baseMembers;
+      const allowed = new Set(statusFilter);
+      return baseMembers.filter((m) => allowed.has(m.status));
+    }, [baseMembers, statusFilter]);
+
     React.useEffect(() => {
       membersRef.current = members;
     }, [members]);
@@ -174,7 +196,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       seekHistory,
       drawRawRoute,
       clearHistoryRoute,
-    } = usePlayback({ mapRef, vglRef, selectedMemberRef, ready });
+    } = usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers });
 
     const [showRawRoute, setShowRawRoute] = React.useState(true);
 
@@ -679,6 +701,9 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         },
         getMembers: () => membersRef.current,
         getMap: () => mapRef.current,
+        setStatusFilter: (statuses) =>
+          setImperativeStatusFilter(statuses?.length ? statuses : undefined),
+        getStatusFilter: () => statusFilterRef.current,
       }),
       [openPopup],
     );
@@ -781,6 +806,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             onAutoFollowToggle={() => setAutoFollow((v) => !v)}
             showRawRoute={rawPoints.length > 1 ? showRawRoute : undefined}
             onRawRouteToggle={rawPoints.length > 1 ? () => setShowRawRoute((v) => !v) : undefined}
+            dataSource={dataSource}
           />
         )}
         {/* Desktop-only float playback bar — on mobile it's embedded inside HistoryPanel sheet */}
