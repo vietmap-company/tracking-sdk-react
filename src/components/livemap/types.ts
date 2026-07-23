@@ -17,6 +17,14 @@ export type MapInstance = {
   getSource: (id: string) => { setData: (data: unknown) => void } | undefined;
   removeSource: (id: string) => void;
   addLayer: (layer: Record<string, unknown>) => void;
+  /** Đăng ký image dùng cho icon-image (pill nền label, …). Optional vì
+   *  type này chỉ mô tả phần API SDK dùng tới. */
+  addImage?: (
+    id: string,
+    image: ImageData,
+    options?: Record<string, unknown>,
+  ) => void;
+  hasImage?: (id: string) => boolean;
   getLayer: (id: string) => unknown | undefined;
   removeLayer: (id: string) => void;
   easeTo: (opts: {

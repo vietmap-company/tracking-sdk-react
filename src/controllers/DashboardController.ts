@@ -1,29 +1,52 @@
+/**
+ * DashboardController — API cho các widget Dashboard.
+ * Helpers chung (client, cleanIds, chunk, paginate) nằm trong `shared.ts`.
+ */
 import type { AxiosInstance } from 'axios'
-import { getGlobalClient, request } from '@/lib/http'
+import { HttpService } from '@/lib/http'
 import { startOfTodayMs } from '@/lib/utils'
+import {
+  MAX_USER_IDS,
+  chunk,
+  cleanIds,
+  paginate,
+  resolveClient,
+  type WithClient,
+} from './shared'
 import type {
-  ActivityHeatmapData, FuelGroupBy, FuelTrackingData,
-  MemberReportData, MemberRow, MemberStatusKind, MonthlyExpensesData, SummaryCardsData,
+  ActivityHeatmapData,
+  FuelGroupBy,
+  FuelTrackingData,
+  MemberReportData,
+  MemberRow,
+  MemberStatusKind,
+  MonthlyExpensesData,
+  SummaryCardsData,
 } from '@/lib/types'
 
-export interface GetSummaryOptions { date?: number; userIds?: string[]; client?: AxiosInstance }
-export interface GetMemberReportOptions { page?: number; pageSize?: number; status?: MemberStatusKind; userIds?: string[]; client?: AxiosInstance }
-export interface GetActivityHeatmapOptions { metric?: 'distance' | 'points'; userId?: string; userIds?: string[]; client?: AxiosInstance }
-export interface GetFuelOptions { groupBy?: FuelGroupBy; userId?: string; userIds?: string[]; client?: AxiosInstance }
-export interface GetExpensesOptions { currency?: string; userIds?: string[]; client?: AxiosInstance }
-
-function c(opts?: { client?: AxiosInstance }): AxiosInstance { return opts?.client ?? getGlobalClient() }
-
-// Backend giới hạn tối đa 1000 userId mỗi request → vượt thì tách call.
-const MAX_USER_IDS = 1000
-function cleanIds(userIds?: string[]): string[] | undefined {
-  const ids = userIds?.filter((id) => id != null && id !== '')
-  return ids?.length ? ids : undefined
+export interface GetSummaryOptions extends WithClient {
+  date?: number
+  userIds?: string[]
 }
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
-  return out
+export interface GetMemberReportOptions extends WithClient {
+  page?: number
+  pageSize?: number
+  status?: MemberStatusKind
+  userIds?: string[]
+}
+export interface GetActivityHeatmapOptions extends WithClient {
+  metric?: 'distance' | 'points'
+  userId?: string
+  userIds?: string[]
+}
+export interface GetFuelOptions extends WithClient {
+  groupBy?: FuelGroupBy
+  userId?: string
+  userIds?: string[]
+}
+export interface GetExpensesOptions extends WithClient {
+  currency?: string
+  userIds?: string[]
 }
 
 // POST dashboard/gps-manager/users giới hạn pageSize tối đa 100.
@@ -34,46 +57,62 @@ async function fetchAllMemberRows(
   client: AxiosInstance,
   body: { date: number; status?: MemberStatusKind; userIds: string[] },
 ): Promise<MemberRow[]> {
-  const first = await request<MemberReportData>(client, {
-    method: 'POST', url: 'dashboard/gps-manager/users',
-    data: { ...body, page: 1, pageSize: DASHBOARD_POST_PAGE_SIZE },
-  })
+  const first = await HttpService.post<MemberReportData>(
+    'dashboard/gps-manager/users',
+    { ...body, page: 1, pageSize: DASHBOARD_POST_PAGE_SIZE },
+    client,
+  )
   let rows = first.users
   const totalPages = first.pagination?.totalPages ?? 1
   for (let p = 2; p <= totalPages; p++) {
-    const next = await request<MemberReportData>(client, {
-      method: 'POST', url: 'dashboard/gps-manager/users',
-      data: { ...body, page: p, pageSize: DASHBOARD_POST_PAGE_SIZE },
-    })
+    const next = await HttpService.post<MemberReportData>(
+      'dashboard/gps-manager/users',
+      { ...body, page: p, pageSize: DASHBOARD_POST_PAGE_SIZE },
+      client,
+    )
     rows = rows.concat(next.users)
   }
   return rows
 }
 
 export const DashboardController = {
-  async getSummaryCards(options: GetSummaryOptions = {}): Promise<SummaryCardsData> {
+  async getSummaryCards(
+    options: GetSummaryOptions = {},
+  ): Promise<SummaryCardsData> {
     const date = options.date ?? startOfTodayMs()
-    return request<SummaryCardsData>(c(options), { method: 'POST', url: 'dashboard/gps-manager/summary', data: { date, userIds: cleanIds(options.userIds) } })
+    return HttpService.post<SummaryCardsData>(
+      'dashboard/gps-manager/summary',
+      { date, userIds: cleanIds(options.userIds) },
+      resolveClient(options),
+    )
   },
 
-  async getMemberReport(date: number = startOfTodayMs(), options: GetMemberReportOptions = {}): Promise<MemberReportData> {
+  async getMemberReport(
+    date: number = startOfTodayMs(),
+    options: GetMemberReportOptions = {},
+  ): Promise<MemberReportData> {
     const userIds = cleanIds(options.userIds)
     const page = options.page ?? 1
     const pageSize = options.pageSize ?? 10
 
     // ≤ 1000 ids (hoặc không lọc): 1 POST, backend lọc + phân trang server-side.
     if (!userIds || userIds.length <= MAX_USER_IDS) {
-      return request<MemberReportData>(c(options), {
-        method: 'POST', url: 'dashboard/gps-manager/users',
-        data: { date, status: options.status, userIds, page, pageSize },
-      })
+      return HttpService.post<MemberReportData>(
+        'dashboard/gps-manager/users',
+        { date, status: options.status, userIds, page, pageSize },
+        resolveClient(options),
+      )
     }
 
     // > 1000 ids: tách thành nhiều POST (mỗi call ≤ 1000), lấy hết rows mỗi chunk
     // rồi gộp + tính lại summary/pagination. Các chunk có id rời nhau nên không trùng.
     const parts = await Promise.all(
       chunk(userIds, MAX_USER_IDS).map((ids) =>
-        fetchAllMemberRows(c(options), { date, status: options.status, userIds: ids }),
+        fetchAllMemberRows(resolveClient(options), {
+          date,
+          status: options.status,
+          userIds: ids,
+        }),
       ),
     )
     const users = parts.flat()
@@ -83,34 +122,55 @@ export const DashboardController = {
       stopped: users.filter((u) => u.status === 'stopped').length,
       signalLost: users.filter((u) => u.status === 'signal_lost').length,
     }
-    const totalPages = Math.max(1, Math.ceil(users.length / pageSize))
-    const start = (page - 1) * pageSize
-    return {
-      date,
-      summary,
-      users: users.slice(start, start + pageSize),
-      pagination: { page, pageSize, totalItems: users.length, totalPages },
-    }
+    const { rows, pagination } = paginate(users, page, pageSize)
+    return { date, summary, users: rows, pagination }
   },
 
-  async getActivityHeatmap(from: number, to: number, options: GetActivityHeatmapOptions = {}): Promise<ActivityHeatmapData> {
-    return request<ActivityHeatmapData>(c(options), {
-      method: 'POST', url: 'dashboard/gps-manager/activity-heatmap',
-      data: { from, to, metric: options.metric ?? 'distance', userId: options.userId, userIds: cleanIds(options.userIds) },
-    })
+  async getActivityHeatmap(
+    from: number,
+    to: number,
+    options: GetActivityHeatmapOptions = {},
+  ): Promise<ActivityHeatmapData> {
+    return HttpService.post<ActivityHeatmapData>(
+      'dashboard/gps-manager/activity-heatmap',
+      {
+        from,
+        to,
+        metric: options.metric ?? 'distance',
+        userId: options.userId,
+        userIds: cleanIds(options.userIds),
+      },
+      resolveClient(options),
+    )
   },
 
-  async getFuelTracking(from: number, to: number, options: GetFuelOptions = {}): Promise<FuelTrackingData> {
-    return request<FuelTrackingData>(c(options), {
-      method: 'POST', url: 'dashboard/gps-manager/fuel-tracking',
-      data: { from, to, groupBy: options.groupBy ?? 'month', userId: options.userId, userIds: cleanIds(options.userIds) },
-    })
+  async getFuelTracking(
+    from: number,
+    to: number,
+    options: GetFuelOptions = {},
+  ): Promise<FuelTrackingData> {
+    return HttpService.post<FuelTrackingData>(
+      'dashboard/gps-manager/fuel-tracking',
+      {
+        from,
+        to,
+        groupBy: options.groupBy ?? 'month',
+        userId: options.userId,
+        userIds: cleanIds(options.userIds),
+      },
+      resolveClient(options),
+    )
   },
 
-  async getMonthlyExpenses(from: number, to: number, options: GetExpensesOptions = {}): Promise<MonthlyExpensesData> {
-    return request<MonthlyExpensesData>(c(options), {
-      method: 'POST', url: 'dashboard/gps-manager/monthly-costs',
-      data: { from, to, currency: options.currency ?? 'VND', userIds: cleanIds(options.userIds) },
-    })
+  async getMonthlyExpenses(
+    from: number,
+    to: number,
+    options: GetExpensesOptions = {},
+  ): Promise<MonthlyExpensesData> {
+    return HttpService.post<MonthlyExpensesData>(
+      'dashboard/gps-manager/monthly-costs',
+      { from, to, currency: options.currency ?? 'VND', userIds: cleanIds(options.userIds) },
+      resolveClient(options),
+    )
   },
 }

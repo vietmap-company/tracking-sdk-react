@@ -1,5 +1,6 @@
 import type { MemberStatus } from "@/lib/types";
 import type { MapInstance } from "./types";
+import { VIETMAP_TEXT_FONT, VIETMAP_TEXT_FONT_BOLD } from "./tiles";
 
 export const MEMBERS_SOURCE = "dc-members";
 export const SELECTED_SOURCE = "dc-selected";
@@ -7,8 +8,84 @@ export const LAYER_CLUSTERS = "dc-clusters";
 export const LAYER_CLUSTER_COUNT = "dc-cluster-count";
 export const LAYER_POINTS = "dc-points";
 export const LAYER_POINT_BADGE = "dc-point-badge";
+export const LAYER_POINT_INITIALS = "dc-point-initials";
+export const LAYER_POINT_LABEL = "dc-point-label";
 export const LAYER_SELECTED_HALO = "dc-selected-halo";
+export const LAYER_SELECTED_RING = "dc-selected-ring";
 export const LAYER_SELECTED_POINT = "dc-selected-point";
+
+/** Màu marker theo trạng thái — dùng chung cho marker thường + selected. */
+const STATUS_COLOR_EXPR = [
+  "match",
+  ["get", "status"],
+  "moving",
+  "#10b981",
+  "stopped",
+  "#f59e0b",
+  "#94a3b8",
+];
+export const LAYER_SELECTED_INITIALS = "dc-selected-initials";
+export const LAYER_SELECTED_LABEL = "dc-selected-label";
+
+/** 2 chữ cái đầu của tên (fallback userId) — hiển thị trong marker
+ *  như avatar initials. */
+function initialsOf(m: MemberStatus): string {
+  return (m.name ?? m.userId).trim().slice(0, 2).toUpperCase();
+}
+
+/** Tên hiển thị dưới marker — cắt ngắn để label không tràn map. */
+function labelOf(m: MemberStatus): string {
+  const name = (m.name ?? m.userId).trim();
+  return name.length > 22 ? `${name.slice(0, 21)}…` : name;
+}
+
+/** Pill trắng bo góc làm nền cho label tên. GL không vẽ được
+ *  background cho text nên dùng stretchable image (9-slice) + icon-text-fit
+ *  để pill tự giãn theo độ dài tên. Vẽ ở pixelRatio 2 cho sắc nét. */
+export const LABEL_PILL_IMAGE = "dc-label-pill";
+
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+export function ensureLabelPillImage(map: MapInstance) {
+  if (!map.addImage || map.hasImage?.(LABEL_PILL_IMAGE)) return;
+  // 64×36 @2x → hiển thị 32×18, bo góc 7px. Vùng giữa co giãn theo text.
+  const w = 64;
+  const h = 36;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  roundedRectPath(ctx, 1, 1, w - 2, h - 2, 14);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.18)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  map.addImage(LABEL_PILL_IMAGE, ctx.getImageData(0, 0, w, h), {
+    pixelRatio: 2,
+    // Vùng kéo giãn (px ảnh gốc) — tránh 4 góc bo.
+    stretchX: [[20, 44]],
+    stretchY: [[14, 22]],
+    // Hộp chứa text — inset mỏng (2-3px hiển thị) cho pill ôm sát chữ.
+    content: [6, 4, 58, 32],
+  });
+}
 
 /**
  * Group members (excluding the active/selected user) at the same lat/lng
@@ -57,6 +134,12 @@ export function toGeoJSON(
         userIds: gs.map((m) => m.userId).join("|"),
         stackCount,
         status: repr.status,
+        initials: initialsOf(repr),
+        label: stackCount > 1 ? `${labelOf(repr)} +${stackCount - 1}` : labelOf(repr),
+        // Thứ tự vẽ ổn định: circle-sort-key (z cao vẽ trên) + symbol-sort-key
+        // (đảo dấu — chữ của marker trên cùng được đặt trước, chữ của marker
+        // bị đè thua collision → tự ẩn thay vì nổi lên trên marker đè nó).
+        z: features.length,
       },
     });
   });
@@ -81,7 +164,12 @@ export function toSelectedGeoJSON(
       {
         type: "Feature",
         geometry: { type: "Point", coordinates: [m.lng, m.lat] },
-        properties: { userId: m.userId, status: m.status },
+        properties: {
+          userId: m.userId,
+          status: m.status,
+          initials: initialsOf(m),
+          label: labelOf(m),
+        },
       },
     ],
   };
@@ -94,6 +182,10 @@ export function addClusterLayers(
   clusterRadius: number,
   clusterMaxZoom: number,
 ) {
+  // Đăng ký lại mỗi lần add layers — setStyle() xoá sạch images đã đăng ký,
+  // và addClusterLayers được gọi lại qua "styledata" nên pill luôn có sẵn.
+  ensureLabelPillImage(map);
+
   map.addSource(MEMBERS_SOURCE, {
     type: "geojson",
     data,
@@ -137,6 +229,7 @@ export function addClusterLayers(
     filter: ["has", "point_count"],
     layout: {
       "text-field": ["to-string", ["get", "member_count"]],
+      "text-font": VIETMAP_TEXT_FONT_BOLD,
       "text-size": 13,
       "text-allow-overlap": true,
       "text-ignore-placement": true,
@@ -151,18 +244,15 @@ export function addClusterLayers(
     type: "circle",
     source: MEMBERS_SOURCE,
     filter: ["!", ["has", "point_count"]],
+    layout: {
+      // z cao vẽ trên — khớp với symbol-sort-key của initials/label bên dưới.
+      "circle-sort-key": ["get", "z"],
+    },
     paint: {
-      "circle-color": [
-        "match",
-        ["get", "status"],
-        "moving",
-        "#10b981",
-        "stopped",
-        "#f59e0b",
-        "#94a3b8",
-      ],
+      "circle-color": STATUS_COLOR_EXPR,
+      // Rộng để chứa 2 chữ cái initials bên trong (kiểu avatar).
       // Stacks (count > 1) render slightly larger so they look "fatter" than singletons.
-      "circle-radius": ["case", [">", ["get", "stackCount"], 1], 11, 8],
+      "circle-radius": ["case", [">", ["get", "stackCount"], 1], 15, 14],
       "circle-stroke-width": 2.5,
       "circle-stroke-color": "#ffffff",
       "circle-opacity": 0.95,
@@ -182,15 +272,65 @@ export function addClusterLayers(
     ],
     layout: {
       "text-field": ["to-string", ["get", "stackCount"]],
-      "text-size": 11,
-      "text-allow-overlap": true,
-      "text-ignore-placement": true,
+      "text-font": VIETMAP_TEXT_FONT_BOLD,
+      "text-size": 12,
+      // Tham gia collision (padding ≈ bán kính circle) — marker bị đè thì
+      // badge tự ẩn. Sort-key đảo dấu: marker trên cùng giữ chữ.
+      "symbol-sort-key": ["*", ["get", "z"], -1],
+      "text-padding": 6,
     },
     paint: {
       "text-color": "#ffffff",
       "text-halo-color": "#0f172a",
       "text-halo-width": 1.2,
     },
+  } as Record<string, unknown>);
+
+  // Initials (2 chữ cái đầu) bên trong marker đơn — stack đã có badge "+N".
+  map.addLayer({
+    id: LAYER_POINT_INITIALS,
+    type: "symbol",
+    source: MEMBERS_SOURCE,
+    filter: [
+      "all",
+      ["!", ["has", "point_count"]],
+      ["==", ["get", "stackCount"], 1],
+    ],
+    layout: {
+      "text-field": ["get", "initials"],
+      "text-font": VIETMAP_TEXT_FONT_BOLD,
+      "text-size": 11,
+      // Tham gia collision (padding ≈ bán kính circle) — marker bị đè thì
+      // initials tự ẩn thay vì nổi lên trên marker đang đè nó.
+      "symbol-sort-key": ["*", ["get", "z"], -1],
+      "text-padding": 6,
+    },
+    paint: { "text-color": "#ffffff" },
+  } as Record<string, unknown>);
+
+  // Label tên dưới marker (pill trắng — GL không vẽ được nền
+  // nên dùng halo trắng dày). Không allow-overlap → tự ẩn khi chen chúc.
+  map.addLayer({
+    id: LAYER_POINT_LABEL,
+    type: "symbol",
+    source: MEMBERS_SOURCE,
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "text-field": ["get", "label"],
+      "text-font": VIETMAP_TEXT_FONT,
+      "text-size": 10.5,
+      "text-anchor": "top",
+      // ~20px dưới tâm marker (r=14) → hở ~4px giữa mép marker và pill.
+      "text-offset": [0, 1.9],
+      // Cùng độ ưu tiên với initials — label của marker trên cùng thắng.
+      "symbol-sort-key": ["*", ["get", "z"], -1],
+      // Pill trắng làm nền — tự giãn ôm theo text. Khi chen chúc, cả
+      // pill lẫn text cùng ẩn (collision mặc định).
+      "icon-image": LABEL_PILL_IMAGE,
+      "icon-text-fit": "both",
+      "icon-text-fit-padding": [1, 4, 1, 4],
+    },
+    paint: { "text-color": "#0f172a" },
   } as Record<string, unknown>);
 
   // ── Selected member — never clustered, always rendered on top ────────────
@@ -201,39 +341,84 @@ export function addClusterLayers(
     data: selectedData,
   } as Record<string, unknown>);
 
-  // Soft halo glow behind the selected dot.
+  // Glow mềm cùng màu status phía sau — thay cho halo xanh bẹt cũ.
   map.addLayer({
     id: LAYER_SELECTED_HALO,
     type: "circle",
     source: SELECTED_SOURCE,
     paint: {
-      "circle-color": "#3b82f6",
-      "circle-radius": 20,
-      "circle-opacity": 0.25,
+      "circle-color": STATUS_COLOR_EXPR,
+      "circle-radius": 24,
+      "circle-opacity": 0.18,
       "circle-stroke-width": 0,
     },
   } as Record<string, unknown>);
 
-  // The selected dot itself — same colour logic as regular points but with
-  // a stronger blue stroke so it stands out from any overlapping members.
+  // Vòng ring mảnh màu status, hở một khe với chấm chính — kiểu "focus ring",
+  // thay cho viền xanh dày cũ.
+  map.addLayer({
+    id: LAYER_SELECTED_RING,
+    type: "circle",
+    source: SELECTED_SOURCE,
+    paint: {
+      "circle-color": "#000000",
+      "circle-opacity": 0,
+      "circle-radius": 19,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": STATUS_COLOR_EXPR,
+      "circle-stroke-opacity": 0.9,
+    },
+  } as Record<string, unknown>);
+
+  // Chấm chính — cùng ngôn ngữ với marker thường (viền trắng), chỉ to hơn.
   map.addLayer({
     id: LAYER_SELECTED_POINT,
     type: "circle",
     source: SELECTED_SOURCE,
     paint: {
-      "circle-color": [
-        "match",
-        ["get", "status"],
-        "moving",
-        "#10b981",
-        "stopped",
-        "#f59e0b",
-        "#94a3b8",
-      ],
-      "circle-radius": 12,
-      "circle-stroke-width": 4,
-      "circle-stroke-color": "#3b82f6",
-      "circle-opacity": 0.95,
+      "circle-color": STATUS_COLOR_EXPR,
+      "circle-radius": 15,
+      "circle-stroke-width": 3,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
     },
+  } as Record<string, unknown>);
+
+  // Initials trong marker được chọn.
+  map.addLayer({
+    id: LAYER_SELECTED_INITIALS,
+    type: "symbol",
+    source: SELECTED_SOURCE,
+    layout: {
+      "text-field": ["get", "initials"],
+      "text-font": VIETMAP_TEXT_FONT_BOLD,
+      "text-size": 11.5,
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: { "text-color": "#ffffff" },
+  } as Record<string, unknown>);
+
+  // Label tên dưới marker được chọn — luôn hiện (marker đang active).
+  map.addLayer({
+    id: LAYER_SELECTED_LABEL,
+    type: "symbol",
+    source: SELECTED_SOURCE,
+    layout: {
+      "text-field": ["get", "label"],
+      "text-font": VIETMAP_TEXT_FONT,
+      "text-size": 11,
+      "text-anchor": "top",
+      // Marker selected to hơn (r=15 + stroke 4) nên đẩy label xa hơn chút.
+      "text-offset": [0, 2.3],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "icon-image": LABEL_PILL_IMAGE,
+      "icon-text-fit": "both",
+      "icon-text-fit-padding": [1, 4, 1, 4],
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+    },
+    paint: { "text-color": "#0f172a" },
   } as Record<string, unknown>);
 }

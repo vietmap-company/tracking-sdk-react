@@ -346,6 +346,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             center,
             zoom,
             attributionControl: false,
+            // Tắt fade 300ms mặc định của symbol layers — khi chọn/bỏ chọn
+            // marker, member chuyển giữa 2 source làm symbol placement chạy
+            // lại; không tắt thì label biến mất rồi hiện lại từ từ.
+            fadeDuration: 0,
           });
           mapRef.current = map;
           map.on("load", () => {

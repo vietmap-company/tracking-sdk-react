@@ -40,15 +40,16 @@ export function useChartColors() {
     style?.getPropertyValue(name).trim() || fallback;
 
   return {
-    chart1: v("--color-chart-1", "#6366f1"),
-    chart2: v("--color-chart-2", "#10b981"),
-    chart3: v("--color-chart-3", "#f59e0b"),
-    chart4: v("--color-chart-4", "#3b82f6"),
-    chart5: v("--color-chart-5", "#ec4899"),
-    grid: "oklch(0.908 0.008 248)",
-    axisTick: "oklch(0.52 0.015 252)",
-    tooltipBg: "oklch(1 0 0)",
-    tooltipBorder: "oklch(0.908 0.008 248)",
+    chart1: v("--chart-1", "#6366f1"),
+    chart2: v("--chart-2", "#10b981"),
+    chart3: v("--chart-3", "#f59e0b"),
+    chart4: v("--chart-4", "#3b82f6"),
+    chart5: v("--chart-5", "#ec4899"),
+    // Follow the theme (light AND dark) instead of hardcoded light values.
+    grid: v("--border", "oklch(0.908 0.008 248)"),
+    axisTick: v("--muted-foreground", "oklch(0.52 0.015 252)"),
+    tooltipBg: v("--popover", "oklch(1 0 0)"),
+    tooltipBorder: v("--border", "oklch(0.908 0.008 248)"),
   };
 }
 

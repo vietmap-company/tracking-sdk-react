@@ -49,13 +49,7 @@ export function ReportShell({ title, subtitle, right, onBack, children, classNam
           {right && <div className="flex items-center gap-2 shrink-0">{right}</div>}
         </div>
       </CardHeader>
-      <CardContent className="relative p-0">
-        {/* Indeterminate top bar — visible on every fetch, not just first load */}
-        {loading && (
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 animate-pulse bg-primary" />
-        )}
-        {children}
-      </CardContent>
+      <CardContent className="relative p-0">{children}</CardContent>
     </Card>
   )
 }

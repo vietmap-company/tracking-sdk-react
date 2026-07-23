@@ -15,7 +15,9 @@ export interface MemberReportProps extends Omit<UseMemberReportOptions, 'page'> 
 export function MemberReport({ className, ...options }: MemberReportProps) {
   const { t, memberNameKey } = useFleetwork()
   const [page, setPage] = useState(1)
-  const { data, isLoading, error, refetch } = useMemberReport({ ...options, page })
+  const { data, isLoading, isFetching, error, refetch } = useMemberReport({ ...options, page })
+  // Skeleton khớp số dòng đang hiển thị (data cũ khi refetch), fallback pageSize.
+  const skeletonRows = data?.users?.length || (options.pageSize ?? 10)
 
   const summaryRight = data ? (
     <div className="flex items-center gap-3">
@@ -35,6 +37,7 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
 
   return (
     <ReportShell
+      loading={isFetching}
       title={t('report.title')}
       right={summaryRight}
       className={className}
@@ -54,7 +57,7 @@ export function MemberReport({ className, ...options }: MemberReportProps) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <ReportTableSkeletonRows rows={5} cols={5} />
+              <ReportTableSkeletonRows rows={skeletonRows} cols={5} />
             ) : !data?.users?.length ? (
               <ReportEmptyRow colSpan={5} />
             ) : (

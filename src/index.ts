@@ -48,7 +48,7 @@ export { ReportShell, PaginationBar, DateRangeBar } from '@/components/report/sh
 export * from '@/components/shared'
 
 // HTTP helpers
-export { initFleetwork, createHttpClient } from '@/lib/http'
+export { initFleetwork, createHttpClient, HttpService } from '@/lib/http'
 
 // Types
 export type * from '@/lib/types'

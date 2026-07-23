@@ -225,7 +225,7 @@ export function TripSummaryReport({
         </thead>
         <tbody>
           {isLoading ? (
-            <ReportTableSkeletonRows rows={8} cols={COLS} />
+            <ReportTableSkeletonRows rows={rows.length || pageSize} cols={COLS} />
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (
@@ -352,7 +352,7 @@ export function TripDetailReport({
         </thead>
         <tbody>
           {isLoading ? (
-            <ReportTableSkeletonRows rows={10} cols={COLS} />
+            <ReportTableSkeletonRows rows={rows.length || pageSize} cols={COLS} />
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (
@@ -491,7 +491,7 @@ export function FuelSummaryReport({
         </thead>
         <tbody>
           {isLoading ? (
-            <ReportTableSkeletonRows rows={8} cols={COLS} />
+            <ReportTableSkeletonRows rows={rows.length || pageSize} cols={COLS} />
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (
@@ -657,7 +657,7 @@ export function FuelDetailReport({
         </thead>
         <tbody>
           {isLoading ? (
-            <ReportTableSkeletonRows rows={10} cols={COLS} />
+            <ReportTableSkeletonRows rows={rows.length || pageSize} cols={COLS} />
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (
@@ -775,7 +775,7 @@ export function ActivityTimeReport({
         </thead>
         <tbody>
           {isLoading ? (
-            <ReportTableSkeletonRows rows={10} cols={COLS} />
+            <ReportTableSkeletonRows rows={rows.length || pageSize} cols={COLS} />
           ) : !rows.length ? (
             <ReportEmptyRow colSpan={COLS} />
           ) : (

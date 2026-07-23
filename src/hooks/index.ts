@@ -42,9 +42,10 @@ const SKELETON_DELAY_MS = 150
  *
  * `skeletonOnRefetch`: by default the skeleton (isLoading) only shows on the
  * first load; refetches keep stale data. Pass true to also raise isLoading on
- * every refetch (page/sort/filter changes) so each reload looks like the
- * initial load. Still delayed by 150ms. Leave false for polled data (map /
- * dashboard) so the poll doesn't flash a skeleton each tick.
+ * USER-DRIVEN refetches (page/sort/filter changes + manual `refetch()`) so each
+ * reload looks like the initial load. Still delayed by 150ms. Poll ticks NEVER
+ * raise the skeleton — polled data keeps rendering stale rows regardless of
+ * this flag, so it is now safe to enable for polled tables too.
  */
 function useFetch<T>(
   fetcher: () => Promise<T>,
@@ -63,7 +64,7 @@ function useFetch<T>(
   // Track latest fetch so stale responses from cancelled calls are ignored
   const fetchIdRef = useRef(0)
 
-  const doFetch = useCallback(async () => {
+  const doFetch = useCallback(async (isPoll = false) => {
     if (!enabled) return
     setError(null)
 
@@ -73,7 +74,9 @@ function useFetch<T>(
     setIsFetching(true)
 
     let skeletonTimer: ReturnType<typeof setTimeout> | null = null
-    if (skeletonOnRefetch || !hasDataRef.current) {
+    // Skeleton: lần tải đầu, hoặc refetch do người dùng (đổi trang/sort/filter,
+    // refetch tay) khi skeletonOnRefetch bật. Poll tick không bao giờ nháy.
+    if (!hasDataRef.current || (skeletonOnRefetch && !isPoll)) {
       skeletonTimer = setTimeout(() => {
         if (fetchId === fetchIdRef.current) setIsLoading(true)
       }, SKELETON_DELAY_MS)
@@ -102,13 +105,18 @@ function useFetch<T>(
 
   useEffect(() => { doFetch() }, [doFetch])
 
+  // Bọc lại để consumer gắn thẳng vào onClick không làm event object lọt
+  // vào tham số `isPoll` (truthy → mất skeleton).
+  const refetch = useCallback(() => { void doFetch() }, [doFetch])
+
   useEffect(() => {
     if (!pollInterval || pollInterval <= 0 || !enabled) return
-    const id = setInterval(() => doFetch(), pollInterval)
+    // isPoll=true — poll tick giữ data cũ, không nháy skeleton.
+    const id = setInterval(() => doFetch(true), pollInterval)
     return () => clearInterval(id)
   }, [doFetch, pollInterval, enabled])
 
-  return { data, isLoading, isFetching, error, refetch: doFetch }
+  return { data, isLoading, isFetching, error, refetch }
 }
 
 // ─── Dashboard Hooks ──────────────────────────────────────────────────────────
@@ -157,6 +165,7 @@ export function useMemberReport(options: UseMemberReportOptions = {}): QueryResu
     [date, page, pageSize, status, userIdsKey],
     options.enabled,
     options.pollInterval,
+    true, // skeletonOnRefetch — đổi trang/filter hiện skeleton; poll tick thì không
   )
 }
 
