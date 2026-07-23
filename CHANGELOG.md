@@ -6,6 +6,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.10] - 2026-07-23
+
+### Added
+
+- **Theme mới — shadcn slate (oklch)** cho cả light lẫn dark, chart palette 5 màu chuẩn. **Dark mode class-based**: app chỉ cần toggle class `.dark` trên `<html>` (`@custom-variant dark`) là toàn bộ SDK components + charts đổi theo. Thêm `tw-animate-css` để các animation `animate-in`/`fade-in` hoạt động thực sự trên Tailwind v4.
+- **Marker LiveMap kiểu avatar** — hiện **2 chữ cái đầu tên** trong circle (to hơn: r=14/15) + **label tên trong pill trắng** bên dưới (canvas 9-slice + `icon-text-fit`, tự giãn theo độ dài tên). Marker được chọn: glow + ring mảnh **cùng màu status** + viền trắng (thay viền xanh dày cũ), label luôn hiện.
+- **`HttpService`** (export mới) — `get/post/put/delete` trả thẳng `data`, dùng client đã có sẵn API key + error handling; cho consumer gọi endpoint tuỳ chỉnh.
+- **Chọn nguồn tuyến lịch sử — option `dataSource`** trên `LiveMapController.getHistoryComparison()` / `getHistoryRoute()` (qua `GetHistoryOptions`): `"raw"` (bỏ map-matching), `"both"` (đối chiếu raw vs enriched), `"merged"` (ghép liền không hở), hoặc bỏ trống/`null` để **không gửi** `DataSource` cho backend tự chọn (ưu tiên enriched, fallback raw). `HistoryRoute` thêm field `dataSource` echo lại mode đã dùng. Type mới `HistoryDataSource`.
+- **Prop `dataSource` trên `<LiveMap>`** — truyền thẳng xuống panel lịch sử; đổi giá trị sẽ tự fetch lại tuyến, giữ nguyên ngày đang chọn.
+- **`mergeSegmentsByIndex(segments)`** — helper thuần được export, gộp các `enrichedSegments` trùng `segmentIndex` thành một segment (nối điểm theo thứ tự mảng, không sort theo thời gian). SDK tự gộp trước khi vẽ.
+- **Vẽ lịch sử theo segment** — cả tuyến "đã đi" (xanh) lẫn "còn lại" (xám) cắt theo ranh giới segment nên không có đường "chim bay"; các segment dùng **một màu thống nhất**.
+- **Marker chuyển tiếp 🔄** ở ranh giới segment (hover hiện time-gap) — **mặc định ẩn**, bật qua prop `showTransitionMarkers` trên `<LiveMap>`.
+- **Lọc LiveMap theo status** — prop `statusFilter?: MemberStatusKind[]` (controlled) và method imperative `LiveMapRef.setStatusFilter()` / `getStatusFilter()` (uncontrolled). Filter áp lên cả marker, sidebar và `getMembers()`.
+- **`QueryResult.isFetching`** — `true` mỗi khi có request đang chạy, kể cả refetch nền (đổi trang/sort/filter/khoảng ngày) khi data cũ vẫn hiển thị. `isLoading` vẫn chỉ báo lần tải đầu.
+
+### Changed
+
+- **HTTP layer tách module `lib/http/`** — `axios-client.ts` (factory + interceptors: dev tracing có seq/timing/cảnh báo request **DUP**, normalize lỗi, phát auth event 401/403), `registry.ts` (global client), `service.ts` (HttpService). Import path `@/lib/http` và mọi export cũ giữ nguyên.
+- **Controllers tách file, khử trùng lặp** — `controllers/shared.ts` (resolveClient, cleanIds, chunk, paginate dùng chung), `livemap/members.ts` + `livemap/history.ts`, `report/request.ts`; `LiveMapController`/`ReportController`/`DashboardController` thành facade mỏng. **Public API không đổi.**
+- **Skeleton loading bảng nhất quán** — refetch (đổi trang/sort/filter) hiện lại **skeleton giống lần tải đầu** trên cả 5 bảng report lẫn `MemberReport`; spinner cạnh tiêu đề khi có request chạy (`ReportShell` nhận prop `loading`). Cờ `skeletonOnRefetch` phân biệt refetch do người dùng với **poll tick** (giữ data cũ, không nháy mỗi nhịp). Số skeleton rows **khớp số dòng đang hiển thị** (fallback `pageSize`) thay vì hardcode.
+- **`enrichedSegments` không còn sort theo thời gian** — giữ nguyên thứ tự mảng (thứ tự không gian) để tránh zigzag ở dữ liệu map-matching có nhiều điểm cùng timestamp.
+- `useChartColors` đọc `--border`/`--muted-foreground`/`--popover` thay vì hardcode màu light — lưới/trục/tooltip của chart tự theo dark mode.
+- Prop `theme.fontFamily` (`--dc-font`) giờ thực sự áp vào `.fleetwork-root` (trước đây set var nhưng không nơi nào dùng).
+
+### Fixed
+
+- **Text trên map không render** — font mặc định của MapLibre (`Open Sans`) trả 400 trên font server Vietmap nên số đếm cluster / badge "+N" trước giờ không hiển thị; mọi symbol layer chuyển sang `Noto Sans Regular/Bold` (đã verify). Style **satellite** thiếu `glyphs` cũng đã bổ sung — text hiện được trên mọi tile.
+- **Marker đè nhau nhưng chữ của marker bị đè nổi lên trên** — đồng bộ thứ tự vẽ bằng `circle-sort-key`/`symbol-sort-key` + cho initials/badge tham gia collision: marker bị đè thì chữ + label **tự ẩn**, marker trên cùng giữ đủ chữ.
+- **Label ẩn rồi fade lại từ từ khi chọn/bỏ chọn marker** — tắt `fadeDuration` (300ms mặc định) của symbol placement; label giờ hiện tức thì.
+- `refetch` từ hooks được bọc lại — gắn thẳng vào `onClick` không còn làm event object lọt vào tham số nội bộ.
+
+---
+
 ## [1.0.9] - 2026-06-30
 
 ### Added
@@ -13,6 +46,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **So sánh quỹ đạo gốc vs đã làm mượt trên LiveMap** — request `gps-tracking/history` tự thêm `DataSource=both`. Nếu backend trả cả hai, LiveMap vẽ 2 đường: xám `#888` nét liền (enriched / map-matched, dùng cho playback) + cam `#ff7f0e` nét đứt (GPS gốc), kèm legend góc trên-trái.
 - **Vẽ route đúng cách — tránh đường "chim bay"** — đường enriched được vẽ qua `enrichedSegments[]` (GeoJSON `MultiLineString`), mỗi segment là một polyline độc lập; các khoảng trống do matcher cắt không bị nối thẳng.
 - **`LiveMapController.getHistoryComparison()`** — method mới trả về `HistoryRoute` (`points` / `rawPoints` / `enrichedPoints` / `enrichedSegments` / `enriched`). Fallback: ưu tiên flatten segments → `enrichedData` → `trackingData` → `rawData`. `getHistoryRoute()` cũ giữ nguyên chữ ký.
+- **Nút bật/tắt GPS gốc (RAW) trên thanh playback** — khi lịch sử có kèm dữ liệu raw, hiện nút `RAW` để ẩn/hiện lớp GPS gốc (cam nét đứt) chồng lên đường đã map-matched; mặc định hiện. Props mới `showRawRoute` / `onRawRouteToggle` trên `PlaybackControls`.
 
 ### Changed
 

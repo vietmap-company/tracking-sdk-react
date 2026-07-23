@@ -184,14 +184,18 @@ Bản đồ fleet real-time dùng VietmapGL (CDN loader) với GPU-accelerated c
 
 - Tự động poll vị trí nhân viên (`pollInterval`, mặc định 10 giây)
 - GeoJSON clustering — render 3000+ marker, zoom để mở cluster
+- Marker kiểu avatar — **2 chữ cái đầu tên** trong circle + **label tên (pill trắng)** bên dưới, tự giãn theo độ dài tên; marker đè nhau thì chữ/label của marker bị đè tự ẩn
+- Marker được chọn: glow + ring mảnh cùng màu trạng thái, label luôn hiển thị
 - Spiderfy — click nhiều marker trùng toạ độ sẽ fan out để chọn riêng từng người
 - Sidebar nhân viên — collapsible pill, infinite scroll, sắp xếp moving → stopped → mất tín hiệu, tìm kiếm
 - Tile switcher: terrain / light / dark / satellite
 - Click marker → popup → **Xem lộ trình** → animated playback với route overlay
 - History panel: thống kê quãng đường + thời gian, timeline bar, danh sách điểm theo nhóm, date picker
 - Khi đang xem lịch sử, chọn nhân viên khác sẽ tự tải lại lịch sử của người đó
+- Route **map matching** — tuyến lịch sử vẽ theo từng segment (không có đường "chim bay"), chọn nguồn qua prop `dataSource` (`raw` / `both` / `merged`); mode `both`/`raw` có thêm nút `RAW` trên thanh playback để chồng GPS gốc (cam nét đứt) lên tuyến đã làm mượt
 - Lọc theo `userIds` — chỉ tải/hiển thị một tập user cụ thể (API lọc server-side)
-- `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`
+- Lọc theo **status** (`moving` / `stopped` / `signal_lost`) — qua prop `statusFilter` hoặc gọi imperative `ref.setStatusFilter(...)`
+- `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`, `setStatusFilter`, `getStatusFilter`
 
 ```tsx
 import { useRef } from "react"
@@ -229,6 +233,9 @@ const mapRef = useRef<LiveMapRef>(null)
 | `pollInterval`      | `number`                    | `10000`         | Chu kỳ refresh vị trí (ms)                 |
 | `maxUsers`          | `number`                    | `3000`          | Số nhân viên tối đa mỗi lần poll (chỉ áp dụng khi không lọc `userIds`) |
 | `userIds`           | `string[]`                  | —               | Chỉ tải/hiển thị các user này. API lọc server-side; bỏ trống = tất cả |
+| `statusFilter`      | `MemberStatusKind[]`        | —               | Chỉ hiện member có các status này (`moving`/`stopped`/`signal_lost`). Bỏ trống = tất cả. Controlled — khi set sẽ thắng `setStatusFilter` của ref |
+| `dataSource`        | `HistoryDataSource \| null` | —               | Loại tuyến panel lịch sử yêu cầu (`raw`/`both`/`merged`); bỏ trống/`null` = để backend tự chọn. Xem [Controllers](#lịch-sử-hành-trình--datasource) |
+| `showTransitionMarkers` | `boolean`               | `false`         | Hiện marker 🔄 ở ranh giới các segment lịch sử (hover xem time-gap). Mặc định ẩn |
 | `autoFit`           | `boolean`                   | `true`          | Tự fit viewport vào tất cả member ở lần tải đầu. Chỉ fit 1 lần và dừng ngay khi người dùng pan/zoom → poll không đè view. `false` để tắt hẳn, giữ `center`/`zoom` |
 | `clusterRadius`     | `number`                    | `50`            | Bán kính cluster (px)                      |
 | `clusterMaxZoom`    | `number`                    | `14`            | Mức zoom tắt cluster                       |
@@ -251,8 +258,10 @@ mapRef.current?.fitBounds([
   [110, 23],
 ]);
 mapRef.current?.focusMember("user-123"); // Bay đến + mở popup
-mapRef.current?.getMembers(); // MemberStatus[]
+mapRef.current?.getMembers(); // MemberStatus[] (đã áp status filter)
 mapRef.current?.getMap(); // MapInstance
+mapRef.current?.setStatusFilter(["moving"]); // Lọc; [] hoặc undefined = xoá lọc
+mapRef.current?.getStatusFilter(); // MemberStatusKind[] | undefined
 ```
 
 **Lọc theo nhóm user (`userIds`)**
@@ -263,6 +272,23 @@ Mặc định LiveMap tải toàn bộ fleet. Truyền `userIds` để chỉ t�
 // Chỉ hiện 3 user này; bỏ trống/`undefined` -> hiện tất cả như cũ
 <LiveMap apiKeyTilemap="..." userIds={["driver-01", "driver-02", "driver-03"]} />
 ```
+
+**Lọc theo status**
+
+Chỉ hiện member theo trạng thái. Filter áp lên **cả marker lẫn sidebar** và `getMembers()`. Hai cách dùng:
+
+```tsx
+// 1) Controlled — qua prop (component cha giữ state)
+<LiveMap apiKeyTilemap="..." statusFilter={["moving", "stopped"]} />
+
+// 2) Imperative — component tự gọi filter qua ref (bỏ prop để ở chế độ uncontrolled)
+const mapRef = useRef<LiveMapRef>(null)
+<LiveMap ref={mapRef} apiKeyTilemap="..." />
+mapRef.current?.setStatusFilter(["signal_lost"]) // chỉ hiện mất tín hiệu
+mapRef.current?.setStatusFilter([])              // xoá lọc
+```
+
+> Khi truyền prop `statusFilter`, nó **thắng** `setStatusFilter` của ref (controlled). Bỏ prop thì ref điều khiển (uncontrolled). Status hợp lệ: `"moving"`, `"stopped"`, `"signal_lost"`.
 
 ---
 
@@ -321,9 +347,13 @@ import {
 
 ## Hooks
 
-Tất cả hooks cần `FleetworkProvider` trong tree. Trả về `{ data, isLoading, error, refetch }`.
+Tất cả hooks cần `FleetworkProvider` trong tree. Trả về `{ data, isLoading, isFetching, error, refetch }`.
 
 > Không dùng TanStack Query — hooks thuần `useState/useEffect`.
+
+- **`isLoading`** — chỉ `true` ở lần tải đầu (chưa có data) → hiện skeleton. Có delay 150ms để tránh nháy với response nhanh.
+- **`isFetching`** — `true` **mỗi khi có request đang chạy**, kể cả refetch nền (đổi trang/sort/filter/khoảng ngày) khi data cũ vẫn hiển thị. Dùng cho spinner/thanh loading.
+- Các **report** giữ data cũ khi refetch nhưng vẫn hiện skeleton lại giống lần tải đầu mỗi khi đổi trang/sort/filter (để rõ là đang tải lại). Các hook polling (map/dashboard) thì không, tránh nháy skeleton mỗi nhịp poll.
 
 ```tsx
 // Dashboard
@@ -375,9 +405,113 @@ const userTrips = await ReportController.getTripDetail({ from, to, userId: "u1" 
 
 > **POST + `userIds`:** Toàn bộ `DashboardController.*` và `LiveMapController.getMembers`, `ReportController.getTripSummary`/`getFuelSummary` gọi bản **POST** (body) của API. Truyền `userIds` (mảng) để backend lọc nhiều user server-side; vượt **1000** id sẽ tự tách nhiều call rồi gộp. Báo cáo **chi tiết** (`getTripDetail`/`getFuelDetail`), `getActivityTime`, history/latest vẫn **GET**; chi tiết lọc **1 user** qua `userId`.
 
+### `HttpService` — gọi endpoint tuỳ chỉnh
+
+Dùng client đã có sẵn API key + error handling (401/403 tự phát auth event) để gọi endpoint riêng:
+
+```ts
+import { HttpService } from "@vietmap/tracking-sdk-react";
+
+const data = await HttpService.get<MyType>("my/endpoint", { from, to });
+const created = await HttpService.post<MyType>("my/endpoint", { name: "..." });
+```
+
+Cả 4 method `get/post/put/delete` trả thẳng `data`; lỗi đã được interceptor normalize thành `SdkError` (`message` dễ đọc + `status`). Tham số cuối (optional) nhận `AxiosInstance` riêng nếu không muốn dùng global client.
+
+### Lịch sử hành trình — `dataSource`
+
+`getHistoryComparison()` và `getHistoryRoute()` nhận option `dataSource` để chọn tuyến mà backend dựng.
+
+| `dataSource` | Backend làm gì | `points` lấy từ | Field đi kèm |
+| --- | --- | --- | --- |
+| bỏ trống / `null` | **Mặc định.** Không gửi `DataSource`. Ưu tiên enriched; khoảng thời gian nào chưa map-matching thì tự fallback sang raw | `enrichedSegments` (flatten), fallback `trackingData` | `enrichedSegments` (khi có) |
+| `"raw"` | Bỏ qua map-matching hoàn toàn (không query enriched) | `trackingData` (GPS gốc) | `rawPoints` |
+| `"both"` | Query cả hai nguồn, trả song song để client tự đối chiếu | `enrichedSegments` (flatten) | `rawPoints` + `enrichedPoints` + `enrichedSegments` |
+| `"merged"` | Lấy enriched làm xương sống, chèn raw vào các đoạn matcher không match được | `trackingData` (tuyến đã ghép) | `routeSummary` |
+
+```ts
+import { LiveMapController } from "@vietmap/tracking-sdk-react";
+
+// Mặc định — backend tự quyết enriched hay raw
+const auto = await LiveMapController.getHistoryComparison(userId, from, to);
+auto.dataSource; // null
+
+// GPS gốc, không map-matching — nhẹ nhất
+const raw = await LiveMapController.getHistoryComparison(userId, from, to, {
+  dataSource: "raw",
+});
+
+// Đối chiếu: vẽ enriched liền nét, raw nét đứt chồng lên
+const cmp = await LiveMapController.getHistoryComparison(userId, from, to, {
+  dataSource: "both",
+});
+cmp.enrichedSegments?.forEach((seg) => drawPolyline(seg));  // vẽ từng segment riêng
+if (cmp.rawPoints) drawDashed(cmp.rawPoints);
+
+// Một tuyến liền mạch, không bị hở ở chỗ matcher fail
+const merged = await LiveMapController.getHistoryComparison(userId, from, to, {
+  dataSource: "merged",
+});
+drawPolyline(merged.points);
+
+// getHistoryRoute() = getHistoryComparison().points
+const points = await LiveMapController.getHistoryRoute(userId, from, to, {
+  dataSource: "merged",
+});
+```
+
+Kết quả trả về luôn có field `dataSource` echo lại mode đã dùng (`null` khi để backend tự chọn), nên khi truyền mode động bạn không cần tự theo dõi.
+
+**Vì sao `points` lấy từ nguồn khác nhau:** với `"both"` và mode mặc định, `enrichedSegments` là tuyến chuẩn và mỗi segment phải vẽ thành **một polyline riêng** — nối chúng lại sẽ sinh đường chim bay ở chỗ matcher cắt. Với `"merged"` thì ngược lại: `trackingData` đã là tuyến ghép hoàn chỉnh, nếu lại flatten `enrichedSegments` sẽ mất đúng những điểm raw vừa chèn vào và hở lại như cũ.
+
+> `rawPoints` được chuẩn hoá: ở mode `"raw"` backend trả GPS gốc trong `trackingData` và bỏ trống `rawData`, nhưng SDK vẫn set `rawPoints` để bạn đọc tuyến raw ở cùng một field bất kể mode.
+
+#### Chọn mode từ component `<LiveMap />`
+
+Prop `dataSource` được truyền thẳng xuống panel lịch sử; đổi prop sẽ tự fetch lại tuyến, giữ nguyên ngày đang chọn.
+
+```tsx
+<LiveMap apiKeyTilemap={key} dataSource="merged" />
+```
+
+> Chỉ `"both"` và `"raw"` trả về tuyến raw, nên nút bật/tắt **overlay raw nét đứt** trong LiveMap sẽ tự ẩn ở mode `"merged"` và ở mode mặc định khi backend dựng được enriched.
+
+Xem [`src/example/pages/PageLiveMap.tsx`](src/example/pages/PageLiveMap.tsx) để có ví dụ cho người dùng bấm chọn 4 mode ngay trên UI.
+
+#### Segment: gộp trùng index & vẽ theo segment
+
+`enrichedSegments` trả về có thể chứa nhiều entry cùng một `segmentIndex` (backend cắt một segment logic thành nhiều mảnh). SDK gộp chúng lại trước khi vẽ bằng helper thuần được export:
+
+```ts
+import { mergeSegmentsByIndex } from "@vietmap/tracking-sdk-react";
+
+// EnrichedSegment[] -> EnrichedSegment[] (mỗi segmentIndex = 1 polyline)
+const merged = mergeSegmentsByIndex(res.enrichedSegments);
+```
+
+Gộp theo index, nối điểm theo **thứ tự mảng** (không sort theo thời gian, tránh zigzag). Các segment sau gộp được vẽ thành các polyline riêng (cắt tại ranh giới nên không có đường "chim bay") nhưng **cùng một màu**.
+
+**Marker chuyển tiếp 🔄** giữa hai segment (hover hiện time-gap — khoảng trống thời gian đó là lý do matcher cắt đoạn) **mặc định ẩn**; bật bằng prop `showTransitionMarkers` trên `<LiveMap>`:
+
+```tsx
+<LiveMap apiKeyTilemap="..." showTransitionMarkers />
+```
+
 ---
 
 ## Theming
+
+Design tokens của SDK là bộ **shadcn slate (oklch)**, hỗ trợ sẵn light + dark.
+
+### Dark mode
+
+Class-based: app chỉ cần toggle class `.dark` trên `<html>` là toàn bộ SDK components (bảng, chart, popup, overlay) tự đổi theo — không cần cấu hình gì thêm:
+
+```ts
+document.documentElement.classList.toggle("dark");
+```
+
+### Tuỳ chỉnh qua prop `theme`
 
 Tuỳ chỉnh CSS variables qua prop `theme` của `FleetworkProvider`:
 
