@@ -6,6 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.11] - 2026-08-19
+
+### Added
+
+- **Prop `routeColors` trên `<LiveMap>`** — tuỳ chỉnh màu tuyến lịch sử: `{ traveled?, remaining?, raw? }` (mặc định xanh `#3b82f6` / xám `#888888` / cam `#ff7f0e`). Đổi giá trị khi đang xem sẽ vẽ lại tuyến ngay với màu mới, giữ nguyên vị trí playback; lớp raw chỉ vẽ lại khi đang bật. Type mới `HistoryRouteColors` được export.
+
+---
+
 ## [1.0.10] - 2026-07-23
 
 ### Added
