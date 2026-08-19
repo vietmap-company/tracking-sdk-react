@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { GpsPoint, MemberStatus } from '@/lib/types'
-import type { MapInstance } from './types'
+import type { HistoryRouteColors, MapInstance } from './types'
 import type { VGL } from './vgl-loader'
 
 const ROUTE_REM_SRC = 'dc-route-remaining'
@@ -11,8 +11,11 @@ const ROUTE_TRAV_LINE = 'dc-route-traveled-line'
 const ROUTE_RAW_SRC = 'dc-route-raw'
 const ROUTE_RAW_LINE = 'dc-route-raw-line'
 
-const ROUTE_TRAVELED_COLOR = '#3b82f6'
-const ROUTE_FALLBACK_COLOR = '#888888'
+const DEFAULT_ROUTE_COLORS: Required<HistoryRouteColors> = {
+  traveled: '#3b82f6',
+  remaining: '#888888',
+  raw: '#ff7f0e',
+}
 
 // Distinct colors cycled per segment (already merged by index upstream) so the
 // matcher cuts are visible. Keyed on the segment's array position, not the
@@ -50,6 +53,8 @@ interface UsePlaybackParams {
   ready: boolean
   /** Show the 🔄 segment-transition markers. Default off. */
   showTransitionMarkers?: boolean
+  /** Màu tuyến lịch sử (đã đi / còn lại / raw). Thiếu field nào dùng mặc định. */
+  routeColors?: HistoryRouteColors
 }
 
 export interface UsePlaybackReturn {
@@ -75,7 +80,17 @@ export interface UsePlaybackReturn {
   clearHistoryRoute: () => void
 }
 
-export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers = false }: UsePlaybackParams): UsePlaybackReturn {
+export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers = false, routeColors }: UsePlaybackParams): UsePlaybackReturn {
+  const colors: Required<HistoryRouteColors> = {
+    traveled: routeColors?.traveled ?? DEFAULT_ROUTE_COLORS.traveled,
+    remaining: routeColors?.remaining ?? DEFAULT_ROUTE_COLORS.remaining,
+    raw: routeColors?.raw ?? DEFAULT_ROUTE_COLORS.raw,
+  }
+  // Ref để các callback (useCallback deps tối thiểu) luôn đọc màu mới nhất.
+  const colorsRef = React.useRef(colors)
+  colorsRef.current = colors
+  const colorsKey = `${colors.traveled}|${colors.remaining}|${colors.raw}`
+
   const [historyPoints, setHistoryPoints] = React.useState<GpsPoint[]>([])
   const [enrichedSegments, setEnrichedSegments] = React.useState<GpsPoint[][] | null>(null)
   const [rawPoints, setRawPoints] = React.useState<GpsPoint[]>([])
@@ -91,9 +106,11 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
   const playTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const autoFollowRef = React.useRef(autoFollow)
 
+  const playIndexRef = React.useRef(0)
   React.useEffect(() => { historyPointsRef.current = historyPoints }, [historyPoints])
   React.useEffect(() => { enrichedSegmentsRef.current = enrichedSegments }, [enrichedSegments])
   React.useEffect(() => { autoFollowRef.current = autoFollow }, [autoFollow])
+  React.useEffect(() => { playIndexRef.current = playIndex }, [playIndex])
 
   const drawHistoryRoute = React.useCallback((pts: GpsPoint[], playIdx: number) => {
     const map = mapRef.current as MapInstance | null
@@ -117,21 +134,21 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
         if (cut >= 1) {
           const end = Math.min(cut, seg.length - 1)
           const coords = seg.slice(0, end + 1).map((p): [number, number] => [p.lng, p.lat])
-          if (coords.length >= 2) travFeatures.push(lineFeature(coords, ROUTE_TRAVELED_COLOR))
+          if (coords.length >= 2) travFeatures.push(lineFeature(coords, colorsRef.current.traveled))
         }
         if (cut <= seg.length - 1) {
           const from = Math.max(0, cut)
           const coords = seg.slice(from).map((p): [number, number] => [p.lng, p.lat])
-          if (coords.length >= 2) remFeatures.push(lineFeature(coords, ROUTE_FALLBACK_COLOR))
+          if (coords.length >= 2) remFeatures.push(lineFeature(coords, colorsRef.current.remaining))
         }
         offset += seg.length
       }
     } else {
       // No segment data — one continuous track, still split at the cursor.
       const travCoords = pts.slice(0, ci + 1).map((p): [number, number] => [p.lng, p.lat])
-      if (travCoords.length >= 2) travFeatures.push(lineFeature(travCoords, ROUTE_TRAVELED_COLOR))
+      if (travCoords.length >= 2) travFeatures.push(lineFeature(travCoords, colorsRef.current.traveled))
       const remCoords = pts.slice(ci).map((p): [number, number] => [p.lng, p.lat])
-      if (remCoords.length >= 2) remFeatures.push(lineFeature(remCoords, ROUTE_FALLBACK_COLOR))
+      if (remCoords.length >= 2) remFeatures.push(lineFeature(remCoords, colorsRef.current.remaining))
     }
 
     const travGeo = { type: 'FeatureCollection', features: travFeatures }
@@ -190,9 +207,11 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
 
   // Raw GPS track drawn as a dashed comparison line on top of the (enriched)
   // main route. Pass an empty/short array to remove it.
+  const lastRawRef = React.useRef<GpsPoint[]>([])
   const drawRawRoute = React.useCallback((pts: GpsPoint[]) => {
     const map = mapRef.current as MapInstance | null
     if (!map) return
+    lastRawRef.current = pts?.length >= 2 ? pts : []
     const removeRaw = () => {
       try {
         if (map.getLayer(ROUTE_RAW_LINE)) map.removeLayer(ROUTE_RAW_LINE)
@@ -202,12 +221,10 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
     if (!pts || pts.length < 2) { removeRaw(); return }
     const rawGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: pts.map((p) => [p.lng, p.lat]) } }
     try {
-      const rawSrc = map.getSource(ROUTE_RAW_SRC)
-      if (rawSrc) { rawSrc.setData(rawGeo) }
-      else {
-        map.addSource(ROUTE_RAW_SRC, { type: 'geojson', data: rawGeo } as Record<string, unknown>)
-        map.addLayer({ id: ROUTE_RAW_LINE, type: 'line', source: ROUTE_RAW_SRC, paint: { 'line-color': '#ff7f0e', 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2] } } as Record<string, unknown>)
-      }
+      // Luôn add lại layer (thay vì chỉ setData) để đổi `routeColors.raw` áp dụng ngay.
+      removeRaw()
+      map.addSource(ROUTE_RAW_SRC, { type: 'geojson', data: rawGeo } as Record<string, unknown>)
+      map.addLayer({ id: ROUTE_RAW_LINE, type: 'line', source: ROUTE_RAW_SRC, paint: { 'line-color': colorsRef.current.raw, 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [2, 2] } } as Record<string, unknown>)
     } catch (e) { console.warn('[LiveMap] drawRawRoute', e) }
   }, [mapRef])
 
@@ -301,6 +318,15 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
     if (!ready || historyPoints.length < 2) return
     drawHistoryRoute(historyPoints, 0)
   }, [enrichedSegments, ready]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Đổi routeColors khi đang xem → vẽ lại ngay với màu mới, giữ nguyên vị trí
+  // playback. Raw chỉ vẽ lại nếu đang hiển thị (lastRawRef rỗng khi đã ẩn).
+  React.useEffect(() => {
+    if (!ready) return
+    if (historyPointsRef.current.length >= 2)
+      drawHistoryRoute(historyPointsRef.current, playIndexRef.current)
+    if (lastRawRef.current.length >= 2) drawRawRoute(lastRawRef.current)
+  }, [colorsKey, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Transition markers are opt-in. Toggling the flag adds/removes them without
   // re-fetching; they also re-place when segment data changes.

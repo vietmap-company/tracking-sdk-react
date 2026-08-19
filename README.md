@@ -195,6 +195,14 @@ Bản đồ fleet real-time dùng VietmapGL (CDN loader) với GPU-accelerated c
 - Route **map matching** — tuyến lịch sử vẽ theo từng segment (không có đường "chim bay"), chọn nguồn qua prop `dataSource` (`raw` / `both` / `merged`); mode `both`/`raw` có thêm nút `RAW` trên thanh playback để chồng GPS gốc (cam nét đứt) lên tuyến đã làm mượt
 - Lọc theo `userIds` — chỉ tải/hiển thị một tập user cụ thể (API lọc server-side)
 - Lọc theo **status** (`moving` / `stopped` / `signal_lost`) — qua prop `statusFilter` hoặc gọi imperative `ref.setStatusFilter(...)`
+- **Tuỳ chỉnh màu tuyến lịch sử** — prop `routeColors?: { traveled?, remaining?, raw? }` (mặc định xanh `#3b82f6` / xám `#888888` / cam `#ff7f0e`); đổi giá trị khi đang xem sẽ vẽ lại ngay, giữ nguyên vị trí playback
+
+```tsx
+<LiveMap
+  apiKeyTilemap="..."
+  routeColors={{ traveled: "#16a34a", remaining: "#cbd5e1", raw: "#ef4444" }}
+/>
+```
 - `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`, `setStatusFilter`, `getStatusFilter`
 
 ```tsx

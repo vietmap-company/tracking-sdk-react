@@ -62,6 +62,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       statusFilter: statusFilterProp,
       dataSource,
       showTransitionMarkers = false,
+      routeColors,
       autoFit = true,
       clusterRadius = 50,
       clusterMaxZoom = 14,
@@ -196,7 +197,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       seekHistory,
       drawRawRoute,
       clearHistoryRoute,
-    } = usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers });
+    } = usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers, routeColors });
 
     const [showRawRoute, setShowRawRoute] = React.useState(true);
 

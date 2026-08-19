@@ -30,7 +30,7 @@ export { MonthlyExpenses } from '@/components/dashboard/MonthlyExpenses'
 // Components — LiveMap
 export { LiveMap } from '@/components/livemap/MapView'
 export { MemberList } from '@/components/livemap/MemberList'
-export type { LiveMapProps, LiveMapRef } from '@/components/livemap/types'
+export type { LiveMapProps, LiveMapRef, HistoryRouteColors } from '@/components/livemap/types'
 export type { MapInstance } from '@/components/livemap/types'
 
 // Components — Report

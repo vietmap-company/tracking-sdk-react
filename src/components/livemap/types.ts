@@ -48,6 +48,16 @@ export type MapInstance = {
   getBounds: () => { contains: (lngLat: [number, number]) => boolean };
 };
 
+/** Màu các đường tuyến khi xem lại lịch sử. Field nào bỏ trống dùng mặc định. */
+export interface HistoryRouteColors {
+  /** Đoạn đã đi qua (theo playback). Mặc định `#3b82f6` (xanh dương). */
+  traveled?: string;
+  /** Đoạn còn lại. Mặc định `#888888` (xám). */
+  remaining?: string;
+  /** Lớp GPS gốc (nét đứt, khi bật RAW). Mặc định `#ff7f0e` (cam). */
+  raw?: string;
+}
+
 export interface LiveMapProps {
   height?: string;
   center?: [number, number];
@@ -81,6 +91,11 @@ export interface LiveMapProps {
    * time-gap that made the matcher cut there). Default `false`.
    */
   showTransitionMarkers?: boolean;
+  /**
+   * Tuỳ chỉnh màu các đường tuyến lịch sử (đã đi / còn lại / GPS gốc).
+   * Đổi giá trị khi đang xem sẽ vẽ lại tuyến với màu mới ngay.
+   */
+  routeColors?: HistoryRouteColors;
   /**
    * Auto-fit the viewport to all members on first data load. Default `true`.
    * It only ever fits once and stops as soon as the user pans/zooms, so polling
