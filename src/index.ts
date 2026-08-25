@@ -2,7 +2,7 @@ import './index.css'
 
 // Provider
 export { FleetworkProvider } from '@/provider/FleetworkProvider'
-export { useFleetwork, useOptionalFleetwork } from '@/provider/FleetworkProvider'
+export { useFleetwork, useOptionalFleetwork, usePortalContainer } from '@/provider/FleetworkProvider'
 export type { FleetworkProviderProps } from '@/provider/FleetworkProvider'
 
 // Auth error events (advanced — usually not needed; Provider handles via prop)
@@ -12,7 +12,8 @@ export { subscribeAuthError } from '@/lib/auth-events'
 export { resolveMemberName } from '@/lib/member-name'
 
 // Controllers
-export { LiveMapController } from '@/controllers/LiveMapController'
+export { LiveMapController, buildMembersWorkbook } from '@/controllers/LiveMapController'
+export type { ExportMembersOptions } from '@/controllers/LiveMapController'
 export { DashboardController } from '@/controllers/DashboardController'
 export { ReportController } from '@/controllers/ReportController'
 
@@ -49,6 +50,10 @@ export * from '@/components/shared'
 
 // HTTP helpers
 export { initFleetwork, createHttpClient, HttpService } from '@/lib/http'
+
+// Excel helpers (zero-dependency xlsx writer)
+export { buildXlsx, downloadBlob } from '@/lib/xlsx'
+export type { XlsxSheet, XlsxCell } from '@/lib/xlsx'
 
 // Types
 export type * from '@/lib/types'

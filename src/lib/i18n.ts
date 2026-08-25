@@ -34,6 +34,9 @@ const vi: Dict = {
   'list.stopped':               'Dừng',
   'list.lost':                  'Mất tín hiệu',
 
+  // Export Excel
+  'export.title':               'Xuất Excel theo bộ lọc hiện tại',
+
   // Status labels
   'status.moving':              'Đang di chuyển',
   'status.stopped':             'Dừng',

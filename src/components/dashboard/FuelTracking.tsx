@@ -1,8 +1,4 @@
 import * as React from 'react'
-import {
-  CartesianGrid, Legend, Line, LineChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFuelTracking, type UseFuelTrackingOptions } from '@/hooks'
@@ -16,6 +12,11 @@ export interface FuelTrackingProps extends UseFuelTrackingOptions {
   onError?: (error: Error) => void
   onDataChange?: (data: FuelTrackingData) => void
 }
+
+// Lazy: recharts chỉ tải khi chart thực sự mount (không nằm trong chunk chính).
+const FuelTrackingChartBody = React.lazy(
+  () => import('./charts/FuelTrackingChartBody'),
+)
 
 function EmptyChart({ label }: { label: string }) {
   return (
@@ -85,46 +86,14 @@ export function FuelTracking({
           <EmptyChart label={error ? t('common.error') : t('common.noData')} />
         ) : (
           <div className="h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: colors.axisTick }} tickLine={false} axisLine={false} />
-                <YAxis
-                  yAxisId="left"
-                  orientation="left"
-                  width={44}
-                  domain={[0, 'auto']}
-                  allowDataOverflow={false}
-                  tickCount={5}
-                  tick={{ fontSize: 11, fill: colors.axisTick }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(1)}
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  width={44}
-                  domain={[0, 'auto']}
-                  allowDataOverflow={false}
-                  tickCount={5}
-                  tick={{ fontSize: 11, fill: colors.axisTick }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(1)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 10, border: `1px solid ${colors.tooltipBorder}`,
-                    background: colors.tooltipBg, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                  }}
-                  formatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(2)}k` : v.toFixed(2)}
-                />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                <Line yAxisId="left"  type="monotone" dataKey="distanceKm" name={t('fuel.distance')} stroke={colors.chart2} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line yAxisId="right" type="monotone" dataKey="fuelLiters"  name={t('fuel.fuel')}     stroke={colors.chart1} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <React.Suspense fallback={<Skeleton className="h-52 w-full rounded-lg" />}>
+              <FuelTrackingChartBody
+                data={chartData}
+                colors={colors}
+                distanceLabel={t('fuel.distance')}
+                fuelLabel={t('fuel.fuel')}
+              />
+            </React.Suspense>
           </div>
         )}
       </CardContent>

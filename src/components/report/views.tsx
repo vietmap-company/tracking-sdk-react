@@ -95,7 +95,7 @@ function SortableHead({
   );
 }
 
-const NUM = "text-right tabular-nums text-[13px]";
+const NUM = "text-right tabular-nums text-[13px] whitespace-nowrap";
 const TH =
   "h-10 px-3 text-[11px] font-semibold text-muted-foreground text-left  align-middle whitespace-nowrap";
 const TH_EMP =

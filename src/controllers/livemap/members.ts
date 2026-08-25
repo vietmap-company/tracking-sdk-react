@@ -78,6 +78,11 @@ function rowToMember(row: GpsUserRow, nameKey?: string): MemberStatus {
     lng: row.lastLocation?.lng ?? 0,
     speed: row.lastLocation?.speed,
     lastSeenAt: row.lastSeenAt,
+    statusCode: row.statusCode,
+    heading: row.lastLocation?.heading,
+    deviceId: row.deviceId ?? null,
+    vehicleId: row.vehicleId ?? null,
+    metadata: meta,
   }
 }
 

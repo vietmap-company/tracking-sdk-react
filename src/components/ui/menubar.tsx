@@ -5,6 +5,7 @@ import * as MenubarPrimitive from "@radix-ui/react-menubar"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { usePortalContainer } from "@/provider/FleetworkProvider"
 
 function MenubarMenu({
   ...props
@@ -110,7 +111,7 @@ const MenubarContent = React.forwardRef<
     { className, align = "start", alignOffset = -4, sideOffset = 8, ...props },
     ref
   ) => (
-    <MenubarPrimitive.Portal>
+    <MenubarPrimitive.Portal container={usePortalContainer()}>
       <MenubarPrimitive.Content
         ref={ref}
         align={align}

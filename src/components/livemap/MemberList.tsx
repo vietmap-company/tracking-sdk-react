@@ -1,11 +1,12 @@
 import * as React from 'react'
-import { PanelLeftClose, PanelLeftOpen, Search, SignalZero, Users } from 'lucide-react'
+import { FileSpreadsheet, PanelLeftClose, PanelLeftOpen, Search, SignalZero, Users } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import { useMembers, type UseMembersOptions } from '@/hooks'
+import { downloadMembersWorkbook } from '@/controllers/livemap/export'
 import type { MemberStatus, MemberStatusKind } from '@/lib/types'
 
 const PAGE_SIZE = 50
@@ -32,6 +33,84 @@ function formatLastSeen(ts?: number): string {
   return `${Math.floor(hrs / 24)}n`
 }
 
+/** Một dòng danh sách — React.memo để chỉ member thay đổi (hoặc đổi active)
+ *  mới re-render, thay vì cả 3000 dòng mỗi lần list re-render. */
+const MemberListItem = React.memo(function MemberListItem({
+  member: m,
+  isActive,
+  onSelect,
+  renderItem,
+  t,
+}: {
+  member: MemberStatus
+  isActive: boolean
+  onSelect: (m: MemberStatus) => void
+  renderItem?: (m: MemberStatus, def: React.ReactNode) => React.ReactNode
+  t: (key: string) => string
+}) {
+  const initials = (m.name ?? m.userId).slice(0, 2).toUpperCase()
+  const defaultItem = (
+    <div className={cn(
+      'group relative flex items-center gap-3 px-3.5 py-2.5 transition-colors',
+      isActive
+        ? 'bg-primary/8 border-l-2 border-l-primary'
+        : 'hover:bg-muted/50 border-l-2 border-l-transparent'
+    )}>
+      <div className="relative shrink-0">
+        <div className={cn(
+          'flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white',
+          m.status === 'moving' ? 'bg-emerald-500'
+            : m.status === 'stopped' ? 'bg-amber-400'
+            : 'bg-slate-400'
+        )}>
+          {initials}
+        </div>
+        <span className={cn(
+          'absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card',
+          STATUS_DOT[m.status]
+        )} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="truncate text-[13px] font-medium text-foreground leading-none">
+            {m.name ?? m.userId}
+          </span>
+          {m.status !== 'moving' && m.lastSeenAt && (
+            <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
+              {formatLastSeen(m.lastSeenAt)}
+            </span>
+          )}
+        </div>
+        <div className="mt-1 flex items-center gap-1.5">
+          <Badge
+            variant="outline"
+            className={cn('h-4 px-1.5 text-[10px] font-normal rounded-full border', STATUS_BADGE[m.status])}
+          >
+            {m.status === 'moving' ? t('list.moving')
+              : m.status === 'stopped' ? t('list.stopped')
+              : t('list.lost')}
+          </Badge>
+          {m.speed != null && m.speed > 0 && (
+            <span className="text-[10px] text-muted-foreground tabular-nums">{m.speed} km/h</span>
+          )}
+        </div>
+        {m.lastAddress && (
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">{m.lastAddress}</p>
+        )}
+      </div>
+    </div>
+  )
+  const content = renderItem ? renderItem(m, defaultItem) : defaultItem
+  return (
+    <div
+      onClick={() => onSelect(m)}
+      className="cursor-pointer border-b border-border/30 last:border-0"
+    >
+      {content}
+    </div>
+  )
+})
+
 export interface MemberListProps extends UseMembersOptions {
   members?: MemberStatus[]
   isLoading?: boolean
@@ -42,9 +121,21 @@ export interface MemberListProps extends UseMembersOptions {
   position?: 'left' | 'right'
   className?: string
   style?: React.CSSProperties
+  /** Hiện nút xuất Excel trên header. Default `true`. */
+  showExport?: boolean
+  /** Danh sách ĐẦY ĐỦ (chưa lọc status) — nguồn cho export + số đếm trên chip.
+   *  Mặc định dùng `members`. */
+  exportAllMembers?: MemberStatus[]
+  /** Bộ lọc status đang áp — nút Excel xuất đúng theo bộ lọc này (rỗng = tất cả). */
+  exportStatuses?: MemberStatusKind[]
+  /** Hiện hàng chip lọc theo trạng thái dưới ô tìm kiếm. Default `true`. */
+  showStatusFilter?: boolean
+  /** Bấm chip gọi hàm này với bộ lọc mới (mảng rỗng = bỏ lọc). Không truyền
+   *  (chế độ controlled từ ngoài) thì chip chỉ hiển thị, không bấm được. */
+  onStatusFilterChange?: (statuses: MemberStatusKind[]) => void
 }
 
-export function MemberList({
+function MemberListInner({
   members: membersProp,
   isLoading: loadingProp,
   activeUserId,
@@ -54,6 +145,11 @@ export function MemberList({
   position = 'left',
   className,
   style,
+  showExport = true,
+  exportAllMembers,
+  exportStatuses,
+  showStatusFilter = true,
+  onStatusFilterChange,
   ...fetchOptions
 }: MemberListProps) {
   const { t } = useFleetwork()
@@ -91,6 +187,15 @@ export function MemberList({
   }, [filtered.length])
 
   const visible = filtered.slice(0, visibleCount)
+
+  // Callback ổn định để MemberListItem (React.memo) không re-render vì closure mới.
+  const handleSelect = React.useCallback(
+    (m: MemberStatus) => {
+      onItemClick?.(m)
+      if (collapseOnSelect) setCollapsed(true)
+    },
+    [onItemClick, collapseOnSelect],
+  )
 
   /* ── Collapsed pill ────────────────────────────────────────────────── */
   if (collapsed) {
@@ -133,13 +238,26 @@ export function MemberList({
               {members.length}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <PanelLeftClose className={cn('h-3.5 w-3.5', position === 'right' && 'rotate-180')} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            {showExport && (
+              <button
+                type="button"
+                title={t('export.title')}
+                // Xuất đúng theo bộ lọc status đang áp — không lọc = xuất hết.
+                onClick={() => downloadMembersWorkbook(exportAllMembers ?? members, exportStatuses)}
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <PanelLeftClose className={cn('h-3.5 w-3.5', position === 'right' && 'rotate-180')} />
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -156,6 +274,49 @@ export function MemberList({
             )}
           />
         </div>
+
+        {/* Status filter chips — bấm bật/tắt lọc, tất cả tắt = hiện hết.
+            Số đếm lấy từ danh sách đầy đủ (chưa lọc). */}
+        {showStatusFilter && (
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {(
+              [
+                { s: 'moving', label: t('list.moving') },
+                { s: 'stopped', label: t('list.stopped') },
+                { s: 'signal_lost', label: t('list.lost') },
+              ] as const
+            ).map(({ s, label }) => {
+              const all = exportAllMembers ?? members
+              const count = all.filter((m) => m.status === s).length
+              const active = !!exportStatuses?.includes(s)
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={!onStatusFilterChange}
+                  onClick={() => {
+                    if (!onStatusFilterChange) return
+                    const prev = exportStatuses ?? []
+                    onStatusFilterChange(
+                      active ? prev.filter((x) => x !== s) : [...prev, s],
+                    )
+                  }}
+                  className={cn(
+                    'flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                    active
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border/60 bg-background text-muted-foreground',
+                    onStatusFilterChange && 'hover:bg-muted cursor-pointer',
+                  )}
+                >
+                  <span className={cn('h-1.5 w-1.5 rounded-full inline-block shrink-0', STATUS_DOT[s].split(' ')[0])} />
+                  {label}
+                  <span className="tabular-nums font-semibold">{count}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <Separator />
@@ -182,76 +343,16 @@ export function MemberList({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          {visible.map((m) => {
-            const isActive = activeUserId === m.userId
-            const initials = (m.name ?? m.userId).slice(0, 2).toUpperCase()
-
-            const defaultItem = (
-              <div className={cn(
-                'group relative flex items-center gap-3 px-3.5 py-2.5 transition-colors',
-                isActive
-                  ? 'bg-primary/8 border-l-2 border-l-primary'
-                  : 'hover:bg-muted/50 border-l-2 border-l-transparent'
-              )}>
-                {/* Avatar */}
-                <div className="relative shrink-0">
-                  <div className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full',
-                    'text-[11px] font-bold text-white',
-                    m.status === 'moving' ? 'bg-emerald-500'
-                      : m.status === 'stopped' ? 'bg-amber-400'
-                      : 'bg-slate-400'
-                  )}>
-                    {initials}
-                  </div>
-                  {/* Status dot */}
-                  <span className={cn(
-                    'absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card',
-                    STATUS_DOT[m.status]
-                  )} />
-                </div>
-
-                {/* Info */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="truncate text-[13px] font-medium text-foreground leading-none">
-                      {m.name ?? m.userId}
-                    </span>
-                    {m.status !== 'moving' && m.lastSeenAt && (
-                      <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
-                        {formatLastSeen(m.lastSeenAt)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={cn('h-4 px-1.5 text-[10px] font-normal rounded-full border', STATUS_BADGE[m.status])}
-                    >
-                      {m.status === 'moving' ? t('list.moving')
-                        : m.status === 'stopped' ? t('list.stopped')
-                        : t('list.lost')}
-                    </Badge>
-                    {m.speed != null && m.speed > 0 && (
-                      <span className="text-[10px] text-muted-foreground tabular-nums">{m.speed} km/h</span>
-                    )}
-                  </div>
-
-                  {m.lastAddress && (
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">{m.lastAddress}</p>
-                  )}
-                </div>
-              </div>
-            )
-
-            const content = renderItem ? renderItem(m, defaultItem) : defaultItem
-            return (
-              <div key={m.userId} onClick={() => { onItemClick?.(m); if (collapseOnSelect) setCollapsed(true) }} className="cursor-pointer border-b border-border/30 last:border-0">
-                {content}
-              </div>
-            )
-          })}
+          {visible.map((m) => (
+            <MemberListItem
+              key={m.userId}
+              member={m}
+              isActive={activeUserId === m.userId}
+              onSelect={handleSelect}
+              renderItem={renderItem}
+              t={t}
+            />
+          ))}
 
           <div ref={sentinelRef} className="py-2 text-center">
             {visibleCount < filtered.length && (
@@ -265,3 +366,7 @@ export function MemberList({
     </div>
   )
 }
+
+/** React.memo — bỏ qua re-render khi props ổn định (vd MapView re-render vì
+ *  isFetching nhấp nháy mỗi poll, nhưng members/handlers không đổi). */
+export const MemberList = React.memo(MemberListInner)

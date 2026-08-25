@@ -1,6 +1,7 @@
 import type { MemberStatus } from "@/lib/types";
 import type { MapInstance } from "./types";
 import { VIETMAP_TEXT_FONT, VIETMAP_TEXT_FONT_BOLD } from "./tiles";
+import { STATUS_COLOR_EXPR } from "./statusColors";
 
 export const MEMBERS_SOURCE = "dc-members";
 export const SELECTED_SOURCE = "dc-selected";
@@ -14,16 +15,6 @@ export const LAYER_SELECTED_HALO = "dc-selected-halo";
 export const LAYER_SELECTED_RING = "dc-selected-ring";
 export const LAYER_SELECTED_POINT = "dc-selected-point";
 
-/** Màu marker theo trạng thái — dùng chung cho marker thường + selected. */
-const STATUS_COLOR_EXPR = [
-  "match",
-  ["get", "status"],
-  "moving",
-  "#10b981",
-  "stopped",
-  "#f59e0b",
-  "#94a3b8",
-];
 export const LAYER_SELECTED_INITIALS = "dc-selected-initials";
 export const LAYER_SELECTED_LABEL = "dc-selected-label";
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { DashboardController } from '@/controllers/DashboardController'
 import { LiveMapController } from '@/controllers/LiveMapController'
 import { ReportController } from '@/controllers/ReportController'
-import { startOfTodayMs, startOfYearMs, endOfYearMs, daysAgoMs } from '@/lib/utils'
+import { startOfTodayMs, startOfYearMs, endOfYearMs, daysAgoMs, deepEqual } from '@/lib/utils'
 import type {
   ActivityHeatmapData, ActivityTimeReportData, FuelDetailReportData,
   FuelGroupBy, FuelSummaryReportData, FuelTrackingData, GpsPoint,
@@ -87,7 +87,10 @@ function useFetch<T>(
       // Only commit if this is still the latest fetch
       if (fetchId === fetchIdRef.current) {
         hasDataRef.current = true
-        setData(result)
+        // Giữ nguyên reference cũ khi payload không đổi → React bỏ qua re-render,
+        // cắt luôn cascade: re-sort list 3000 dòng, rebuild GeoJSON, GL setData,
+        // Recharts re-animate. Thắng lớn cho poll (map 10s, dashboard 30s).
+        setData((prev) => (deepEqual(prev, result) ? prev : result))
       }
     } catch (e) {
       if (fetchId === fetchIdRef.current) {

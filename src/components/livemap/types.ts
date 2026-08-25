@@ -108,6 +108,17 @@ export interface LiveMapProps {
   members?: MemberStatus[];
   memberNameKey?: string;
   showList?: boolean;
+  /**
+   * Hiện nút xuất Excel trên sidebar nhân viên — xuất theo bộ lọc status
+   * đang áp (không lọc = xuất tất cả). Default `true`.
+   */
+  showExport?: boolean;
+  /**
+   * Hiện hàng chip lọc theo trạng thái (kèm số đếm) trên sidebar. Chip điều
+   * khiển cùng bộ lọc với `statusFilter`/`ref.setStatusFilter`; khi dùng
+   * prop `statusFilter` (controlled) chip chỉ hiển thị. Default `true`.
+   */
+  showStatusFilter?: boolean;
   className?: string;
   style?: CSSProperties;
   onMemberClick?: (member: MemberStatus) => void | boolean;

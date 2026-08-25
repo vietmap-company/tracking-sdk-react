@@ -71,7 +71,9 @@ export function PageLiveMap() {
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border/50 shrink-0 bg-background space-y-2">
-        <h1 className="text-lg sm:text-xl font-bold text-foreground">LiveMap</h1>
+        <h1 className="text-lg sm:text-xl font-bold text-foreground">
+          LiveMap
+        </h1>
         {!VIETMAP_KEY && (
           <p className="text-xs text-amber-600">
             ⚠️ Thêm{" "}
@@ -191,5 +193,3 @@ export function PageLiveMap() {
     </div>
   );
 }
-
-

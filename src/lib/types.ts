@@ -2,6 +2,12 @@ export type Locale = 'vi' | 'en'
 export type TileType = 'light' | 'dark' | 'terrain' | 'satellite'
 
 export interface ThemeConfig {
+  /**
+   * Built-in color preset applied to the SDK root. `slate` (default) is the
+   * shadcn slate palette; `vercel` is a monochrome black/white palette.
+   * Per-token overrides in `colors` still win over the preset.
+   */
+  preset?: 'slate' | 'vercel'
   colors?: {
     primary?: string
     destructive?: string
@@ -140,6 +146,15 @@ export interface MemberStatus {
   speed?: number
   lastSeenAt?: number
   lastAddress?: string
+  /** Mã trạng thái số từ backend (1=moving, 2=stopped, 0/khác=signal_lost). */
+  statusCode?: number
+  /** Hướng di chuyển (độ) từ vị trí cuối. */
+  heading?: number
+  deviceId?: string | null
+  vehicleId?: string | null
+  /** Toàn bộ metadata đã parse của user (fullName, id, buTitleLevel, …).
+   *  Dùng cho export Excel để map ra cột (Họ tên, Mã NV, Cấp bậc…). */
+  metadata?: Record<string, string>
 }
 
 export interface GpsPoint {

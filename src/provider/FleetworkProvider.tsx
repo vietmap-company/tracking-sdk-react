@@ -20,6 +20,12 @@ interface FleetworkContextValue {
   memberNameKey?: string;
   t: TFn;
   client: AxiosInstance;
+  /**
+   * The SDK root element. Radix portals (popover, dropdown, tooltip, dialog…)
+   * render here instead of `document.body` so they inherit the SDK's scoped
+   * theme tokens + dark mode instead of falling back to the host's `:root`.
+   */
+  portalContainer: HTMLElement | null;
 }
 
 const FleetworkContext =
@@ -62,7 +68,7 @@ export function FleetworkProvider({
   disableAuthErrorOverlay = false,
   renderAuthError,
 }: FleetworkProviderProps) {
-  const value = React.useMemo<FleetworkContextValue>(() => {
+  const base = React.useMemo<Omit<FleetworkContextValue, "portalContainer">>(() => {
     const config: FleetworkConfig = {
       apiKey,
       baseUrl: baseUrl ?? DEFAULT_BASE_URL,
@@ -82,6 +88,15 @@ export function FleetworkProvider({
       client,
     };
   }, [apiKey, baseUrl, locale, theme, memberNameKey]);
+
+  // Root element for portal targeting — set via ref callback below so portaled
+  // Radix content inherits this subtree's theme. Kept separate from `base`
+  // so the http client isn't rebuilt when the element mounts.
+  const [rootEl, setRootEl] = React.useState<HTMLDivElement | null>(null);
+  const value = React.useMemo<FleetworkContextValue>(
+    () => ({ ...base, portalContainer: rootEl }),
+    [base, rootEl],
+  );
 
   const [authError, setAuthError] = React.useState<AuthErrorEvent | null>(null);
 
@@ -134,7 +149,13 @@ export function FleetworkProvider({
   return (
     <FleetworkContext.Provider value={value}>
       <TooltipProvider delayDuration={300}>
-        <div data-fleetwork-root='' className='fleetwork-root' style={cssVars}>
+        <div
+          ref={setRootEl}
+          data-fleetwork-root=''
+          data-preset={theme?.preset ?? 'slate'}
+          className='fleetwork-root'
+          style={cssVars}
+        >
           {children}
         </div>
         {authError && !disableAuthErrorOverlay
@@ -164,4 +185,14 @@ export function useFleetwork(): FleetworkContextValue {
 
 export function useOptionalFleetwork(): FleetworkContextValue | null {
   return React.useContext(FleetworkContext);
+}
+
+/**
+ * Portal target for Radix-based UI (popover, dropdown, tooltip, dialog…).
+ * Returns the SDK root element so portaled content inherits the SDK's scoped
+ * theme + dark mode. Falls back to `undefined` (Radix default = document.body)
+ * when used outside a provider.
+ */
+export function usePortalContainer(): HTMLElement | undefined {
+  return React.useContext(FleetworkContext)?.portalContainer ?? undefined;
 }

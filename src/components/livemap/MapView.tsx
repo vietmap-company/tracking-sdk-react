@@ -69,6 +69,8 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       members: membersProp,
       memberNameKey: memberNameKeyProp,
       showList = true,
+      showExport = true,
+      showStatusFilter = true,
       className,
       style,
       onMemberClick,
@@ -302,6 +304,37 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         setIsPlaying,
       ],
     );
+
+    // Callback ổn định cho MemberList (React.memo) — đọc selectedMember qua ref
+    // để không phụ thuộc state đổi liên tục, tránh phá memo mỗi poll/frame.
+    const handleItemClick = React.useCallback(
+      (m: MemberStatus) => {
+        if (onMemberClick ? onMemberClick(m) === false : false) return;
+        const sel = selectedMemberRef.current;
+        if (sel) {
+          if (m.userId !== sel.userId) openHistory(m);
+          return;
+        }
+        setActiveUserId(m.userId);
+        popupRef.current?.remove();
+        popupRef.current = null;
+        setPopupMember(null);
+        const map = mapRef.current;
+        if (!map) return;
+        map.jumpTo({ center: [m.lng, m.lat], zoom: Math.max(14, map.getZoom()) });
+        openPopup(m);
+      },
+      [onMemberClick, openHistory, openPopup],
+    );
+
+    const handleStatusFilterChange = React.useCallback(
+      (s: MemberStatusKind[]) =>
+        setImperativeStatusFilter(s.length ? s : undefined),
+      [],
+    );
+
+    const collapseOnSelect =
+      typeof window !== 'undefined' && window.innerWidth < 640;
 
     // ── Sync popup position + data when members poll update ─────────────────
     React.useEffect(() => {
@@ -736,27 +769,17 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             members={members}
             isLoading={isLoading}
             activeUserId={activeUserId}
-            collapseOnSelect={typeof window !== 'undefined' && window.innerWidth < 640}
-            onItemClick={(m) => {
-              if (onMemberClick ? onMemberClick(m) === false : false) return;
-              // If history panel is open → switch to history of new member,
-              // but ignore if the user clicks the member already being viewed.
-              if (selectedMember) {
-                if (m.userId !== selectedMember.userId) openHistory(m);
-                return;
-              }
-              setActiveUserId(m.userId);
-              popupRef.current?.remove();
-              popupRef.current = null;
-              setPopupMember(null);
-              const map = mapRef.current;
-              if (!map) return;
-              map.jumpTo({
-                center: [m.lng, m.lat],
-                zoom: Math.max(14, map.getZoom()),
-              });
-              openPopup(m);
-            }}
+            showExport={showExport}
+            exportAllMembers={baseMembers}
+            exportStatuses={statusFilter}
+            showStatusFilter={showStatusFilter}
+            // Controlled qua prop thì chip chỉ hiển thị; uncontrolled thì chip
+            // điều khiển filter imperative (cùng state với ref.setStatusFilter).
+            onStatusFilterChange={
+              statusFilterProp == null ? handleStatusFilterChange : undefined
+            }
+            collapseOnSelect={collapseOnSelect}
+            onItemClick={handleItemClick}
             position="left"
           />
         )}
