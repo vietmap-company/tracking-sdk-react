@@ -6,6 +6,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.1.0] - 2026-08-24
+
+### Fixed
+
+- **Hết "lệch màu" khi nhúng SDK vào app khác** — SDK không còn bơm design token ở `:root`/`.dark` global (đè hoặc chọi token shadcn của host). Toàn bộ token giờ **scoped dưới `.fleetwork-root`**, không đụng gì tới host.
+- **Popup / dropdown / tooltip đúng theme + dark mode** — các component Radix (popover, dropdown, select, dialog, sheet, alert-dialog, context-menu, menubar) giờ **portal vào trong `.fleetwork-root`** thay vì `document.body`, nên không còn cảnh popup lệch màu so với phần còn lại.
+
+### Added
+
+- **`theme.preset`** — chọn bảng màu dựng sẵn: `'slate'` (mặc định, giữ nguyên giao diện cũ) hoặc `'vercel'` (đơn sắc đen/trắng). Override từng token qua `theme.colors` vẫn thắng preset.
+- **Hook `usePortalContainer()`** — trả element root để tự portal UI vào đúng vùng theme của SDK.
+- **Xuất Excel danh sách nhân viên** — file `.xlsx` 2 sheet ("Tổng quan": tổng số + đếm theo từng trạng thái + trạng thái lọc + thời điểm xuất; "Chi tiết": STT, User ID, **Họ tên, Mã NV, Cấp bậc** (map từ metadata), Trạng thái, Status code, Lần cuối nhận tín hiệu, Số giờ mất tín hiệu, Vĩ độ, Kinh độ, Tốc độ, Hướng, Nhóm thời gian mất tín hiệu — mọi key metadata khác cũng thành cột riêng). **Header tô màu** (nền xanh đậm `#1F4E79`, chữ trắng in đậm, viền) + **autofilter (sort/lọc) + freeze dòng header** + độ rộng cột tự động — khớp mẫu báo cáo. Sinh **client-side với trình ghi XLSX zero-dependency** (không kéo thêm thư viện). `MemberStatus` bổ sung `statusCode`, `heading`, `deviceId`, `vehicleId`, `metadata` (optional).
+  - **UI**: nút Export trên sidebar `<LiveMap>` — 1 click xuất **đúng theo bộ lọc status đang áp** (không lọc = xuất tất cả); ẩn qua prop `showExport={false}` (default hiện).
+  - **Controller**: `LiveMapController.exportMembers(options)` trả `Blob`, `LiveMapController.downloadMembersExport(options)` tải thẳng file; options: `statuses`, `userIds`, `nameKey`, `fileName`. Type mới `ExportMembersOptions`.
+  - **Helpers export**: `buildMembersWorkbook(members, statuses?)` (dựng từ data có sẵn, không fetch), `buildXlsx(sheets)`, `downloadBlob(blob, fileName)`.
+  - i18n key mới: `export.title`.
+- **Chip lọc theo trạng thái trên sidebar `<LiveMap>`** — 3 chip (Đang di chuyển / Dừng / Mất tín hiệu) kèm **số đếm**, bấm bật/tắt lọc; áp lên marker + danh sách + nút Export. Dùng chung state với `statusFilter`/`ref.setStatusFilter` (controlled qua prop thì chip chỉ hiển thị). Ẩn qua prop `showStatusFilter={false}` (default hiện). `MemberList` nhận thêm `showStatusFilter` / `onStatusFilterChange` khi dùng độc lập.
+
+### Performance
+
+- **Bỏ qua re-render khi poll trả dữ liệu không đổi** — `useFetch` giữ nguyên reference cũ khi payload deep-equal (thêm util `deepEqual`), nên React **cắt toàn bộ cascade**: sort lại danh sách tới 3000 dòng, dựng lại GeoJSON, GL `setData`, chart re-render. Đội xe đứng yên / dashboard không đổi → nhịp poll (map 10s, dashboard 30s) gần như 0 chi phí.
+- **Danh sách nhân viên tối ưu re-render** — tách `MemberListItem` (`React.memo`, chỉ dòng thay đổi mới vẽ lại) + memo hoá `MemberList`; ổn định `onItemClick`/`onStatusFilterChange` bằng `useCallback`.
+- **`useChartColors` memo hoá** — trước gọi `getComputedStyle` (ép layout flush) + đọc 11 CSS var **mỗi render chart**; giờ chỉ chạy khi đổi light/dark hoặc preset.
+- **Lazy-load recharts** — phần vẽ biểu đồ của `FuelTracking` / `MonthlyExpenses` tách thành chunk `import()` động; **main bundle không còn chứa recharts**, chỉ tải khi biểu đồ Dashboard thực sự mount. Consumer chỉ dùng `LiveMap`/`Report` không phải tải recharts. Thêm `isAnimationActive={false}` để chart không replay animation mỗi lần cập nhật.
+
+### Changed
+
+- **Màu trạng thái gom về một nguồn** (`STATUS_HEX` / `STATUS_COLOR_EXPR` trong `livemap/statusColors.ts`) — lớp GL map và class Tailwind dùng chung, không còn hardcode hex rải rác.
+- **Bảng báo cáo nén gọn, dễ đọc** — `TableCell` `p-4 → px-3 py-2`, `TableHead` `h-12 → h-10`, cell số/thời gian `whitespace-nowrap` (hết cảnh "2 giờ 33 phút" xuống dòng). Số dòng hiển thị/màn hình tăng gần gấp đôi.
+- Bỏ rule global `body { bg-background }` (host sở hữu `<body>`); reset border/ring được scoped trong `.fleetwork-root`.
+- `theme.fontFamily` (`--dc-font`) giờ áp đúng, fallback về font hệ thống.
+
+> **Không breaking**: mọi export/kiểu dữ liệu giữ nguyên; `theme.preset` và `usePortalContainer` đều là bổ sung optional. Giao diện mặc định vẫn là slate như trước.
+
+---
+
 ## [1.0.11] - 2026-08-19
 
 ### Added

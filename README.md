@@ -196,6 +196,8 @@ Bản đồ fleet real-time dùng VietmapGL (CDN loader) với GPU-accelerated c
 - Lọc theo `userIds` — chỉ tải/hiển thị một tập user cụ thể (API lọc server-side)
 - Lọc theo **status** (`moving` / `stopped` / `signal_lost`) — qua prop `statusFilter` hoặc gọi imperative `ref.setStatusFilter(...)`
 - **Tuỳ chỉnh màu tuyến lịch sử** — prop `routeColors?: { traveled?, remaining?, raw? }` (mặc định xanh `#3b82f6` / xám `#888888` / cam `#ff7f0e`); đổi giá trị khi đang xem sẽ vẽ lại ngay, giữ nguyên vị trí playback
+- **Lọc theo status ngay trên sidebar** — hàng chip 3 trạng thái kèm số đếm, bấm bật/tắt lọc (áp lên marker + danh sách + export); ẩn qua `showStatusFilter={false}`. Dùng chung bộ lọc với prop `statusFilter`/`ref.setStatusFilter` (controlled thì chip chỉ hiển thị)
+- **Xuất Excel danh sách nhân viên** — nút Export trên sidebar (ẩn qua prop `showExport={false}`), 1 click xuất **đúng theo bộ lọc status đang áp** (không lọc = xuất hết). File 2 sheet ("Tổng quan" + "Chi tiết"), sinh **client-side không cần thư viện ngoài**
 
 ```tsx
 <LiveMap
@@ -413,6 +415,28 @@ const userTrips = await ReportController.getTripDetail({ from, to, userId: "u1" 
 
 > **POST + `userIds`:** Toàn bộ `DashboardController.*` và `LiveMapController.getMembers`, `ReportController.getTripSummary`/`getFuelSummary` gọi bản **POST** (body) của API. Truyền `userIds` (mảng) để backend lọc nhiều user server-side; vượt **1000** id sẽ tự tách nhiều call rồi gộp. Báo cáo **chi tiết** (`getTripDetail`/`getFuelDetail`), `getActivityTime`, history/latest vẫn **GET**; chi tiết lọc **1 user** qua `userId`.
 
+### Xuất Excel — `exportMembers` / `downloadMembersExport`
+
+Xuất danh sách nhân viên ra file `.xlsx` 2 sheet (**Tổng quan**: tổng số + đếm theo trạng thái + thời điểm xuất; **Chi tiết**: STT, User ID, Họ tên, Nhóm, Trạng thái, Tốc độ, lat/lng, Lần cuối nhận tín hiệu, Số giờ mất tín hiệu). File được sinh **client-side, không thêm dependency**.
+
+```ts
+import { LiveMapController } from "@vietmap/tracking-sdk-react";
+
+// Tải thẳng file về máy (browser)
+await LiveMapController.downloadMembersExport();                              // tất cả
+await LiveMapController.downloadMembersExport({ statuses: ["signal_lost"] }); // theo trạng thái
+await LiveMapController.downloadMembersExport({
+  statuses: ["moving", "stopped"],
+  userIds: ["u1", "u2"],          // lọc server-side như getMembers
+  fileName: "bao-cao.xlsx",
+});
+
+// Hoặc lấy Blob để tự xử lý (upload, gửi mail, ...)
+const blob = await LiveMapController.exportMembers({ statuses: ["signal_lost"] });
+```
+
+Helper cấp thấp cũng được export: `buildMembersWorkbook(members, statuses?)` dựng Blob từ mảng `MemberStatus` có sẵn (không fetch), và `buildXlsx(sheets)` / `downloadBlob(blob, fileName)` để tự dựng file Excel bất kỳ.
+
 ### `HttpService` — gọi endpoint tuỳ chỉnh
 
 Dùng client đã có sẵn API key + error handling (401/403 tự phát auth event) để gọi endpoint riêng:
@@ -504,6 +528,18 @@ Gộp theo index, nối điểm theo **thứ tự mảng** (không sort theo th�
 ```tsx
 <LiveMap apiKeyTilemap="..." showTransitionMarkers />
 ```
+
+---
+
+## Hiệu năng
+
+SDK được tối ưu sẵn cho fleet lớn + polling liên tục:
+
+- **Poll không re-render khi dữ liệu không đổi** — hook tự so sánh payload; đội xe đứng yên / dashboard không đổi thì nhịp poll không kích hoạt lại sort danh sách, dựng GeoJSON, hay vẽ lại chart.
+- **Danh sách nhân viên** memo hoá từng dòng (`React.memo`) + infinite-scroll, mượt với hàng nghìn member.
+- **Biểu đồ Dashboard lazy-load `recharts`** — thư viện chart chỉ tải khi biểu đồ thực sự mount. Nếu app chỉ dùng `LiveMap` / `Report`, **recharts không vào bundle**.
+
+Bản đồ (VietmapGL) cũng nạp động từ CDN, không phình bundle của consumer.
 
 ---
 
