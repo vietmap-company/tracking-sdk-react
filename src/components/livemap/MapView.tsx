@@ -61,6 +61,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       userIds,
       statusFilter: statusFilterProp,
       dataSource,
+      historyTrackBy,
       showTransitionMarkers = false,
       routeColors,
       autoFit = true,
@@ -192,7 +193,6 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       setPlaySpeed,
       autoFollow,
       setAutoFollow,
-      enrichedSegments,
       setEnrichedSegments,
       rawPoints,
       setRawPoints,
@@ -835,6 +835,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             showRawRoute={rawPoints.length > 1 ? showRawRoute : undefined}
             onRawRouteToggle={rawPoints.length > 1 ? () => setShowRawRoute((v) => !v) : undefined}
             dataSource={dataSource}
+            trackBy={historyTrackBy}
           />
         )}
         {/* Desktop-only float playback bar — on mobile it's embedded inside HistoryPanel sheet */}

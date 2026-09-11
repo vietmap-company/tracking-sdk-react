@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Lọc lịch sử theo `deviceId` / `vehicleId`** — `gps-tracking/history` nhận thêm `DeviceId` / `VehicleId`. `LiveMapController.getHistoryComparison()` / `getHistoryRoute()` đổi tham số đầu thành `target`: nhận **một `userId` dạng chuỗi** (chữ ký cũ giữ nguyên) **hoặc một object `HistoryTarget`**. Backend **không** lọc giao nhau (AND) — kiểm chứng trực tiếp trên staging: gửi nhiều id thì nó chỉ dùng một cái theo ưu tiên `userId` > `vehicleId` > `deviceId`, bỏ qua phần còn lại (kể cả khi id ưu tiên cao không khớp gì → trả rỗng).
+  - **Kiểu `HistoryTarget` ép ĐÚNG MỘT id lúc compile** — thiếu id (`{}`) hoặc truyền ≥2 id đều bị TypeScript báo lỗi ngay tại chỗ gọi (vẫn còn guard throw cho JS). Query chỉ-theo-device là `getHistoryComparison({ deviceId }, …)`.
+  - **Hook `useHistoryRoute`** nhận thêm `deviceId` / `vehicleId` (nullable, để gate theo state), tự tắt fetch khi cả ba trống; chỉ dùng **một** id theo ưu tiên `userId` > `vehicleId` > `deviceId` và cảnh báo ở dev nếu set nhiều.
+  - **Prop `historyTrackBy` trên `<LiveMap>`** (`"user"` | `"device"` | `"vehicle"`) — click member thì tra lịch sử theo `userId` / `deviceId` / `vehicleId` của **chính member đó**, luôn chỉ gửi đúng một id. Set tường minh = dùng đúng id đó, **không** fallback (member thiếu id đó → tuyến rỗng, kèm cảnh báo ở dev). **Không set** (mặc định) = đi theo chuỗi ưu tiên `userId` > `vehicleId` > `deviceId`, lấy id đầu tiên có giá trị. Thay cho ý tưởng prop `historyDeviceId`/`historyVehicleId` global trước đó (đã bỏ vì gắn id cố định vào panel per-member là sai tầng và bị backend bỏ qua khi đã có `userId`).
+
+---
+
 ## [1.1.0] - 2026-08-24
 
 ### Fixed

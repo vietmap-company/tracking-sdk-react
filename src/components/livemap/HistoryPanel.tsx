@@ -5,7 +5,7 @@ import {
 } from "@/components/shared";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LiveMapController } from "@/controllers/LiveMapController";
-import type { GpsPoint, HistoryDataSource, MemberStatus, RouteSummary } from "@/lib/types";
+import type { GpsPoint, HistoryDataSource, HistoryTarget, HistoryTrackBy, MemberStatus, RouteSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { addDays, startOfDay, subDays } from "date-fns";
@@ -54,18 +54,6 @@ export function fmtDist(meters: number) {
     ? `${Math.round(meters)} m`
     : `${(meters / 1000).toFixed(1)} km`;
 }
-function haversineM(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371000,
-    dLat = ((lat2 - lat1) * Math.PI) / 180,
-    dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 export function computeSegments(pts: GpsPoint[]): Segment[] {
   if (pts.length < 2) return [];
   const segs: Segment[] = [];
@@ -407,6 +395,72 @@ export interface HistoryPanelProps {
   onRawRouteToggle?: () => void;
   /** Forwarded to `getHistoryComparison`. `null`/omitted = backend decides. */
   dataSource?: HistoryDataSource | null;
+  /**
+   * Tra lịch sử theo id nào của member. Set = dùng đúng id đó (không fallback);
+   * bỏ trống = theo ưu tiên `userId` > `vehicleId` > `deviceId`.
+   */
+  trackBy?: HistoryTrackBy;
+}
+
+/**
+ * Lấy id đầu tiên có giá trị theo thứ tự ưu tiên `userId` > `vehicleId` >
+ * `deviceId` (khớp thứ tự ưu tiên của backend). Dùng làm fallback để member
+ * luôn có một id hợp lệ kể cả khi `userId` rỗng. Nhánh cuối trả `userId` (kiểu
+ * `string`, gần như luôn có) làm phương án chót.
+ */
+function pickByPriority(
+  ids: Pick<MemberStatus, "userId" | "deviceId" | "vehicleId">,
+): HistoryTarget {
+  if (ids.userId) return { userId: ids.userId };
+  if (ids.vehicleId) return { vehicleId: ids.vehicleId };
+  if (ids.deviceId) return { deviceId: ids.deviceId };
+  return { userId: ids.userId };
+}
+
+/**
+ * Dev-only: `trackBy` set tường minh nhưng member không có id đó → tuyến sẽ
+ * rỗng. Controller sẽ `throw` và `loadHistory` nuốt lỗi trong `catch`, nên nếu
+ * không báo ở đây thì dev chỉ thấy tuyến trống mà không rõ lý do.
+ */
+function warnMissingId(
+  trackBy: HistoryTrackBy,
+  id: string | null | undefined,
+  memberId: string,
+) {
+  if (import.meta.env.DEV && !id) {
+    console.warn(
+      `[LiveMap] historyTrackBy="${trackBy}" nhưng member "${memberId}" không có ` +
+        `id tương ứng → tuyến lịch sử sẽ rỗng.`,
+    );
+  }
+}
+
+/**
+ * Chọn id của member làm khóa tra lịch sử theo `trackBy`. Chỉ trả đúng một id
+ * (không kèm userId) để khớp cách backend lọc.
+ *
+ * Có set `trackBy` (`"user"`/`"device"`/`"vehicle"`) → dùng **đúng** id đó, KHÔNG
+ * fallback — id đó rỗng thì kết quả rỗng (tôn trọng lựa chọn tường minh). Chỉ khi
+ * **không set** `trackBy` (hoặc caller JS truyền giá trị bậy) mới đi theo chuỗi
+ * ưu tiên `userId` > `vehicleId` > `deviceId` để luôn ra một id hợp lệ.
+ */
+function historyTargetOf(
+  ids: Pick<MemberStatus, "userId" | "deviceId" | "vehicleId">,
+  trackBy?: HistoryTrackBy,
+): HistoryTarget {
+  if (trackBy === "user") {
+    warnMissingId(trackBy, ids.userId, ids.userId);
+    return { userId: ids.userId };
+  }
+  if (trackBy === "device") {
+    warnMissingId(trackBy, ids.deviceId, ids.userId);
+    return { deviceId: ids.deviceId ?? "" };
+  }
+  if (trackBy === "vehicle") {
+    warnMissingId(trackBy, ids.vehicleId, ids.userId);
+    return { vehicleId: ids.vehicleId ?? "" };
+  }
+  return pickByPriority(ids);
 }
 
 // ── Inline playback bar (used inside the sheet on mobile) ─────────────────────
@@ -514,7 +568,7 @@ export function HistoryPanel({
   playIndex, onSeek,
   isPlaying, playSpeed, autoFollow,
   onPlayToggle, onSpeedCycle, onAutoFollowToggle,
-  showRawRoute, onRawRouteToggle, dataSource,
+  showRawRoute, onRawRouteToggle, dataSource, trackBy,
 }: HistoryPanelProps) {
   const { t } = useFleetwork();
   const [historyDate, setHistoryDate] = React.useState<Date>(() => new Date());
@@ -537,8 +591,9 @@ export function HistoryPanel({
       try {
         const startMs = new Date(date).setHours(0, 0, 0, 0);
         const endMs = new Date(date).setHours(23, 59, 59, 999);
+        const { userId, deviceId, vehicleId } = member;
         const route = await LiveMapController.getHistoryComparison(
-          member.userId,
+          historyTargetOf({ userId, deviceId, vehicleId }, trackBy),
           startMs,
           endMs,
           { dataSource },
@@ -553,7 +608,7 @@ export function HistoryPanel({
       }
       setHistoryLoading(false);
     },
-    [member.userId, dataSource],
+    [member.userId, member.deviceId, member.vehicleId, dataSource, trackBy],
   );
 
   React.useEffect(() => {
@@ -564,16 +619,17 @@ export function HistoryPanel({
     loadHistory(today);
   }, [member.userId]);
 
-  // Re-fetch when the caller switches track mode, keeping the chosen date.
-  // Skips the first run so it doesn't duplicate the mount fetch above.
-  const dataSourceSettled = React.useRef(false);
+  // Re-fetch when the caller switches track mode or the id-dimension (trackBy),
+  // keeping the chosen date. Skips the first run so it doesn't duplicate the
+  // mount fetch above.
+  const querySettled = React.useRef(false);
   React.useEffect(() => {
-    if (!dataSourceSettled.current) {
-      dataSourceSettled.current = true;
+    if (!querySettled.current) {
+      querySettled.current = true;
       return;
     }
     loadHistory(historyDate);
-  }, [dataSource]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dataSource, trackBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     const el = scrollRef.current?.querySelector(

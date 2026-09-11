@@ -245,6 +245,7 @@ const mapRef = useRef<LiveMapRef>(null)
 | `userIds`           | `string[]`                  | —               | Chỉ tải/hiển thị các user này. API lọc server-side; bỏ trống = tất cả |
 | `statusFilter`      | `MemberStatusKind[]`        | —               | Chỉ hiện member có các status này (`moving`/`stopped`/`signal_lost`). Bỏ trống = tất cả. Controlled — khi set sẽ thắng `setStatusFilter` của ref |
 | `dataSource`        | `HistoryDataSource \| null` | —               | Loại tuyến panel lịch sử yêu cầu (`raw`/`both`/`merged`); bỏ trống/`null` = để backend tự chọn. Xem [Controllers](#lịch-sử-hành-trình--datasource) |
+| `historyTrackBy`    | `"user" \| "device" \| "vehicle"` | — (ưu tiên) | Click member thì tra lịch sử theo id nào của member đó. Không set = theo ưu tiên `userId` > `vehicleId` > `deviceId` (id đầu tiên có giá trị); set tường minh = dùng đúng id đó, không fallback (thiếu → tuyến rỗng). Đổi giá trị sẽ fetch lại tuyến, giữ nguyên ngày |
 | `showTransitionMarkers` | `boolean`               | `false`         | Hiện marker 🔄 ở ranh giới các segment lịch sử (hover xem time-gap). Mặc định ẩn |
 | `autoFit`           | `boolean`                   | `true`          | Tự fit viewport vào tất cả member ở lần tải đầu. Chỉ fit 1 lần và dừng ngay khi người dùng pan/zoom → poll không đè view. `false` để tắt hẳn, giữ `center`/`zoom` |
 | `clusterRadius`     | `number`                    | `50`            | Bán kính cluster (px)                      |
@@ -509,6 +510,50 @@ Prop `dataSource` được truyền thẳng xuống panel lịch sử; đổi pr
 > Chỉ `"both"` và `"raw"` trả về tuyến raw, nên nút bật/tắt **overlay raw nét đứt** trong LiveMap sẽ tự ẩn ở mode `"merged"` và ở mode mặc định khi backend dựng được enriched.
 
 Xem [`src/example/pages/PageLiveMap.tsx`](src/example/pages/PageLiveMap.tsx) để có ví dụ cho người dùng bấm chọn 4 mode ngay trên UI.
+
+### Lịch sử hành trình — lọc theo `deviceId` / `vehicleId`
+
+`gps-tracking/history` lọc theo `UserId` / `DeviceId` / `VehicleId`. Tham số đầu (`target`) nhận **một `userId` dạng chuỗi**, hoặc **một object** khi cần lọc theo device/vehicle. Object có kiểu `HistoryTarget` — phải có **đúng MỘT** trong ba id: thiếu id (`{}`) **hoặc** truyền từ hai id trở lên đều bị **TypeScript báo lỗi ngay tại chỗ gọi**.
+
+> ⚠️ **Vì sao ép đúng một id?** Backend **không** lọc giao nhau (AND): nếu gửi nhiều id, nó chỉ dùng một cái theo thứ tự ưu tiên **`UserId` > `VehicleId` > `DeviceId`** rồi bỏ qua phần còn lại — kể cả khi id ưu tiên cao không khớp gì (sẽ trả về rỗng). (Đã kiểm chứng trực tiếp trên API staging.) Nên type chặn luôn ở compile-time để không ai rơi vào bẫy.
+
+```ts
+// Theo user (dạng chuỗi cho gọn)
+await LiveMapController.getHistoryComparison(userId, from, to);
+
+// Chỉ theo thiết bị
+await LiveMapController.getHistoryComparison({ deviceId: "device-001" }, from, to);
+
+// Chỉ theo phương tiện, kèm mode tuyến
+await LiveMapController.getHistoryRoute({ vehicleId: "vehicle-007" }, from, to, {
+  dataSource: "merged",
+});
+
+// ❌ TypeScript báo lỗi — truyền 2 id (chỉ được đúng một)
+await LiveMapController.getHistoryComparison({ userId, deviceId: "device-001" }, from, to);
+
+// ❌ TypeScript báo lỗi — không có id nào
+await LiveMapController.getHistoryComparison({}, from, to);
+```
+
+Hook `useHistoryRoute` nhận `userId` / `deviceId` / `vehicleId` (nullable, để tiện gate theo state) và tự **tắt fetch** khi cả ba đều trống. Chỉ nên set **một** id — nếu lỡ set nhiều, hook gửi một cái theo ưu tiên `userId` > `vehicleId` > `deviceId` và cảnh báo ở môi trường dev:
+
+```tsx
+const { data } = useHistoryRoute({ deviceId, startTime, endTime });
+```
+
+#### Chọn chiều tra lịch sử từ `<LiveMap />`
+
+`<LiveMap>` là map nhiều member — click một member để xem tuyến. Prop `historyTrackBy` chọn **tra theo id nào của chính member đó**:
+
+- **không set** (mặc định) → theo chuỗi ưu tiên `userId` > `vehicleId` > `deviceId`, lấy id đầu tiên có giá trị
+- `"user"` / `"device"` / `"vehicle"` → dùng **đúng** id đó của member, **không** fallback
+
+Chỉ gửi **đúng một id** — khớp cách backend lọc lịch sử. Khi set `trackBy` tường minh thì lựa chọn được tôn trọng tuyệt đối: nếu member không có id đó thì tuyến trả về rỗng (không âm thầm nhảy sang id khác). Chuỗi ưu tiên chỉ dùng cho trường hợp **không set**.
+
+```tsx
+<LiveMap apiKeyTilemap={key} historyTrackBy="vehicle" />
+```
 
 #### Segment: gộp trùng index & vẽ theo segment
 

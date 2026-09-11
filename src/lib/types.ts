@@ -237,6 +237,29 @@ export interface RouteSummary {
  */
 export type HistoryDataSource = 'raw' | 'both' | 'merged'
 
+/**
+ * "Lấy lịch sử của ai / thiết bị nào / xe nào" — chỉ định **đúng MỘT** trong ba
+ * id (`userId` **hoặc** `deviceId` **hoặc** `vehicleId`). TypeScript báo lỗi ngay
+ * nếu truyền `{}` (thiếu id) hoặc truyền từ hai id trở lên.
+ *
+ * Cố tình chỉ cho một id vì backend **không** lọc giao nhau (AND): gửi nhiều id
+ * thì nó chỉ dùng một cái theo ưu tiên `userId` > `vehicleId` > `deviceId` và bỏ
+ * qua phần còn lại (kể cả khi id ưu tiên cao không khớp gì → trả rỗng). Ép một id
+ * để không ai rơi vào bẫy đó.
+ */
+export type HistoryTarget =
+  | { userId: string; deviceId?: never; vehicleId?: never }
+  | { deviceId: string; userId?: never; vehicleId?: never }
+  | { vehicleId: string; userId?: never; deviceId?: never }
+
+/**
+ * Chiều tra lịch sử của một member: dùng `userId`, `deviceId` hay `vehicleId`
+ * của member đó làm khóa query. Set giá trị nào thì dùng đúng id đó (không
+ * fallback). Không set = đi theo chuỗi ưu tiên `userId` > `vehicleId` >
+ * `deviceId` (lấy id đầu tiên có giá trị).
+ */
+export type HistoryTrackBy = 'user' | 'device' | 'vehicle'
+
 export interface HistoryRouteResponse {
   /**
    * The primary track. Its meaning depends on the requested `DataSource`:

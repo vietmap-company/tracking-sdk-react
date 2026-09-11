@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { HistoryDataSource, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
+import type { HistoryDataSource, HistoryTrackBy, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
 
 export type MapInstance = {
   flyTo: (opts: { center: [number, number]; zoom?: number }) => void;
@@ -86,6 +86,14 @@ export interface LiveMapProps {
    * return a raw track, so the raw-overlay toggle is hidden under `"merged"`.
    */
   dataSource?: HistoryDataSource | null;
+  /**
+   * Khi click một member, tra lịch sử theo id nào của member đó:
+   * `"user"`/`"device"`/`"vehicle"` → dùng **đúng** id đó, không fallback (id
+   * rỗng thì kết quả rỗng). **Không set** (mặc định) → đi theo chuỗi ưu tiên
+   * `userId` > `vehicleId` > `deviceId`, lấy id đầu tiên có giá trị. Luôn chỉ gửi
+   * đúng một id, khớp cách backend lọc lịch sử.
+   */
+  historyTrackBy?: HistoryTrackBy;
   /**
    * Show the 🔄 markers at each history segment boundary (hover shows the
    * time-gap that made the matcher cut there). Default `false`.

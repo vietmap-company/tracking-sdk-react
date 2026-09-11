@@ -6,8 +6,9 @@ import { startOfTodayMs, startOfYearMs, endOfYearMs, daysAgoMs, deepEqual } from
 import type {
   ActivityHeatmapData, ActivityTimeReportData, FuelDetailReportData,
   FuelGroupBy, FuelSummaryReportData, FuelTrackingData, GpsPoint,
-  MemberReportData, MemberStatus, MemberStatusKind, MonthlyExpensesData,
-  SummaryCardsData, TripDetailReportData, TripSummaryReportData,
+  HistoryTarget, MemberReportData, MemberStatus, MemberStatusKind,
+  MonthlyExpensesData, SummaryCardsData, TripDetailReportData,
+  TripSummaryReportData,
 } from '@/lib/types'
 
 export interface QueryResult<T> {
@@ -286,18 +287,48 @@ export function useMember(userId: string, options: UseMembersOptions = {}): Quer
 }
 
 export interface UseHistoryRouteOptions {
-  userId: string
+  /**
+   * Tra lịch sử theo user. Chỉ set **MỘT** trong ba id (`userId` / `deviceId` /
+   * `vehicleId`) — backend không lọc giao nhau; nếu lỡ set nhiều, hook chỉ gửi
+   * một id theo ưu tiên `userId` > `vehicleId` > `deviceId` (và cảnh báo ở dev).
+   * Nullable để tiện gate theo state; cả ba rỗng thì hook tự tắt fetch.
+   */
+  userId?: string | null
+  /** Tra theo thiết bị. Xem lưu ý "chỉ set một id" ở {@link UseHistoryRouteOptions.userId}. */
+  deviceId?: string | null
+  /** Tra theo phương tiện. Xem lưu ý "chỉ set một id" ở {@link UseHistoryRouteOptions.userId}. */
+  vehicleId?: string | null
   startTime: number
   endTime: number
   pollInterval?: number
   enabled?: boolean
 }
 export function useHistoryRoute(options: UseHistoryRouteOptions): QueryResult<GpsPoint[]> {
-  const { userId, startTime, endTime } = options
-  const enabled = (options.enabled ?? true) && !!userId
+  const { userId, deviceId, vehicleId, startTime, endTime } = options
+  // Backend chỉ dùng một id (ưu tiên userId > vehicleId > deviceId). Chọn đúng
+  // một cái để gửi, không gửi kèm — tránh bẫy "id ưu tiên cao đè id còn lại".
+  const target: HistoryTarget | null = userId
+    ? { userId }
+    : vehicleId
+      ? { vehicleId }
+      : deviceId
+        ? { deviceId }
+        : null
+  if (import.meta.env.DEV && [userId, deviceId, vehicleId].filter(Boolean).length > 1) {
+    console.warn(
+      '[useHistoryRoute] chỉ nên set một trong userId/deviceId/vehicleId — ' +
+        'backend chỉ dùng một theo ưu tiên userId > vehicleId > deviceId.',
+    )
+  }
+  const enabled = (options.enabled ?? true) && !!target
   return useFetch(
-    () => LiveMapController.getHistoryRoute(userId, startTime, endTime),
-    [userId, startTime, endTime],
+    // `enabled` đã chặn khi target rỗng; nhánh `[]` chỉ để khỏi phải dùng `!`
+    // (không phụ thuộc ngầm vào hành vi của useFetch).
+    () =>
+      target
+        ? LiveMapController.getHistoryRoute(target, startTime, endTime)
+        : Promise.resolve([]),
+    [userId, deviceId, vehicleId, startTime, endTime],
     enabled,
     options.pollInterval,
   )

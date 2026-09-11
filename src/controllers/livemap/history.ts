@@ -6,6 +6,7 @@ import type {
   HistoryDataSource,
   HistoryRoute,
   HistoryRouteResponse,
+  HistoryTarget,
   RouteSummary,
 } from '@/lib/types'
 
@@ -20,6 +21,14 @@ export interface GetHistoryOptions extends WithClient {
 
 const sortByTime = (arr: GpsPoint[] | null | undefined): GpsPoint[] =>
   (arr ?? []).slice().sort((a, b) => a.time - b.time)
+
+/** Bỏ id rỗng/null → `undefined` (= không gửi param đó). */
+const cleanId = (id?: string | null): string | undefined =>
+  id != null && id.trim() !== '' ? id.trim() : undefined
+
+/** `"u1"` → `{ userId: "u1" }`; object thì giữ nguyên. */
+const toTarget = (target: string | HistoryTarget): HistoryTarget =>
+  typeof target === 'string' ? { userId: target } : target
 
 /**
  * Merge enriched segments that share the same `segmentIndex` into a single
@@ -56,8 +65,22 @@ export function mergeSegmentsByIndex(
 }
 
 /**
- * Fetch the history route for a user. `dataSource` selects which track the
- * backend builds:
+ * Fetch the history route for a user, a device and/or a vehicle.
+ *
+ * `target` chỉ định lấy lịch sử của ai/thiết bị/xe nào. Truyền nhanh một
+ * `userId` dạng chuỗi, hoặc một object {@link HistoryTarget} có **đúng MỘT**
+ * trong `userId`/`deviceId`/`vehicleId` — thiếu id hoặc truyền ≥2 id đều bị
+ * TypeScript báo lỗi ngay.
+ *
+ * Ép đúng một id vì backend không lọc giao nhau (AND): gửi nhiều thì nó chỉ dùng
+ * một cái theo ưu tiên `userId` > `vehicleId` > `deviceId` rồi bỏ qua phần còn
+ * lại (kể cả khi id ưu tiên cao không khớp gì → trả rỗng).
+ *
+ *     getHistoryComparison('u1', from, to)               // theo user
+ *     getHistoryComparison({ deviceId: 'd1' }, from, to)  // chỉ theo thiết bị
+ *     getHistoryComparison({ vehicleId: 'v1' }, from, to) // chỉ theo phương tiện
+ *
+ * `dataSource` selects which track the backend builds:
  *
  * - omitted / `null` — no `DataSource` is sent; the backend prefers the
  *   enriched route and falls back to raw for windows it has not matched yet.
@@ -68,18 +91,57 @@ export function mergeSegmentsByIndex(
  * - `merged` — enriched backbone with raw points spliced into the segments the
  *   matcher could not match, yielding one unbroken track in `trackingData`.
  */
-export async function getHistoryComparison(
+export function getHistoryComparison(
   userId: string,
+  startTime: number,
+  endTime: number,
+  options?: GetHistoryOptions,
+): Promise<HistoryRoute>
+export function getHistoryComparison(
+  target: HistoryTarget,
+  startTime: number,
+  endTime: number,
+  options?: GetHistoryOptions,
+): Promise<HistoryRoute>
+export async function getHistoryComparison(
+  target: string | HistoryTarget,
   startTime: number,
   endTime: number,
   options: GetHistoryOptions = {},
 ): Promise<HistoryRoute> {
   const dataSource = options.dataSource ?? null
+  const { userId, deviceId: rawDevice, vehicleId: rawVehicle } = toTarget(target)
+  const uid = cleanId(userId)
+  const deviceId = cleanId(rawDevice)
+  const vehicleId = cleanId(rawVehicle)
+
+  // Chọn ĐÚNG MỘT id gửi lên theo đúng thứ tự ưu tiên của backend
+  // (userId > vehicleId > deviceId). Type đã ép một id cho caller TS; đây là
+  // lưới an toàn cho caller JS lỡ truyền nhiều id (id rỗng/`null` đã bị loại).
+  const idParam = uid
+    ? { UserId: uid }
+    : vehicleId
+      ? { VehicleId: vehicleId }
+      : deviceId
+        ? { DeviceId: deviceId }
+        : null
+
+  if (!idParam) {
+    throw new Error(
+      'getHistoryComparison: cần đúng một trong userId / deviceId / vehicleId',
+    )
+  }
+  if (import.meta.env.DEV && [uid, deviceId, vehicleId].filter(Boolean).length > 1) {
+    console.warn(
+      '[getHistoryComparison] chỉ nên truyền MỘT id — backend chỉ dùng một theo ' +
+        'ưu tiên userId > vehicleId > deviceId, các id còn lại bị bỏ qua.',
+    )
+  }
 
   const res = await HttpService.get<HistoryRouteResponse>(
     'gps-tracking/history',
     {
-      UserId: userId,
+      ...idParam,
       FromTime: startTime,
       ToTime: endTime,
       // Omitted entirely when null — sending `DataSource=` would not mean
@@ -133,12 +195,33 @@ export async function getHistoryComparison(
   }
 }
 
-export async function getHistoryRoute(
+/** Như {@link getHistoryComparison} nhưng chỉ trả về mảng điểm (`points`). */
+export function getHistoryRoute(
   userId: string,
+  startTime: number,
+  endTime: number,
+  options?: GetHistoryOptions,
+): Promise<GpsPoint[]>
+export function getHistoryRoute(
+  target: HistoryTarget,
+  startTime: number,
+  endTime: number,
+  options?: GetHistoryOptions,
+): Promise<GpsPoint[]>
+export async function getHistoryRoute(
+  target: string | HistoryTarget,
   startTime: number,
   endTime: number,
   options: GetHistoryOptions = {},
 ): Promise<GpsPoint[]> {
-  const route = await getHistoryComparison(userId, startTime, endTime, options)
+  // Cast vì TS không resolve được overload khi đối số là union `string |
+  // HistoryTarget`. An toàn: implementation của `getHistoryComparison` tự nhận
+  // diện string qua `toTarget`, nên cả hai dạng đều chạy đúng lúc runtime.
+  const route = await getHistoryComparison(
+    target as HistoryTarget,
+    startTime,
+    endTime,
+    options,
+  )
   return route.points
 }
