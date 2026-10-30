@@ -112,6 +112,10 @@ export function PaginationBar({ page, totalPages, onChange }: PaginationBarProps
  */
 export function useResettablePage(resetKey: string): [number, (page: number) => void] {
   const [state, setState] = React.useState({ key: resetKey, page: 1 })
+  // Ghi nhận lần reset ngay trong render (pattern "lưu thông tin từ lần render
+  // trước" của React) — chỉ suy ra trang 1 mà không lưu thì khi key quay về giá
+  // trị cũ (vd. bỏ lọc), trang cũ sẽ "sống lại".
+  if (state.key !== resetKey) setState({ key: resetKey, page: 1 })
   const page = state.key === resetKey ? state.page : 1
   const setPage = React.useCallback(
     (p: number) => setState({ key: resetKey, page: p }),
