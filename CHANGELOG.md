@@ -8,6 +8,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.2.0] - 2026-10-30
+
+### Lưu ý khi nâng cấp
+
+- Cần **Node.js ≥ 22** cho môi trường build / SSR (Node 18/20 đã hết hỗ trợ; npm chỉ cảnh báo, không chặn cài).
+- SDK yêu cầu **`axios` ≥ 1.20.0** — chạy lại `npm install` (hoặc `pnpm install`) để lockfile của dự án nhận bản đã vá.
+- Không đổi API cũ; các prop mới đều tuỳ chọn.
+
 ### Added (LiveMap — bảng lộ trình)
 
 - **`onViewHistory(member, openDefault)`** — **thay hẳn** hành động "Xem lộ trình" (nút trên popup, đổi member khi đang xem, `autoOpenHistory`): có prop này thì SDK không tự mở bảng lộ trình mà gọi hàm của consumer (vd. điều hướng sang trang lộ trình riêng). Gọi `openDefault()` để vẫn mở bảng lộ trình mặc định.
@@ -35,7 +45,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `useMember` / `getMember` lọc server-side theo id trước thay vì tải cả đội xe; `downloadBlob` thu hồi object URL trễ để không huỷ tải trên Safari/Firefox; hook trong `PlaybackControls` không còn gọi sau `return` sớm.
 - **`npm run typecheck` trước đây không kiểm tra gì** (tsconfig dạng solution `files: []`) — giờ kiểm tra `tsconfig.app.json`, `tsconfig.build.json` (lib ES2020 của bản phát hành) và `tsconfig.node.json`; sửa các lỗi type lộ ra, gồm `Array.at()` ở marker chuyển tuyến (ES2022, không chạy trên Safari < 15.4).
 
-### Added
+### Added (lịch sử theo thiết bị / phương tiện)
 
 - **Lọc lịch sử theo `deviceId` / `vehicleId`** — `gps-tracking/history` nhận thêm `DeviceId` / `VehicleId`. `LiveMapController.getHistoryComparison()` / `getHistoryRoute()` đổi tham số đầu thành `target`: nhận **một `userId` dạng chuỗi** (chữ ký cũ giữ nguyên) **hoặc một object `HistoryTarget`**. Backend **không** lọc giao nhau (AND) — kiểm chứng trực tiếp trên staging: gửi nhiều id thì nó chỉ dùng một cái theo ưu tiên `userId` > `vehicleId` > `deviceId`, bỏ qua phần còn lại (kể cả khi id ưu tiên cao không khớp gì → trả rỗng).
   - **Kiểu `HistoryTarget` ép ĐÚNG MỘT id lúc compile** — thiếu id (`{}`) hoặc truyền ≥2 id đều bị TypeScript báo lỗi ngay tại chỗ gọi (vẫn còn guard throw cho JS). Query chỉ-theo-device là `getHistoryComparison({ deviceId }, …)`.
