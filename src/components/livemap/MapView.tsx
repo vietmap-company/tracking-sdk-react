@@ -265,10 +265,9 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       setActiveUserId(null);
     }, []);
 
-    const openHistory = React.useCallback(
+    // Hành vi mặc định của "Xem lộ trình": mở bảng lộ trình của SDK.
+    const showHistory = React.useCallback(
       (m: MemberStatus) => {
-        // Mọi đường mở lộ trình đều đi qua đây → báo ra ngoài; `false` = chặn.
-        if (onViewHistoryRef.current?.(m) === false) return;
         // Hide popup but keep the marker selected so the user still sees which
         // member they're viewing history for.
         popupRef.current?.remove();
@@ -289,6 +288,20 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           mapRef.current?.jumpTo({ center: [m.lng, m.lat], zoom: 14 });
       },
       [clearHistoryRoute, setHistoryPoints, setEnrichedSegments, setRawPoints, setPlayIndex, setIsPlaying],
+    );
+
+    // Mọi đường mở lộ trình đều đi qua đây (nút "Xem lộ trình", bấm member khác
+    // khi đang xem, `autoOpenHistory`). Có `onViewHistory` thì consumer THAY HẲN
+    // hành vi mặc định — SDK không tự mở bảng; muốn mở thì consumer gọi
+    // `openDefault()`. Phải ổn định vì handler click của map (đăng ký lúc init)
+    // giữ lại hàm này — đọc callback qua ref.
+    const openHistory = React.useCallback(
+      (m: MemberStatus) => {
+        const override = onViewHistoryRef.current;
+        if (override) override(m, () => showHistory(m));
+        else showHistory(m);
+      },
+      [showHistory],
     );
 
     const closeHistory = React.useCallback(() => {

@@ -10,9 +10,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added (LiveMap — bảng lộ trình)
 
-- **`onViewHistory(member)`** — callback khi mở bảng lộ trình (nút "Xem lộ trình", đổi member khi đang xem, hoặc tự mở). Return `false` để chặn mở và tự xử lý bên ngoài.
+- **`onViewHistory(member, openDefault)`** — **thay hẳn** hành động "Xem lộ trình" (nút trên popup, đổi member khi đang xem, `autoOpenHistory`): có prop này thì SDK không tự mở bảng lộ trình mà gọi hàm của consumer (vd. điều hướng sang trang lộ trình riêng). Gọi `openDefault()` để vẫn mở bảng lộ trình mặc định.
 - **`onHistoryLoad(event)`** — callback mỗi khi bảng lộ trình tải xong (mở, đổi ngày, đổi `dataSource`/`historyTrackBy`), nhận `HistoryLoadEvent` `{ member, date, from, to, route, error? }` — `route` là `HistoryRoute` đầy đủ đang hiển thị, không phải gọi API lần nữa. Kiểu `HistoryLoadEvent` được export.
-- **`autoOpenHistory`** — vào trang là tự mở bảng lộ trình của member đứng đầu sidebar (sau khi áp `userIds`/`statusFilter`), một lần duy nhất.
+- **`autoOpenHistory`** — vào trang là tự mở bảng lộ trình của member đứng đầu sidebar (sau khi áp `userIds`/`statusFilter`), một lần duy nhất. Có `onViewHistory` thì gọi hàm đó thay vì tự mở.
 - Mở lộ trình của member chưa có vị trí (lat/lng = 0) không còn nhảy bản đồ về toạ độ `[0, 0]`.
 
 ### Security
