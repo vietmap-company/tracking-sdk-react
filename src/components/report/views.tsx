@@ -22,6 +22,7 @@ import {
   ReportTableSkeletonRows,
   fmtDateShort,
   fmtTime,
+  useResettablePage,
 } from "./shared";
 
 export interface ReportRangeState {
@@ -143,7 +144,9 @@ export function TripSummaryReport({
   onUserClick,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = useResettablePage(
+    `${range.from}|${range.to}|${userIds?.join(",") ?? ""}`,
+  );
   const [sort, setSort] = React.useState<SortState>({
     key: "totalDistance",
     desc: true,
@@ -151,7 +154,7 @@ export function TripSummaryReport({
   const handleSort = React.useCallback((k: string) => {
     setSort((p) => toggleSort(p, k));
     setPage(1);
-  }, []);
+  }, [setPage]);
   const { data, isLoading, isFetching, error } = useTripSummaryReport({
     ...range,
     page,
@@ -282,7 +285,9 @@ export function TripDetailReport({
   userName,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = useResettablePage(
+    `${range.from}|${range.to}|${userIds?.join(",") ?? ""}|${userId ?? ""}`,
+  );
   const [sort, setSort] = React.useState<SortState>({
     key: "date",
     desc: true,
@@ -290,7 +295,7 @@ export function TripDetailReport({
   const handleSort = React.useCallback((k: string) => {
     setSort((p) => toggleSort(p, k));
     setPage(1);
-  }, []);
+  }, [setPage]);
   const { data, isLoading, isFetching, error } = useTripDetailReport({
     ...range,
     page,
@@ -414,7 +419,9 @@ export function FuelSummaryReport({
   onUserClick,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = useResettablePage(
+    `${range.from}|${range.to}|${userIds?.join(",") ?? ""}`,
+  );
   const [sort, setSort] = React.useState<SortState>({
     key: "distanceKm",
     desc: true,
@@ -422,7 +429,7 @@ export function FuelSummaryReport({
   const handleSort = React.useCallback((k: string) => {
     setSort((p) => toggleSort(p, k));
     setPage(1);
-  }, []);
+  }, [setPage]);
   const { data, isLoading, isFetching, error } = useFuelSummaryReport({
     ...range,
     page,
@@ -568,7 +575,9 @@ export function FuelDetailReport({
   userName,
 }: ReportViewProps) {
   const { t, memberNameKey } = useFleetwork();
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = useResettablePage(
+    `${range.from}|${range.to}|${userIds?.join(",") ?? ""}|${userId ?? ""}`,
+  );
   const [sort, setSort] = React.useState<SortState>({
     key: "date",
     desc: true,
@@ -576,7 +585,7 @@ export function FuelDetailReport({
   const handleSort = React.useCallback((k: string) => {
     setSort((p) => toggleSort(p, k));
     setPage(1);
-  }, []);
+  }, [setPage]);
   const { data, isLoading, isFetching, error } = useFuelDetailReport({
     ...range,
     page,
@@ -731,7 +740,7 @@ export function ActivityTimeReport({
   pageSize = 10,
 }: ReportViewProps) {
   const { t } = useFleetwork();
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = useResettablePage(`${range.from}|${range.to}`);
   const { data, isLoading, isFetching, error } = useActivityTimeReport({
     ...range,
     page,
@@ -750,7 +759,7 @@ export function ActivityTimeReport({
       title={t("reports.activity.title")}
       subtitle={
         typeof data?.totalUsers === "number"
-          ? `${t("reports.activity.subtitle")} · ${data.totalUsers} nhân viên`
+          ? `${t("reports.activity.subtitle")} · ${data.totalUsers} ${t("reports.employees")}`
           : t("reports.activity.subtitle")
       }
       onBack={onBack}

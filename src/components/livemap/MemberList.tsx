@@ -23,14 +23,25 @@ const STATUS_BADGE: Record<MemberStatusKind, string> = {
   signal_lost: 'bg-slate-50  text-slate-500  border-slate-200',
 }
 
-function formatLastSeen(ts?: number): string {
+const STATUS_ORDER: Record<string, number> = { moving: 0, stopped: 1, signal_lost: 2 }
+
+/** Thứ tự hiển thị của sidebar: đang chạy → dừng → mất tín hiệu, giữ thứ tự
+ *  API trong cùng nhóm. Dùng chung với `autoOpenHistory` để "member đầu tiên"
+ *  đúng là dòng đầu người dùng thấy. */
+export function sortMembersForList(members: MemberStatus[]): MemberStatus[] {
+  return [...members].sort(
+    (a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3),
+  )
+}
+
+function formatLastSeen(t: (key: string) => string, ts?: number): string {
   if (!ts) return ''
   const mins = Math.floor((Date.now() - ts) / 60_000)
-  if (mins < 1) return 'vừa xong'
-  if (mins < 60) return `${mins}p`
+  if (mins < 1) return t('time.justNow')
+  if (mins < 60) return `${mins}${t('unit.m')}`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}g`
-  return `${Math.floor(hrs / 24)}n`
+  if (hrs < 24) return `${hrs}${t('unit.h')}`
+  return `${Math.floor(hrs / 24)}${t('unit.d')}`
 }
 
 /** Một dòng danh sách — React.memo để chỉ member thay đổi (hoặc đổi active)
@@ -77,7 +88,7 @@ const MemberListItem = React.memo(function MemberListItem({
           </span>
           {m.status !== 'moving' && m.lastSeenAt && (
             <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
-              {formatLastSeen(m.lastSeenAt)}
+              {formatLastSeen(t, m.lastSeenAt)}
             </span>
           )}
         </div>
@@ -167,10 +178,9 @@ function MemberListInner({
   const sentinelRef = React.useRef<HTMLDivElement>(null)
 
   const filtered = React.useMemo(() => {
-    const ORDER: Record<string, number> = { moving: 0, stopped: 1, signal_lost: 2 }
     const q = query.trim().toLowerCase()
     const base = q ? members.filter((m) => (m.name ?? m.userId).toLowerCase().includes(q)) : members
-    return [...base].sort((a, b) => (ORDER[a.status] ?? 3) - (ORDER[b.status] ?? 3))
+    return sortMembersForList(base)
   }, [members, query])
 
   React.useEffect(() => { setVisibleCount(PAGE_SIZE) }, [query])
@@ -357,7 +367,7 @@ function MemberListInner({
           <div ref={sentinelRef} className="py-2 text-center">
             {visibleCount < filtered.length && (
               <span className="text-[11px] text-muted-foreground">
-                {filtered.length - visibleCount} người nữa...
+                {t('list.more').replace('{n}', String(filtered.length - visibleCount))}
               </span>
             )}
           </div>

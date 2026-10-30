@@ -35,6 +35,11 @@ const fmtGap = (ms: number): string => {
   return `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
+// Tên member lấy từ metadata do thiết bị gửi lên (không tin được) — phải escape
+// trước khi ghép vào innerHTML của marker, nếu không là XSS.
+const escapeHtml = (s: string): string =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
 type LineFeature = {
   type: 'Feature'
   properties: { color: string }
@@ -78,6 +83,7 @@ export interface UsePlaybackReturn {
   drawHistoryRoute: (pts: GpsPoint[], playIdx: number) => void
   drawRawRoute: (pts: GpsPoint[]) => void
   clearHistoryRoute: () => void
+  restoreRoutes: () => void
 }
 
 export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers = false, routeColors }: UsePlaybackParams): UsePlaybackReturn {
@@ -193,7 +199,9 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
       const prev = segs[si - 1]
       const curr = segs[si]
       if (!prev.length || !curr.length) continue
-      const prevLast = prev.at(-1)!
+      // Không dùng `.at(-1)` — ES2022, ngoài `lib` ES2020 của bản build và
+      // không có trên Safari < 15.4.
+      const prevLast = prev[prev.length - 1]
       const currFirst = curr[0]
       const gap = fmtGap((currFirst.time ?? 0) - (prevLast.time ?? 0))
       const el = document.createElement('div')
@@ -245,6 +253,18 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
     removeTransitionMarkers()
   }, [mapRef, removeTransitionMarkers])
 
+  // setStyle() (đổi tile) xoá sạch source/layer của style cũ — vẽ lại tuyến đang
+  // xem (giữ vị trí playback) nếu nó đã mất. Gọi từ handler `styledata`, nên chỉ
+  // add khi source thiếu để không tự kích hoạt lại `styledata` vô hạn.
+  const restoreRoutes = React.useCallback(() => {
+    const map = mapRef.current as MapInstance | null
+    if (!map) return
+    if (historyPointsRef.current.length >= 2 && !map.getSource(ROUTE_REM_SRC))
+      drawHistoryRoute(historyPointsRef.current, playIndexRef.current)
+    if (lastRawRef.current.length >= 2 && !map.getSource(ROUTE_RAW_SRC))
+      drawRawRoute(lastRawRef.current)
+  }, [mapRef, drawHistoryRoute, drawRawRoute])
+
   const seekHistory = React.useCallback((idx: number) => {
     const pts = historyPointsRef.current
     if (!pts.length) return
@@ -255,8 +275,9 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
     const map = mapRef.current as MapInstance | null
     if (!VGL || !map) return
     const isMoving = (p.speed ?? 0) > 0
-    const heading = p.heading ?? 0
-    const memberName = selectedMemberRef.current?.name ?? selectedMemberRef.current?.userId ?? ''
+    // Ép số — giá trị đi thẳng vào style inline của innerHTML bên dưới.
+    const heading = Number(p.heading) || 0
+    const memberName = escapeHtml(String(selectedMemberRef.current?.name ?? selectedMemberRef.current?.userId ?? ''))
     const bg = isMoving ? '#16a34a' : '#f97316'
     const icon = isMoving
       ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><path d="M12 2L6 20l6-4 6 4L12 2z"/></svg>`
@@ -344,6 +365,6 @@ export function usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTran
     playSpeed, setPlaySpeed,
     autoFollow, setAutoFollow,
     historyMarkerRef,
-    seekHistory, drawHistoryRoute, drawRawRoute, clearHistoryRoute,
+    seekHistory, drawHistoryRoute, drawRawRoute, clearHistoryRoute, restoreRoutes,
   }
 }

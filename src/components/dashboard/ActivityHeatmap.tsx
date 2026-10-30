@@ -20,15 +20,8 @@ export interface ActivityHeatmapProps extends Omit<UseActivityHeatmapOptions, 'f
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const DAY_MS = 24 * 60 * 60 * 1000
 
-const DAYS_VI: { dayIndex: number; label: string }[] = [
-  { dayIndex: 0, label: 'T2' },
-  { dayIndex: 1, label: 'T3' },
-  { dayIndex: 2, label: 'T4' },
-  { dayIndex: 3, label: 'T5' },
-  { dayIndex: 4, label: 'T6' },
-  { dayIndex: 5, label: 'T7' },
-  { dayIndex: 6, label: 'CN' },
-]
+// 0 = Thứ 2 … 6 = Chủ nhật; nhãn lấy từ i18n (`heatmap.day.N`).
+const DAY_INDEXES = [0, 1, 2, 3, 4, 5, 6]
 
 const DOW_ALIASES: Record<string, number> = {
   mon: 0, monday: 0, t2: 0,
@@ -132,7 +125,7 @@ export function ActivityHeatmap({
   })
 
   const weekDates = React.useMemo(() => {
-    return DAYS_VI.map(({ dayIndex }) => {
+    return DAY_INDEXES.map((dayIndex) => {
       const d = new Date(weekStart)
       d.setDate(d.getDate() + dayIndex)
       return d
@@ -232,7 +225,8 @@ export function ActivityHeatmap({
                 ))}
 
                 {/* Data rows */}
-                {DAYS_VI.map(({ dayIndex, label }) => {
+                {DAY_INDEXES.map((dayIndex) => {
+                  const label = t(`heatmap.day.${dayIndex}`)
                   const row = grid.get(dayIndex)
                   const date = weekDates[dayIndex]
                   return (
@@ -269,8 +263,8 @@ export function ActivityHeatmap({
                                 {count > 0
                                   ? data.metric === 'distance'
                                     ? `${count.toFixed(1)} km`
-                                    : `${count} điểm GPS`
-                                  : 'Không có hoạt động'}
+                                    : `${count} ${t('heatmap.gpsPoints')}`
+                                  : t('heatmap.noActivity')}
                               </p>
                             </TooltipContent>
                           </Tooltip>

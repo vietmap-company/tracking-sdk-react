@@ -63,24 +63,38 @@ export function formatNumber(value: number, decimals = 0): string {
  *  lazy nhận colors qua prop. */
 export type ChartColors = ReturnType<typeof useChartColors>
 
+/** Nhãn tháng ngắn cho trục X chart (0-based): `T1`… (vi) / `Jan`… (en). */
+export function monthLabel(monthIndex: number, locale: string): string {
+  if (locale === "en")
+    return new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+      new Date(2000, monthIndex, 1),
+    );
+  return `T${monthIndex + 1}`;
+}
+
 /** Stable chart color tokens — CSS variable backed, theme-aware.
- * Memo hoá theo tín hiệu dark/preset (đọc chuỗi rẻ, không layout flush) nên
- * chỉ chạy `getComputedStyle` khi theme đổi, không phải mỗi render. */
-export function useChartColors() {
-  // Tín hiệu rẻ để invalidate memo khi đổi light/dark hoặc preset.
+ * Memo hoá theo tín hiệu dark/preset/theme (đọc chuỗi rẻ, không layout flush)
+ * nên chỉ chạy `getComputedStyle` khi theme đổi, không phải mỗi render.
+ *
+ * `scope` = root của SDK (`usePortalContainer()`). Token màu chỉ khai báo dưới
+ * `.fleetwork-root`, KHÔNG ở `:root` — đọc ở `<html>` sẽ ra rỗng (luôn rơi về
+ * fallback, sai dark mode) hoặc dính nhầm token của app host. */
+export function useChartColors(scope?: HTMLElement | null) {
+  const el =
+    scope ??
+    (typeof document !== "undefined"
+      ? document.querySelector<HTMLElement>("[data-fleetwork-root]")
+      : null);
+  // Tín hiệu rẻ để invalidate memo khi đổi light/dark, preset hoặc override
+  // `theme.colors` (Provider ghi vào style inline của root).
   const signal =
     typeof document !== "undefined"
-      ? `${document.documentElement.classList.contains("dark") ? "d" : "l"}:${
-          document
-            .querySelector("[data-fleetwork-root]")
-            ?.getAttribute("data-preset") ?? ""
-        }`
+      ? `${el?.closest(".dark") || document.documentElement.classList.contains("dark") ? "d" : "l"}:${
+          el?.getAttribute("data-preset") ?? ""
+        }:${el?.getAttribute("style") ?? ""}`
       : "";
   return useMemo(() => {
-    const style =
-      typeof window !== "undefined"
-        ? getComputedStyle(document.documentElement)
-        : null;
+    const style = el ? getComputedStyle(el) : null;
     const v = (name: string, fallback: string) =>
       style?.getPropertyValue(name).trim() || fallback;
     return {
@@ -95,7 +109,7 @@ export function useChartColors() {
       tooltipBorder: v("--border", "oklch(0.908 0.008 248)"),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signal]);
+  }, [signal, el]);
 }
 
 export function formatDateTime(ts: number, locale: string = "vi-VN"): string {

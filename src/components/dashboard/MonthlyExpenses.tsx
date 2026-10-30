@@ -2,8 +2,8 @@ import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMonthlyExpenses, type UseMonthlyExpensesOptions } from '@/hooks'
-import { useFleetwork } from '@/provider/FleetworkProvider'
-import { useChartColors, cn } from '@/lib/utils'
+import { useFleetwork, usePortalContainer } from '@/provider/FleetworkProvider'
+import { monthLabel, useChartColors, cn } from '@/lib/utils'
 import type { MonthlyExpensesData } from '@/lib/types'
 
 export interface MonthlyExpensesProps extends UseMonthlyExpensesOptions {
@@ -32,8 +32,8 @@ function EmptyChart({ label }: { label: string }) {
 export function MonthlyExpenses({
   className, style, onError, onDataChange, ...options
 }: MonthlyExpensesProps) {
-  const { t } = useFleetwork()
-  const colors = useChartColors()
+  const { t, locale } = useFleetwork()
+  const colors = useChartColors(usePortalContainer())
   const { data, isLoading, error } = useMonthlyExpenses(options)
 
   React.useEffect(() => { if (error && onError) onError(error) }, [error, onError])
@@ -47,14 +47,14 @@ export function MonthlyExpenses({
     return Array.from({ length: 12 }, (_, i) => {
       const entry = byMonth.get(i + 1)
       return {
-        label: `T${i + 1}`,
+        label: monthLabel(i, locale),
         fuel:        entry?.costs.fuel        ?? 0,
         maintenance: entry?.costs.maintenance ?? 0,
         insurance:   entry?.costs.insurance   ?? 0,
         other:       entry?.costs.other       ?? 0,
       }
     })
-  }, [data])
+  }, [data, locale])
 
   const categoryColorMap: Record<string, string> = {
     fuel:        colors.chart1,
@@ -90,6 +90,7 @@ export function MonthlyExpenses({
                 data={chartData}
                 categories={categories}
                 colors={colors}
+                locale={locale}
               />
             </React.Suspense>
           </div>

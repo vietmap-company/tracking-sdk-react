@@ -6,6 +6,7 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { LiveMapController } from "@/controllers/LiveMapController";
 import type { GpsPoint, HistoryDataSource, HistoryTarget, HistoryTrackBy, MemberStatus, RouteSummary } from "@/lib/types";
+import type { TFn } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useFleetwork } from "@/provider/FleetworkProvider";
 import { addDays, startOfDay, subDays } from "date-fns";
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import type { HistoryGroup, Segment } from "./history.types";
+import type { HistoryLoadEvent } from "./types";
 import { GPS_LOST_MS } from "./history.types";
 import { STATUS_HEX } from "./statusColors";
 
@@ -40,14 +42,15 @@ function fmtTimeShort(ts: number) {
     minute: "2-digit",
   });
 }
-function fmtDuration(ms: number) {
+function fmtDuration(ms: number, t: TFn) {
   const s = Math.round(ms / 1000),
     h = Math.floor(s / 3600),
     m = Math.floor((s % 3600) / 60),
     sec = s % 60;
-  if (h > 0) return `${h}g ${m}p`;
-  if (m > 0) return `${m}p ${sec}s`;
-  return `${sec}s`;
+  const [uh, um, us] = [t("unit.h"), t("unit.m"), t("unit.s")];
+  if (h > 0) return `${h}${uh} ${m}${um}`;
+  if (m > 0) return `${m}${um} ${sec}${us}`;
+  return `${sec}${us}`;
 }
 export function fmtDist(meters: number) {
   return meters < 1000
@@ -168,6 +171,11 @@ function TimelineBar({
   segments.forEach((s) => {
     totals[s.type] = (totals[s.type] ?? 0) + s.durationMs;
   });
+  const LABEL: Record<string, string> = {
+    moving: t("history.moving"),
+    stopped: t("history.stopped"),
+    lostGps: t("history.lostGps"),
+  };
 
   return (
     <div className="px-4 py-3 border-b border-border/40 shrink-0 bg-muted/20">
@@ -190,7 +198,7 @@ function TimelineBar({
         {segments.map((sg, i) => (
           <div
             key={i}
-            title={`${sg.type === "moving" ? "Di chuyển" : sg.type === "stopped" ? "Dừng" : "Mất GPS"}: ${fmtDuration(sg.durationMs)}`}
+            title={`${LABEL[sg.type]}: ${fmtDuration(sg.durationMs, t)}`}
             style={{
               width: `${Math.max((sg.durationMs / totalMs) * 100, 0.5).toFixed(2)}%`,
               background: COLOR[sg.type],
@@ -201,15 +209,9 @@ function TimelineBar({
       </div>
       {/* Legend chips */}
       <div className="mt-2 flex flex-wrap gap-2">
-        {(
-          [
-            ["moving", t("history.moving")],
-            ["stopped", t("history.stopped")],
-            ["lostGps", t("history.lostGps")],
-          ] as [string, string][]
-        )
-          .filter(([k]) => totals[k] > 0)
-          .map(([k, lbl]) => (
+        {(["moving", "stopped", "lostGps"] as const)
+          .filter((k) => totals[k] > 0)
+          .map((k) => (
             <span
               key={k}
               className="inline-flex items-center gap-1.5 rounded-full bg-background border border-border/50 px-2 py-0.5 text-[10px] font-medium text-foreground"
@@ -218,7 +220,7 @@ function TimelineBar({
                 className="h-2 w-2 rounded-full shrink-0"
                 style={{ background: COLOR[k] }}
               />
-              {lbl} · {fmtDuration(totals[k])}
+              {LABEL[k]} · {fmtDuration(totals[k], t)}
             </span>
           ))}
       </div>
@@ -228,28 +230,41 @@ function TimelineBar({
 
 // ── HistoryRow ────────────────────────────────────────────────────────────────
 
-function HistoryRowItem({
+/** Chỉ số đang phát nếu nó nằm trong dòng này, ngược lại -1 — để mỗi tick
+ *  playback chỉ dòng cũ + dòng mới đổi prop (React.memo bỏ qua phần còn lại). */
+function activeIndexIn(group: HistoryGroup, idx: number): number {
+  if (group.type === "moving") return group.idx === idx ? idx : -1;
+  if (group.type === "stopped")
+    return idx >= group.startIdx && idx <= group.endIdx ? idx : -1;
+  return -1;
+}
+
+const HistoryRowItem = React.memo(function HistoryRowItem({
   group,
+  groupIndex,
   activeIndex,
   expanded,
   onToggle,
   onSeek,
+  t,
 }: {
   group: HistoryGroup;
+  groupIndex: number;
   activeIndex: number;
   expanded: boolean;
-  onToggle: () => void;
+  onToggle: (groupIndex: number) => void;
   onSeek: (idx: number) => void;
+  t: TFn;
 }) {
   if (group.type === "lostGps") {
     return (
       <div className="flex items-center gap-2.5 border-b border-border/30 bg-muted/30 px-4 py-2">
         <span className="h-2 w-2 rounded-full bg-slate-300 shrink-0" />
         <span className="text-[11px] italic text-muted-foreground">
-          Mất GPS
+          {t("history.lostGps")}
         </span>
         <span className="ml-auto text-[10px] font-medium text-muted-foreground">
-          {fmtDuration(group.durationMs)}
+          {fmtDuration(group.durationMs, t)}
         </span>
       </div>
     );
@@ -262,7 +277,7 @@ function HistoryRowItem({
       <>
         {/* Stop group header */}
         <div
-          onClick={onToggle}
+          onClick={() => onToggle(groupIndex)}
           className={cn(
             "flex cursor-pointer items-center gap-2.5 border-b border-border/30 px-4 py-2.5 transition-colors",
             hasActive
@@ -288,7 +303,7 @@ function HistoryRowItem({
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
               <span className="text-[12px] font-semibold text-amber-700">
-                Dừng {fmtDuration(group.durationMs)}
+                {t("history.stopped")} {fmtDuration(group.durationMs, t)}
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5 pl-4">
@@ -297,7 +312,7 @@ function HistoryRowItem({
             </p>
           </div>
           <span className="text-[10px] text-muted-foreground shrink-0">
-            {group.pts.length} điểm
+            {group.pts.length} {t("history.points")}
           </span>
         </div>
         {/* Expanded child rows */}
@@ -374,7 +389,7 @@ function HistoryRowItem({
       )}
     </div>
   );
-}
+});
 
 // ── HistoryPanel ──────────────────────────────────────────────────────────────
 
@@ -382,6 +397,8 @@ export interface HistoryPanelProps {
   member: MemberStatus;
   onClose: () => void;
   onHistoryLoaded: (points: GpsPoint[], rawPoints?: GpsPoint[] | null, enrichedSegments?: GpsPoint[][] | null) => void;
+  /** Tải xong (thành công hoặc lỗi) — dữ liệu đầy đủ để báo ra ngoài qua `onHistoryLoad`. */
+  onLoad?: (event: HistoryLoadEvent) => void;
   playIndex: number;
   onSeek: (index: number) => void;
   // Playback controls (passed through so mobile sheet can embed them)
@@ -474,8 +491,8 @@ function PlaybackBar({
   onPlayToggle: () => void; onSpeedCycle: () => void; onAutoFollowToggle: () => void;
   showRawRoute?: boolean; onRawRouteToggle?: () => void;
 }) {
+  const { t } = useFleetwork();
   const total = points.length;
-  if (!total) return null;
   const curr = points[index];
   const pct = (total > 1 ? index / (total - 1) : 0) * 100;
   const trackRef = React.useRef<HTMLDivElement>(null);
@@ -502,6 +519,9 @@ function PlaybackBar({
     window.addEventListener('touchmove', onMove, { passive: true });
     window.addEventListener('touchend', onUp);
   }, [calcIndex, onSeek]);
+
+  // Return sớm phải nằm SAU mọi hook (rules of hooks).
+  if (!total) return null;
 
   return (
     <div className="shrink-0 px-3 py-2.5 border-b border-border/40 bg-muted/10">
@@ -533,7 +553,7 @@ function PlaybackBar({
           <button
             type="button"
             onClick={onRawRouteToggle}
-            title={showRawRoute ? 'Ẩn GPS gốc (raw)' : 'Hiện GPS gốc (raw)'}
+            title={showRawRoute ? t('playback.hideRaw') : t('playback.showRaw')}
             className={cn(
               'flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-semibold shadow-sm transition-colors',
               showRawRoute
@@ -568,9 +588,9 @@ export function HistoryPanel({
   playIndex, onSeek,
   isPlaying, playSpeed, autoFollow,
   onPlayToggle, onSpeedCycle, onAutoFollowToggle,
-  showRawRoute, onRawRouteToggle, dataSource, trackBy,
+  showRawRoute, onRawRouteToggle, dataSource, trackBy, onLoad,
 }: HistoryPanelProps) {
-  const { t } = useFleetwork();
+  const { t, locale, client } = useFleetwork();
   const [historyDate, setHistoryDate] = React.useState<Date>(() => new Date());
   const [historyPoints, setHistoryPoints] = React.useState<GpsPoint[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
@@ -581,34 +601,57 @@ export function HistoryPanel({
   React.useEffect(() => {
     onHistoryLoadedRef.current = onHistoryLoaded;
   }, [onHistoryLoaded]);
+  const onLoadRef = React.useRef(onLoad);
+  React.useEffect(() => {
+    onLoadRef.current = onLoad;
+  }, [onLoad]);
 
+  // Mỗi lần tải tăng seq; response về muộn của lần tải cũ (bấm đổi ngày liên
+  // tục) bị bỏ qua, không ghi đè tuyến của ngày đang chọn.
+  const loadSeqRef = React.useRef(0);
   const loadHistory = React.useCallback(
     async (date: Date) => {
+      const seq = ++loadSeqRef.current;
       setHistoryLoading(true);
       setHistoryPoints([]);
       setRouteSummary(null);
       setExpandedGroups(new Set());
+      const startMs = new Date(date).setHours(0, 0, 0, 0);
+      const endMs = new Date(date).setHours(23, 59, 59, 999);
       try {
-        const startMs = new Date(date).setHours(0, 0, 0, 0);
-        const endMs = new Date(date).setHours(23, 59, 59, 999);
         const { userId, deviceId, vehicleId } = member;
         const route = await LiveMapController.getHistoryComparison(
           historyTargetOf({ userId, deviceId, vehicleId }, trackBy),
           startMs,
           endMs,
-          { dataSource },
+          { dataSource, client },
         );
+        if (seq !== loadSeqRef.current) return;
         setHistoryPoints(route.points);
         setRouteSummary(route.routeSummary);
-        onHistoryLoadedRef.current(route.points, route.rawPoints, route.enrichedSegments);
-      } catch {
+        // Vẽ theo segment chỉ đúng khi `points` chính là các segment nối lại.
+        // Dưới `merged`, `points` là trackingData đã vá gap — vẽ theo segment
+        // sẽ mở lại gap và lệch con trỏ playback, nên vẽ một tuyến liền.
+        const segs = route.dataSource === "merged" ? null : route.enrichedSegments;
+        onHistoryLoadedRef.current(route.points, route.rawPoints, segs);
+        onLoadRef.current?.({ member, date, from: startMs, to: endMs, route });
+      } catch (e) {
+        if (seq !== loadSeqRef.current) return;
         setHistoryPoints([]);
         setRouteSummary(null);
         onHistoryLoadedRef.current([], null, null);
+        onLoadRef.current?.({
+          member,
+          date,
+          from: startMs,
+          to: endMs,
+          route: null,
+          error: e instanceof Error ? e : new Error(String(e)),
+        });
       }
       setHistoryLoading(false);
     },
-    [member.userId, member.deviceId, member.vehicleId, dataSource, trackBy],
+    [member.userId, member.deviceId, member.vehicleId, dataSource, trackBy, client],
   );
 
   React.useEffect(() => {
@@ -643,12 +686,16 @@ export function HistoryPanel({
   const totalMs = pts.length > 1 ? pts[pts.length - 1].time - pts[0].time : 0;
   const segments = React.useMemo(() => computeSegments(pts), [pts]);
   const groups = React.useMemo(() => computeGroups(pts), [pts]);
-  const toggleGroup = (gi: number) =>
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      next.has(gi) ? next.delete(gi) : next.add(gi);
-      return next;
-    });
+  // Ổn định để HistoryRowItem (React.memo) không re-render cả danh sách.
+  const toggleGroup = React.useCallback(
+    (gi: number) =>
+      setExpandedGroups((prev) => {
+        const next = new Set(prev);
+        next.has(gi) ? next.delete(gi) : next.add(gi);
+        return next;
+      }),
+    [],
+  );
 
   const initials = (member.name ?? member.userId).slice(0, 2).toUpperCase();
   const [sheetExpanded, setSheetExpanded] = React.useState(false);
@@ -685,7 +732,7 @@ export function HistoryPanel({
             <p className="truncate text-[13px] font-semibold text-foreground leading-tight">{member.name ?? member.userId}</p>
             <span className={cn('mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', STATUS_BADGE[member.status])}>
               <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_PLAIN[member.status])} />
-              {member.statusLabel}
+              {t(`status.${member.status}`)}
             </span>
             {/* Stats inline — show when data loaded */}
             {!historyLoading && pts.length > 0 && (
@@ -699,7 +746,7 @@ export function HistoryPanel({
                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Clock3 className="h-3 w-3 text-violet-500 shrink-0" />
                   <span className="font-semibold text-foreground tabular-nums">
-                    {routeSummary != null ? fmtDuration(routeSummary.movingDurationMs) : '—'}
+                    {routeSummary != null ? fmtDuration(routeSummary.movingDurationMs, t) : '—'}
                   </span>
                 </span>
               </div>
@@ -730,7 +777,7 @@ export function HistoryPanel({
             value={historyDate}
             onChange={(d) => { setHistoryDate(d); loadHistory(d); }}
             maxDate={new Date()}
-            formatLabel={(d) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)}
+            formatLabel={(d) => new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)}
             className="h-7 flex-1 rounded-lg text-[12px] font-medium"
           />
           <button type="button"
@@ -758,7 +805,7 @@ export function HistoryPanel({
           </div>
           <div>
             <p className="text-[13px] font-semibold text-foreground">{t('history.noData')}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Không có dữ liệu trong ngày này</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{t('history.noDataDay')}</p>
           </div>
         </div>
       )}
@@ -790,15 +837,15 @@ export function HistoryPanel({
                 {/* Legend chips */}
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                   {([
-                    { key: 'moving',  label: 'Di chuyển', color: STATUS_HEX.moving,       ms: routeSummary?.movingDurationMs  },
-                    { key: 'stopped', label: 'Dừng',       color: STATUS_HEX.stopped,      ms: routeSummary?.stoppedDurationMs },
-                    { key: 'lostGps', label: 'Mất GPS',    color: STATUS_HEX.signal_lost,  ms: routeSummary?.lostGpsDurationMs },
+                    { key: 'moving',  label: t('history.moving'),  color: STATUS_HEX.moving,       ms: routeSummary?.movingDurationMs  },
+                    { key: 'stopped', label: t('history.stopped'), color: STATUS_HEX.stopped,      ms: routeSummary?.stoppedDurationMs },
+                    { key: 'lostGps', label: t('history.lostGps'), color: STATUS_HEX.signal_lost,  ms: routeSummary?.lostGpsDurationMs },
                   ] as const)
                     .filter(({ key, ms }) => (ms != null && ms > 0) || segments.some(s => s.type === key))
                     .map(({ key, label, color, ms }) => (
                       <span key={key} className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
                         <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
-                        {label} · {ms != null ? fmtDuration(ms) : '—'}
+                        {label} · {ms != null ? fmtDuration(ms, t) : '—'}
                       </span>
                     ))}
                 </div>
@@ -839,15 +886,17 @@ export function HistoryPanel({
           )}>
             <div className="flex items-center gap-3 border-b border-border/40 bg-muted/30 px-4 py-1.5 shrink-0">
               <span className="w-4 shrink-0" />
-              <span className="text-[10px] font-semibold text-muted-foreground">Giờ</span>
-              <span className="ml-auto text-[10px] font-semibold text-muted-foreground">Tốc độ</span>
+              <span className="text-[10px] font-semibold text-muted-foreground">{t('history.col.time')}</span>
+              <span className="ml-auto text-[10px] font-semibold text-muted-foreground">{t('history.col.speed')}</span>
             </div>
             <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
               {groups.map((g, gi) => (
-                <HistoryRowItem key={gi} group={g} activeIndex={playIndex}
+                <HistoryRowItem key={gi} group={g} groupIndex={gi}
+                  activeIndex={activeIndexIn(g, playIndex)}
                   expanded={expandedGroups.has(gi)}
-                  onToggle={() => toggleGroup(gi)}
+                  onToggle={toggleGroup}
                   onSeek={onSeek}
+                  t={t}
                 />
               ))}
             </div>

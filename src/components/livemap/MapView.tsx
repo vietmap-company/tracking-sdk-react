@@ -14,9 +14,9 @@ import {
   toSelectedGeoJSON,
   addClusterLayers,
 } from "./clusterLayers";
-import type { LiveMapProps, LiveMapRef, MapInstance } from "./types";
+import type { HistoryLoadEvent, LiveMapProps, LiveMapRef, MapInstance } from "./types";
 import type { GpsPoint, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
-import { MemberList } from "./MemberList";
+import { MemberList, sortMembersForList } from "./MemberList";
 import { TileSwitcher } from "./TileSwitcher";
 import { Legend } from "./Legend";
 import { DefaultPopup } from "./Marker";
@@ -78,6 +78,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       onMarkerClick,
       onMapClick,
       onMapReady,
+      onViewHistory,
+      onHistoryLoad,
+      autoOpenHistory = false,
+      renderMemberItem,
       renderMarkerPopup,
     } = props;
 
@@ -101,6 +105,20 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
     React.useEffect(() => {
       renderPopupRef.current = renderMarkerPopup;
     }, [renderMarkerPopup]);
+    // Đọc qua ref: `openHistory` được handler click của map (đăng ký một lần lúc
+    // init) giữ lại, nên phải ổn định — không phụ thuộc callback của consumer.
+    const onViewHistoryRef = React.useRef(onViewHistory);
+    React.useEffect(() => {
+      onViewHistoryRef.current = onViewHistory;
+    }, [onViewHistory]);
+    const onHistoryLoadRef = React.useRef(onHistoryLoad);
+    React.useEffect(() => {
+      onHistoryLoadRef.current = onHistoryLoad;
+    }, [onHistoryLoad]);
+    const handleHistoryLoad = React.useCallback(
+      (e: HistoryLoadEvent) => onHistoryLoadRef.current?.(e),
+      [],
+    );
 
     const [tile, setTile] = React.useState<TileType>(defaultTile);
     const [activeUserId, setActiveUserId] = React.useState<string | null>(null);
@@ -199,7 +217,13 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       seekHistory,
       drawRawRoute,
       clearHistoryRoute,
+      restoreRoutes,
     } = usePlayback({ mapRef, vglRef, selectedMemberRef, ready, showTransitionMarkers, routeColors });
+    // Handler `styledata` đăng ký một lần lúc init — đọc qua ref.
+    const restoreRoutesRef = React.useRef(restoreRoutes);
+    React.useEffect(() => {
+      restoreRoutesRef.current = restoreRoutes;
+    }, [restoreRoutes]);
 
     const [showRawRoute, setShowRawRoute] = React.useState(true);
 
@@ -243,6 +267,8 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
 
     const openHistory = React.useCallback(
       (m: MemberStatus) => {
+        // Mọi đường mở lộ trình đều đi qua đây → báo ra ngoài; `false` = chặn.
+        if (onViewHistoryRef.current?.(m) === false) return;
         // Hide popup but keep the marker selected so the user still sees which
         // member they're viewing history for.
         popupRef.current?.remove();
@@ -257,7 +283,10 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
         setPlayIndex(0);
         setIsPlaying(false);
         clearHistoryRoute();
-        mapRef.current?.jumpTo({ center: [m.lng, m.lat], zoom: 14 });
+        // Member chưa có vị trí (lat/lng = 0) thì giữ nguyên view, đợi tuyến
+        // tải xong fitBounds — tránh nhảy ra toạ độ [0, 0] giữa biển.
+        if (m.lat && m.lng)
+          mapRef.current?.jumpTo({ center: [m.lng, m.lat], zoom: 14 });
       },
       [clearHistoryRoute, setHistoryPoints, setEnrichedSegments, setRawPoints, setPlayIndex, setIsPlaying],
     );
@@ -516,18 +545,22 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
           });
           map.on("styledata", () => {
             const m = mapRef.current;
-            if (!m || m.getSource(MEMBERS_SOURCE)) return;
-            try {
-              addClusterLayers(
-                m,
-                toGeoJSON(membersRef.current, activeUserIdRef.current),
-                toSelectedGeoJSON(membersRef.current, activeUserIdRef.current),
-                clusterRadius,
-                clusterMaxZoom,
-              );
-            } catch {
-              /* retry */
+            if (!m) return;
+            if (!m.getSource(MEMBERS_SOURCE)) {
+              try {
+                addClusterLayers(
+                  m,
+                  toGeoJSON(membersRef.current, activeUserIdRef.current),
+                  toSelectedGeoJSON(membersRef.current, activeUserIdRef.current),
+                  clusterRadius,
+                  clusterMaxZoom,
+                );
+              } catch {
+                return; /* style chưa sẵn sàng — lần `styledata` sau thử lại */
+              }
             }
+            // Đổi tile (setStyle) xoá luôn tuyến lịch sử — vẽ lại nếu đang xem.
+            restoreRoutesRef.current();
           });
 
           // Recompute auto-expanded spider groups whenever the map settles
@@ -695,6 +728,19 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [members, ready, activeUserId]);
 
+    // `autoOpenHistory`: lần đầu có dữ liệu (map đã load) thì mở lộ trình của
+    // member đứng đầu sidebar. Đặt SAU effect auto-fit để jumpTo tới member
+    // thắng fitBounds. Chỉ một lần — người dùng đóng thì không mở lại.
+    const autoOpenedRef = React.useRef(false);
+    React.useEffect(() => {
+      if (!autoOpenHistory || autoOpenedRef.current || !ready) return;
+      if (selectedMemberRef.current) return;
+      const first = sortMembersForList(members)[0];
+      if (!first) return;
+      autoOpenedRef.current = true;
+      openHistory(first);
+    }, [autoOpenHistory, ready, members, openHistory]);
+
     // Project lat/lng coords into screen pixels every render. Re-evaluated
     // each animation frame during pan/zoom (via `moveTick`) so spiders track
     // the map smoothly rather than freezing at their pre-drag pixel position.
@@ -780,6 +826,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             }
             collapseOnSelect={collapseOnSelect}
             onItemClick={handleItemClick}
+            renderItem={renderMemberItem}
             position="left"
           />
         )}
@@ -824,6 +871,7 @@ export const LiveMap = React.forwardRef<LiveMapRef, LiveMapProps>(
             member={selectedMember}
             onClose={closeHistory}
             onHistoryLoaded={handleHistoryLoaded}
+            onLoad={handleHistoryLoad}
             playIndex={playIndex}
             onSeek={seekHistory}
             isPlaying={isPlaying}

@@ -3,6 +3,7 @@ import { DashboardController } from '@/controllers/DashboardController'
 import { LiveMapController } from '@/controllers/LiveMapController'
 import { ReportController } from '@/controllers/ReportController'
 import { startOfTodayMs, startOfYearMs, endOfYearMs, daysAgoMs, deepEqual } from '@/lib/utils'
+import { useOptionalFleetwork } from '@/provider/FleetworkProvider'
 import type {
   ActivityHeatmapData, ActivityTimeReportData, FuelDetailReportData,
   FuelGroupBy, FuelSummaryReportData, FuelTrackingData, GpsPoint,
@@ -30,6 +31,16 @@ function useStableDefault<T>(compute: () => T): T {
   const ref = useRef<T | undefined>(undefined)
   if (ref.current === undefined) ref.current = compute()
   return ref.current
+}
+
+/**
+ * Client của `<FleetworkProvider>` gần nhất. Truyền xuống controller để nhiều
+ * Provider (nhiều apiKey) trên cùng trang không giẫm nhau qua client toàn cục,
+ * và để đổi apiKey/baseUrl thì hook fetch lại. Ngoài Provider → `undefined` →
+ * controller rơi về client toàn cục (`initFleetwork`).
+ */
+function useClient() {
+  return useOptionalFleetwork()?.client
 }
 
 /** Delay before showing skeleton — avoids flash for fast responses */
@@ -137,9 +148,10 @@ export function useSummaryCards(options: UseSummaryCardsOptions = {}): QueryResu
   const date = options.date ?? defaultDate
   const userIds = options.userIds
   const userIdsKey = userIds?.join(',') ?? ''
+  const client = useClient()
   return useFetch(
-    () => DashboardController.getSummaryCards({ date, userIds }),
-    [date, userIdsKey],
+    () => DashboardController.getSummaryCards({ date, userIds, client }),
+    [date, userIdsKey, client],
     options.enabled,
     options.pollInterval,
   )
@@ -164,9 +176,10 @@ export function useMemberReport(options: UseMemberReportOptions = {}): QueryResu
   const userIds = options.userIds
   // Dep key ổn định để array userIds mới mỗi render không re-fetch khi id không đổi.
   const userIdsKey = userIds?.join(',') ?? ''
+  const client = useClient()
   return useFetch(
-    () => DashboardController.getMemberReport(date, { page, pageSize, status, userIds }),
-    [date, page, pageSize, status, userIdsKey],
+    () => DashboardController.getMemberReport(date, { page, pageSize, status, userIds, client }),
+    [date, page, pageSize, status, userIdsKey, client],
     options.enabled,
     options.pollInterval,
     true, // skeletonOnRefetch — đổi trang/filter hiện skeleton; poll tick thì không
@@ -192,9 +205,10 @@ export function useActivityHeatmap(options: UseActivityHeatmapOptions = {}): Que
   const userId = options.userId
   const userIds = options.userIds
   const userIdsKey = userIds?.join(',') ?? ''
+  const client = useClient()
   return useFetch(
-    () => DashboardController.getActivityHeatmap(from, to, { metric, userId, userIds }),
-    [from, to, metric, userId, userIdsKey],
+    () => DashboardController.getActivityHeatmap(from, to, { metric, userId, userIds, client }),
+    [from, to, metric, userId, userIdsKey, client],
     options.enabled,
     options.pollInterval,
   )
@@ -219,9 +233,10 @@ export function useFuelTracking(options: UseFuelTrackingOptions = {}): QueryResu
   const userId = options.userId
   const userIds = options.userIds
   const userIdsKey = userIds?.join(',') ?? ''
+  const client = useClient()
   return useFetch(
-    () => DashboardController.getFuelTracking(from, to, { groupBy, userId, userIds }),
-    [from, to, groupBy, userId, userIdsKey],
+    () => DashboardController.getFuelTracking(from, to, { groupBy, userId, userIds, client }),
+    [from, to, groupBy, userId, userIdsKey, client],
     options.enabled,
     options.pollInterval,
   )
@@ -244,9 +259,10 @@ export function useMonthlyExpenses(options: UseMonthlyExpensesOptions = {}): Que
   const currency = options.currency ?? 'VND'
   const userIds = options.userIds
   const userIdsKey = userIds?.join(',') ?? ''
+  const client = useClient()
   return useFetch(
-    () => DashboardController.getMonthlyExpenses(from, to, { currency, userIds }),
-    [from, to, currency, userIdsKey],
+    () => DashboardController.getMonthlyExpenses(from, to, { currency, userIds, client }),
+    [from, to, currency, userIdsKey, client],
     options.enabled,
     options.pollInterval,
   )
@@ -267,9 +283,10 @@ export function useMembers(options: UseMembersOptions = {}): QueryResult<MemberS
   // Stable dep key so a fresh `userIds` array reference each render does not
   // re-trigger the fetch when the ids are unchanged.
   const userIdsKey = userIds?.join(',') ?? ''
+  const client = useClient()
   return useFetch(
-    () => LiveMapController.getMembers({ nameKey, pageSize: maxUsers, userIds }),
-    [nameKey, maxUsers, userIdsKey],
+    () => LiveMapController.getMembers({ nameKey, pageSize: maxUsers, userIds, client }),
+    [nameKey, maxUsers, userIdsKey, client],
     options.enabled,
     options.pollInterval,
   )
@@ -278,9 +295,10 @@ export function useMembers(options: UseMembersOptions = {}): QueryResult<MemberS
 export function useMember(userId: string, options: UseMembersOptions = {}): QueryResult<MemberStatus | null> {
   const { nameKey } = options
   const enabled = (options.enabled ?? true) && !!userId
+  const client = useClient()
   return useFetch(
-    () => LiveMapController.getMember(userId, { nameKey }),
-    [userId, nameKey],
+    () => LiveMapController.getMember(userId, { nameKey, client }),
+    [userId, nameKey, client],
     enabled,
     options.pollInterval,
   )
@@ -321,14 +339,15 @@ export function useHistoryRoute(options: UseHistoryRouteOptions): QueryResult<Gp
     )
   }
   const enabled = (options.enabled ?? true) && !!target
+  const client = useClient()
   return useFetch(
     // `enabled` đã chặn khi target rỗng; nhánh `[]` chỉ để khỏi phải dùng `!`
     // (không phụ thuộc ngầm vào hành vi của useFetch).
     () =>
       target
-        ? LiveMapController.getHistoryRoute(target, startTime, endTime)
+        ? LiveMapController.getHistoryRoute(target, startTime, endTime, { client })
         : Promise.resolve([]),
-    [userId, deviceId, vehicleId, startTime, endTime],
+    [userId, deviceId, vehicleId, startTime, endTime, client],
     enabled,
     options.pollInterval,
   )
@@ -363,9 +382,10 @@ function userIdsKeyOf(userIds?: string[]): string {
 
 export function useTripSummaryReport(options: UseReportOptions): QueryResult<TripSummaryReportData> {
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
+  const client = useClient()
   return useFetch(
-    () => ReportController.getTripSummary(options),
-    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
+    () => ReportController.getTripSummary({ ...options, client }),
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc, client],
     reportEnabled(options),
     options.pollInterval,
     true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
@@ -374,9 +394,10 @@ export function useTripSummaryReport(options: UseReportOptions): QueryResult<Tri
 
 export function useTripDetailReport(options: UseReportOptions): QueryResult<TripDetailReportData> {
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
+  const client = useClient()
   return useFetch(
-    () => ReportController.getTripDetail(options),
-    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
+    () => ReportController.getTripDetail({ ...options, client }),
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc, client],
     reportEnabled(options),
     options.pollInterval,
     true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
@@ -385,9 +406,10 @@ export function useTripDetailReport(options: UseReportOptions): QueryResult<Trip
 
 export function useFuelSummaryReport(options: UseReportOptions): QueryResult<FuelSummaryReportData> {
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
+  const client = useClient()
   return useFetch(
-    () => ReportController.getFuelSummary(options),
-    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
+    () => ReportController.getFuelSummary({ ...options, client }),
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc, client],
     reportEnabled(options),
     options.pollInterval,
     true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
@@ -396,9 +418,10 @@ export function useFuelSummaryReport(options: UseReportOptions): QueryResult<Fue
 
 export function useFuelDetailReport(options: UseReportOptions): QueryResult<FuelDetailReportData> {
   const { from, to, userId, groupId, page, pageSize, sortBy, sortDesc } = options
+  const client = useClient()
   return useFetch(
-    () => ReportController.getFuelDetail(options),
-    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc],
+    () => ReportController.getFuelDetail({ ...options, client }),
+    [from, to, userId, userIdsKeyOf(options.userIds), groupId, page, pageSize, sortBy, sortDesc, client],
     reportEnabled(options),
     options.pollInterval,
     true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init
@@ -407,9 +430,10 @@ export function useFuelDetailReport(options: UseReportOptions): QueryResult<Fuel
 
 export function useActivityTimeReport(options: UseActivityTimeReportOptions): QueryResult<ActivityTimeReportData> {
   const { from, to, userId, groupId, page, pageSize } = options
+  const client = useClient()
   return useFetch(
-    () => ReportController.getActivityTime(options),
-    [from, to, userId, groupId, page, pageSize],
+    () => ReportController.getActivityTime({ ...options, client }),
+    [from, to, userId, groupId, page, pageSize, client],
     reportEnabled(options),
     options.pollInterval,
     true, // skeletonOnRefetch — reload page/sort/filter shows skeleton like init

@@ -120,6 +120,15 @@ export async function getMember(
   userId: string,
   options: GetMembersOptions = {},
 ): Promise<MemberStatus | null> {
+  // Lọc server-side theo đúng id trước — khỏi tải cả đội (tới 3000 member)
+  // chỉ để tìm một người. API chỉ lọc theo userId, mà `userId` của
+  // MemberStatus có thể là deviceId/vehicleId (member không có userId) — không
+  // thấy thì mới rơi về cách cũ (tải theo `options`).
+  if (!options.userIds?.length) {
+    const byId = await getMembers({ ...options, userIds: [userId] })
+    const hit = byId.find((m) => m.userId === userId)
+    if (hit) return hit
+  }
   const members = await getMembers(options)
   return members.find((m) => m.userId === userId) ?? null
 }

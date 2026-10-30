@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import type { MemberStatusKind } from '@/lib/types'
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import { STATUS_BG } from './statusColors'
 
@@ -13,7 +14,7 @@ const POSITION_CLASSES: Record<Position, string> = {
 
 export function Legend({ position = 'top-right' as Position, className }: { position?: Position; className?: string }) {
   const { t } = useFleetwork()
-  const items = [
+  const items: { key: MemberStatusKind; label: string }[] = [
     { key: 'moving',      label: t('status.moving')      },
     { key: 'stopped',     label: t('status.stopped')     },
     { key: 'signal_lost', label: t('status.signal_lost') },

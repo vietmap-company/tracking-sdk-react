@@ -78,7 +78,10 @@ function dosDateTime(d: Date): { date: number; time: number } {
   }
 }
 
-function buildZip(entries: ZipEntry[]): Uint8Array {
+// Trả `Uint8Array<ArrayBuffer>` (không phải `ArrayBufferLike`) để đưa thẳng
+// vào `new Blob([...])` — TS 5.7+ không coi buffer có thể là SharedArrayBuffer
+// là `BlobPart` hợp lệ.
+function buildZip(entries: ZipEntry[]): Uint8Array<ArrayBuffer> {
   const enc = new TextEncoder()
   const now = dosDateTime(new Date())
   const parts: Uint8Array[] = []
@@ -262,5 +265,6 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  // Thu hồi trễ — revoke ngay sau click() có thể huỷ tải trên Safari/Firefox.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

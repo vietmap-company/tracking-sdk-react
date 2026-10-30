@@ -14,9 +14,11 @@ import {
 import type {
   ActivityTimeReportData,
   FuelDetailReportData,
+  FuelDetailRow,
   FuelSummaryReportData,
   FuelSummaryRow,
   TripDetailReportData,
+  TripDetailRow,
   TripSummaryReportData,
   TripSummaryRow,
 } from '@/lib/types'
@@ -34,7 +36,12 @@ export const ReportController = {
   },
 
   getTripDetail(options: BaseReportOptions): Promise<TripDetailReportData> {
-    return detailRequest<TripDetailReportData>(options, 'reports/trip/detail')
+    return detailRequest<TripDetailReportData, TripDetailRow>(
+      options,
+      'reports/trip/detail',
+      (d) => d.trips,
+      (base, _all, paged, pagination) => ({ ...base, trips: paged, pagination }),
+    )
   },
 
   getFuelSummary(options: BaseReportOptions): Promise<FuelSummaryReportData> {
@@ -52,7 +59,17 @@ export const ReportController = {
   },
 
   getFuelDetail(options: BaseReportOptions): Promise<FuelDetailReportData> {
-    return detailRequest<FuelDetailReportData>(options, 'reports/fuel/detail')
+    return detailRequest<FuelDetailReportData, FuelDetailRow>(
+      options,
+      'reports/fuel/detail',
+      (d) => d.trips,
+      (base, all, paged, pagination) => ({
+        ...base,
+        trips: paged,
+        totals: sumFuelTotals(all),
+        pagination,
+      }),
+    )
   },
 
   async getActivityTime(

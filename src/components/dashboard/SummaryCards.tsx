@@ -87,7 +87,7 @@ export function SummaryCards({ className, ...options }: SummaryCardsProps) {
   const pct = Math.round((data.activeUsers.active / Math.max(data.activeUsers.total, 1)) * 100)
 
   const cards = [
-    { ...CARD_CONFIGS[0], label: t('summary.activeEmployees'), value: `${data.activeUsers.active} / ${data.activeUsers.total}`, sub: `${pct}% đang hoạt động` },
+    { ...CARD_CONFIGS[0], label: t('summary.activeEmployees'), value: `${data.activeUsers.active} / ${data.activeUsers.total}`, sub: `${pct}% ${t('summary.activeSuffix')}` },
     { ...CARD_CONFIGS[1], label: t('summary.totalDistance'),   value: data.totalDistance.value.toLocaleString(), sub: data.totalDistance.unit },
     { ...CARD_CONFIGS[2], label: t('summary.totalTravelTime'), value: data.totalTravelTime.formatted, sub: undefined },
     { ...CARD_CONFIGS[3], label: t('summary.totalFuelCost'),   value: data.totalFuelCost.formatted,  sub: data.totalFuelCost.currency },
