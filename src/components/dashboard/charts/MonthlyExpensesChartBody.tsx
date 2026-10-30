@@ -18,16 +18,24 @@ export interface ExpenseCategory {
   color: string
 }
 
-function fmtVndShort(v: number): string {
-  if (v >= 1_000_000_000) return `${+(v / 1_000_000_000).toFixed(1)} tỷ`
-  if (v >= 1_000_000) return `${+(v / 1_000_000).toFixed(1)} tr`
+// Đơn vị rút gọn của VND theo ngôn ngữ hiển thị: [tỷ, triệu (ngắn), triệu (đầy đủ)].
+const VND_UNITS: Record<string, [string, string, string]> = {
+  vi: ['tỷ', 'tr', 'triệu'],
+  en: ['B', 'M', 'M'],
+}
+
+function fmtVndShort(v: number, locale: string): string {
+  const [b, m] = VND_UNITS[locale] ?? VND_UNITS.vi
+  if (v >= 1_000_000_000) return `${+(v / 1_000_000_000).toFixed(1)} ${b}`
+  if (v >= 1_000_000) return `${+(v / 1_000_000).toFixed(1)} ${m}`
   if (v >= 1_000) return `${+(v / 1_000).toFixed(0)}K`
   return v === 0 ? '0' : `${v}`
 }
 
-function fmtVndFull(v: number): string {
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)} tỷ ₫`
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)} triệu ₫`
+function fmtVndFull(v: number, locale: string): string {
+  const [b, , mFull] = VND_UNITS[locale] ?? VND_UNITS.vi
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)} ${b} ₫`
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)} ${mFull} ₫`
   if (v >= 1_000) return `${(v / 1_000).toFixed(2)}K ₫`
   return `${v.toFixed(2)} ₫`
 }
@@ -40,10 +48,12 @@ export default function MonthlyExpensesChartBody({
   data,
   categories,
   colors,
+  locale = 'vi',
 }: {
   data: ExpensePoint[]
   categories: ExpenseCategory[]
   colors: ChartColors
+  locale?: string
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -55,14 +65,14 @@ export default function MonthlyExpensesChartBody({
           tick={{ fontSize: 11, fill: colors.axisTick }}
           tickLine={false}
           axisLine={false}
-          tickFormatter={fmtVndShort}
+          tickFormatter={(v: number) => fmtVndShort(v, locale)}
         />
         <Tooltip
           contentStyle={{
             borderRadius: 10, border: `1px solid ${colors.tooltipBorder}`,
             background: colors.tooltipBg, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           }}
-          formatter={(v: number) => [fmtVndFull(v), undefined]}
+          formatter={(v: number) => [fmtVndFull(v, locale), undefined]}
         />
         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
         {categories.map((cat) => (

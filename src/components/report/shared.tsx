@@ -105,6 +105,21 @@ export function PaginationBar({ page, totalPages, onChange }: PaginationBarProps
   )
 }
 
+/**
+ * State trang tự về 1 khi `resetKey` đổi (khoảng ngày, bộ lọc user…), không
+ * qua effect — nên không bắn thêm một request với trang cũ trước khi reset.
+ * Thiếu cái này, đang ở trang 5 mà thu hẹp bộ lọc còn 2 trang thì bảng trống.
+ */
+export function useResettablePage(resetKey: string): [number, (page: number) => void] {
+  const [state, setState] = React.useState({ key: resetKey, page: 1 })
+  const page = state.key === resetKey ? state.page : 1
+  const setPage = React.useCallback(
+    (p: number) => setState({ key: resetKey, page: p }),
+    [resetKey],
+  )
+  return [page, setPage]
+}
+
 // ── Table helpers ─────────────────────────────────────────────────────────────
 
 export function ReportTableSkeletonRows({ rows, cols }: { rows: number; cols: number }) {

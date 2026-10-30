@@ -1,12 +1,11 @@
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useFleetwork } from '@/provider/FleetworkProvider'
 import { useMemberReport, type UseMemberReportOptions } from '@/hooks'
 import { cn } from '@/lib/utils'
 import { resolveMemberName } from '@/lib/member-name'
 import { STATUS_BADGE, STATUS_SUMMARY_DOT, MemberAvatar, ErrorBanner } from '@/components/shared'
-import { ReportShell, PaginationBar, ReportTableSkeletonRows, ReportEmptyRow } from '@/components/report/shared'
+import { ReportShell, PaginationBar, ReportTableSkeletonRows, ReportEmptyRow, useResettablePage } from '@/components/report/shared'
 
 export interface MemberReportProps extends Omit<UseMemberReportOptions, 'page'> {
   className?: string
@@ -14,7 +13,10 @@ export interface MemberReportProps extends Omit<UseMemberReportOptions, 'page'> 
 
 export function MemberReport({ className, ...options }: MemberReportProps) {
   const { t, memberNameKey } = useFleetwork()
-  const [page, setPage] = useState(1)
+  // Đổi ngày / status / bộ lọc user / pageSize → về trang 1.
+  const [page, setPage] = useResettablePage(
+    `${options.date ?? ''}|${options.status ?? ''}|${options.userIds?.join(',') ?? ''}|${options.pageSize ?? ''}`,
+  )
   const { data, isLoading, isFetching, error, refetch } = useMemberReport({ ...options, page })
   // Skeleton khớp số dòng đang hiển thị (data cũ khi refetch), fallback pageSize.
   const skeletonRows = data?.users?.length || (options.pageSize ?? 10)

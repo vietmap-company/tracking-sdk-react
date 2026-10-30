@@ -1,22 +1,18 @@
 import { MapPin, Navigation, Users, X, Clock } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import type { TFn } from '@/lib/i18n'
 import type { MemberStatus } from '@/lib/types'
+import { useFleetwork } from '@/provider/FleetworkProvider'
 import { STATUS_AVATAR_BG, STATUS_BADGE, STATUS_DOT_PLAIN } from '@/components/shared'
 
-function formatLastSeen(ts: number): string {
+function formatLastSeen(ts: number, t: TFn): string {
   const mins = Math.floor((Date.now() - ts) / 60_000)
-  if (mins < 1) return 'vừa xong'
-  if (mins < 60) return `${mins} phút trước`
+  if (mins < 1) return t('time.justNow')
+  if (mins < 60) return t('time.minutesAgo').replace('{n}', String(mins))
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs} giờ trước`
-  return `${Math.floor(hrs / 24)} ngày trước`
-}
-
-const STATUS_LABEL: Record<MemberStatus['status'], string> = {
-  moving:      'Đang di chuyển',
-  stopped:     'Dừng',
-  signal_lost: 'Mất tín hiệu',
+  if (hrs < 24) return t('time.hoursAgo').replace('{n}', String(hrs))
+  return t('time.daysAgo').replace('{n}', String(Math.floor(hrs / 24)))
 }
 
 export interface DefaultPopupProps {
@@ -26,6 +22,7 @@ export interface DefaultPopupProps {
 }
 
 export function DefaultPopup({ member, onViewHistory, onClose }: DefaultPopupProps) {
+  const { t } = useFleetwork()
   const initials = (member.name ?? member.userId).slice(0, 2).toUpperCase()
 
   return (
@@ -71,7 +68,7 @@ export function DefaultPopup({ member, onViewHistory, onClose }: DefaultPopupPro
               STATUS_BADGE[member.status]
             )}>
               <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', STATUS_DOT_PLAIN[member.status])} />
-              {member.statusLabel || STATUS_LABEL[member.status]}
+              {t(`status.${member.status}`)}
             </span>
           </div>
         </div>
@@ -85,7 +82,7 @@ export function DefaultPopup({ member, onViewHistory, onClose }: DefaultPopupPro
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Navigation className="h-3 w-3 shrink-0" />
-              <span>Tốc độ</span>
+              <span>{t('popup.speed')}</span>
             </div>
             <span className="font-semibold text-emerald-600 tabular-nums">{member.speed} km/h</span>
           </div>
@@ -94,16 +91,16 @@ export function DefaultPopup({ member, onViewHistory, onClose }: DefaultPopupPro
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Clock className="h-3 w-3 shrink-0" />
-              <span>Cập nhật</span>
+              <span>{t('popup.updated')}</span>
             </div>
-            <span className="font-medium text-foreground">{formatLastSeen(member.lastSeenAt)}</span>
+            <span className="font-medium text-foreground">{formatLastSeen(member.lastSeenAt, t)}</span>
           </div>
         )}
         {member.groupName && (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Users className="h-3 w-3 shrink-0" />
-              <span>Nhóm</span>
+              <span>{t('popup.group')}</span>
             </div>
             <span className="font-medium text-foreground truncate max-w-32">{member.groupName}</span>
           </div>
@@ -115,7 +112,7 @@ export function DefaultPopup({ member, onViewHistory, onClose }: DefaultPopupPro
           </div>
         )}
         <div className="flex items-center justify-between pt-0.5">
-          <span className="text-muted-foreground">Tọa độ</span>
+          <span className="text-muted-foreground">{t('popup.coords')}</span>
           <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
             {member.lat.toFixed(5)}, {member.lng.toFixed(5)}
           </span>
@@ -136,7 +133,7 @@ export function DefaultPopup({ member, onViewHistory, onClose }: DefaultPopupPro
                 'hover:bg-primary/90 transition-colors'
               )}
             >
-              Xem lộ trình
+              {t('popup.viewHistory')}
             </button>
           </div>
         </>

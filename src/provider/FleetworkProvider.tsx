@@ -68,26 +68,38 @@ export function FleetworkProvider({
   disableAuthErrorOverlay = false,
   renderAuthError,
 }: FleetworkProviderProps) {
-  const base = React.useMemo<Omit<FleetworkContextValue, "portalContainer">>(() => {
-    const config: FleetworkConfig = {
+  const resolvedBaseUrl = baseUrl ?? DEFAULT_BASE_URL;
+  // Client chỉ phụ thuộc apiKey/baseUrl — `theme` truyền dạng object inline
+  // (đổi reference mỗi render) không được làm tạo lại client.
+  const client = React.useMemo(
+    () => createHttpClient({ apiKey, baseUrl: resolvedBaseUrl }),
+    [apiKey, resolvedBaseUrl],
+  );
+  // Đăng ký client toàn cục ngay trong render (gán idempotent), không đợi
+  // effect: effect của component con chạy TRƯỚC effect của Provider, nên lần
+  // fetch đầu của con sẽ gặp "Not initialized". Hook trong SDK dùng client từ
+  // context; registry chỉ phục vụ controller gọi trực tiếp không kèm `client`.
+  const config: FleetworkConfig = {
+    apiKey,
+    baseUrl: resolvedBaseUrl,
+    locale,
+    theme,
+    memberNameKey,
+  };
+  setGlobalClient(client, config);
+
+  const base = React.useMemo<Omit<FleetworkContextValue, "portalContainer">>(
+    () => ({
       apiKey,
-      baseUrl: baseUrl ?? DEFAULT_BASE_URL,
-      locale,
-      theme,
-      memberNameKey,
-    };
-    const client = createHttpClient(config);
-    setGlobalClient(client, config);
-    return {
-      apiKey,
-      baseUrl: config.baseUrl!,
+      baseUrl: resolvedBaseUrl,
       locale,
       theme,
       memberNameKey,
       t: createTranslator(locale),
       client,
-    };
-  }, [apiKey, baseUrl, locale, theme, memberNameKey]);
+    }),
+    [apiKey, resolvedBaseUrl, locale, theme, memberNameKey, client],
+  );
 
   // Root element for portal targeting — set via ref callback below so portaled
   // Radix content inherits this subtree's theme. Kept separate from `base`

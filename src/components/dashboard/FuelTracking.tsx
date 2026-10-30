@@ -2,8 +2,8 @@ import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFuelTracking, type UseFuelTrackingOptions } from '@/hooks'
-import { useFleetwork } from '@/provider/FleetworkProvider'
-import { formatNumber, useChartColors, cn } from '@/lib/utils'
+import { useFleetwork, usePortalContainer } from '@/provider/FleetworkProvider'
+import { formatNumber, monthLabel, useChartColors, cn } from '@/lib/utils'
 import type { FuelTrackingData } from '@/lib/types'
 
 export interface FuelTrackingProps extends UseFuelTrackingOptions {
@@ -32,8 +32,8 @@ function EmptyChart({ label }: { label: string }) {
 export function FuelTracking({
   className, style, onError, onDataChange, ...options
 }: FuelTrackingProps) {
-  const { t } = useFleetwork()
-  const colors = useChartColors()
+  const { t, locale } = useFleetwork()
+  const colors = useChartColors(usePortalContainer())
   const { data, isLoading, error } = useFuelTracking(options)
 
   React.useEffect(() => { if (error && onError) onError(error) }, [error, onError])
@@ -51,9 +51,9 @@ export function FuelTracking({
     return Array.from({ length: 12 }, (_, i) => {
       const period = `${year}-${String(i + 1).padStart(2, '0')}`
       const entry = byPeriod.get(period)
-      return { label: `T${i + 1}`, distanceKm: entry?.distanceKm ?? 0, fuelLiters: entry?.fuelLiters ?? 0 }
+      return { label: monthLabel(i, locale), distanceKm: entry?.distanceKm ?? 0, fuelLiters: entry?.fuelLiters ?? 0 }
     })
-  }, [data])
+  }, [data, locale])
 
   return (
     <Card className={cn('shadow-none rounded-xl border-border/50', className)} style={style}>

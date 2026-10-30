@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { GpsPoint } from '@/lib/types'
+import { useFleetwork } from '@/provider/FleetworkProvider'
 
 function fmtTime(ts: number) { return new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }
 
@@ -23,8 +24,8 @@ export interface PlaybackControlsProps {
 }
 
 export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, onSeek, onPlayToggle, onSpeedCycle, onAutoFollowToggle, showRawRoute, onRawRouteToggle, bottomOffset = 0 }: PlaybackControlsProps) {
+  const { t } = useFleetwork()
   const total = points.length
-  if (!total) return null
   const curr = points[index]
   const pct = (total > 1 ? index / (total - 1) : 0) * 100
   const trackRef = React.useRef<HTMLDivElement>(null)
@@ -43,6 +44,9 @@ export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, 
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }, [calcIndex, onSeek])
+
+  // Return sớm phải nằm SAU mọi hook (rules of hooks).
+  if (!total) return null
 
   return (
     <div
@@ -64,7 +68,7 @@ export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, 
               {speed}×
             </button>
           </TooltipTrigger>
-          <TooltipContent>Tốc độ phát lại</TooltipContent>
+          <TooltipContent>{t('playback.speed')}</TooltipContent>
         </Tooltip>
         {/* Seek */}
         <div ref={trackRef} className="relative flex h-8 flex-1 cursor-pointer select-none items-center px-2" onMouseDown={handleMouseDown}>
@@ -93,7 +97,7 @@ export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, 
                 RAW
               </button>
             </TooltipTrigger>
-            <TooltipContent>{showRawRoute ? 'Ẩn GPS gốc (raw)' : 'Hiện GPS gốc (raw)'}</TooltipContent>
+            <TooltipContent>{showRawRoute ? t('playback.hideRaw') : t('playback.showRaw')}</TooltipContent>
           </Tooltip>
         )}
         {/* Auto-follow */}
@@ -103,7 +107,7 @@ export function PlaybackControls({ points, index, isPlaying, speed, autoFollow, 
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
             </button>
           </TooltipTrigger>
-          <TooltipContent>{autoFollow ? 'Auto-follow: bật' : 'Auto-follow: tắt'}</TooltipContent>
+          <TooltipContent>{autoFollow ? t('playback.followOn') : t('playback.followOff')}</TooltipContent>
         </Tooltip>
       </div>
       <div className="mt-1.5 flex items-center justify-between px-1 text-[11px] text-muted-foreground">

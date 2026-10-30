@@ -8,6 +8,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added (LiveMap — bảng lộ trình)
+
+- **`onViewHistory(member)`** — callback khi mở bảng lộ trình (nút "Xem lộ trình", đổi member khi đang xem, hoặc tự mở). Return `false` để chặn mở và tự xử lý bên ngoài.
+- **`onHistoryLoad(event)`** — callback mỗi khi bảng lộ trình tải xong (mở, đổi ngày, đổi `dataSource`/`historyTrackBy`), nhận `HistoryLoadEvent` `{ member, date, from, to, route, error? }` — `route` là `HistoryRoute` đầy đủ đang hiển thị, không phải gọi API lần nữa. Kiểu `HistoryLoadEvent` được export.
+- **`autoOpenHistory`** — vào trang là tự mở bảng lộ trình của member đứng đầu sidebar (sau khi áp `userIds`/`statusFilter`), một lần duy nhất.
+- Mở lộ trình của member chưa có vị trí (lat/lng = 0) không còn nhảy bản đồ về toạ độ `[0, 0]`.
+
+### Security
+
+- **Vá XSS ở marker playback lịch sử** — tên member (lấy từ metadata do thiết bị gửi lên) trước đây được ghép thẳng vào `innerHTML` của marker; giờ được escape, `heading` ép kiểu số.
+- **Nâng sàn `axios` lên `^1.20.0`** — các bản 1.x cũ hơn dính nhiều advisory (prototype-pollution gadget, header injection, proxy bypass, DoS). `pnpm audit` / `npm audit` hiện báo 0 lỗ hổng.
+- **`engines.node` từ `>=18` lên `>=22`** — Node 18/20 đã hết hỗ trợ, không nhận bản vá Node.js tháng 10/2026 (CVE-2026-111497).
+
+### Fixed
+
+- **Lịch sử hiện sai ngày khi đổi ngày liên tục** — response về muộn của lần tải trước không còn ghi đè tuyến của ngày đang chọn.
+- **Đổi tile làm mất tuyến lịch sử** — sau `setStyle`, tuyến đã đi / còn lại và đường RAW được vẽ lại, giữ nguyên vị trí playback.
+- **`renderMemberItem` không có tác dụng** — prop của `<LiveMap>` giờ được truyền xuống danh sách nhân viên.
+- **Màu chart không theo theme của SDK** — `useChartColors` đọc token từ `.fleetwork-root` thay vì `<html>`, nên chart đúng preset, dark mode và `theme.colors`, không còn dính token của app host.
+- **Chế độ `dataSource="merged"`** — vẽ một tuyến liền theo `trackingData` đã vá gap thay vì cắt theo segment (gây hở gap và lệch con trỏ playback).
+- **Bảng không về trang 1 khi đổi khoảng ngày / bộ lọc** (Dashboard member report và các báo cáo) — trước đây có thể hiện bảng trống.
+- **Lọc hơn 1000 `userIds`** — báo cáo summary sort lại toàn bộ sau khi gộp các request; báo cáo detail (GET) tự chia nhỏ theo độ dài URL thay vì gửi một URL quá dài.
+- **Nhiều `<FleetworkProvider>` trên cùng trang** — hook dùng client của Provider gần nhất thay vì client toàn cục; đổi `apiKey`/`baseUrl` sẽ fetch lại. Truyền `theme` dạng object inline không còn tạo lại HTTP client mỗi render.
+- **`locale="en"` vẫn hiện tiếng Việt** — bổ sung đủ từ điển tiếng Anh (thiếu key là TypeScript báo lỗi) và đưa các chữ viết cứng trong LiveMap, lịch sử, playback, heatmap, chart qua `t()`. File Excel xuất danh sách vẫn giữ mẫu tiếng Việt.
+- `useMember` / `getMember` lọc server-side theo id trước thay vì tải cả đội xe; `downloadBlob` thu hồi object URL trễ để không huỷ tải trên Safari/Firefox; hook trong `PlaybackControls` không còn gọi sau `return` sớm.
+- **`npm run typecheck` trước đây không kiểm tra gì** (tsconfig dạng solution `files: []`) — giờ kiểm tra `tsconfig.app.json`, `tsconfig.build.json` (lib ES2020 của bản phát hành) và `tsconfig.node.json`; sửa các lỗi type lộ ra, gồm `Array.at()` ở marker chuyển tuyến (ES2022, không chạy trên Safari < 15.4).
+
 ### Added
 
 - **Lọc lịch sử theo `deviceId` / `vehicleId`** — `gps-tracking/history` nhận thêm `DeviceId` / `VehicleId`. `LiveMapController.getHistoryComparison()` / `getHistoryRoute()` đổi tham số đầu thành `target`: nhận **một `userId` dạng chuỗi** (chữ ký cũ giữ nguyên) **hoặc một object `HistoryTarget`**. Backend **không** lọc giao nhau (AND) — kiểm chứng trực tiếp trên staging: gửi nhiều id thì nó chỉ dùng một cái theo ưu tiên `userId` > `vehicleId` > `deviceId`, bỏ qua phần còn lại (kể cả khi id ưu tiên cao không khớp gì → trả rỗng).

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { HistoryDataSource, HistoryTrackBy, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
+import type { HistoryDataSource, HistoryRoute, HistoryTrackBy, MemberStatus, MemberStatusKind, TileType } from "@/lib/types";
 
 export type MapInstance = {
   flyTo: (opts: { center: [number, number]; zoom?: number }) => void;
@@ -47,6 +47,25 @@ export type MapInstance = {
   getCanvas?: () => HTMLCanvasElement;
   getBounds: () => { contains: (lngLat: [number, number]) => boolean };
 };
+
+/** Dữ liệu bảng lộ trình vừa tải xong — tham số của `onHistoryLoad`. */
+export interface HistoryLoadEvent {
+  /** Member đang xem lộ trình. */
+  member: MemberStatus;
+  /** Ngày đang xem (giờ local). */
+  date: Date;
+  /** Đầu ngày (ms) — `FromTime` đã gửi lên API. */
+  from: number;
+  /** Cuối ngày (ms) — `ToTime` đã gửi lên API. */
+  to: number;
+  /**
+   * Kết quả đầy đủ của `LiveMapController.getHistoryComparison` (points,
+   * rawPoints, enrichedSegments, routeSummary…). `null` khi request lỗi.
+   */
+  route: HistoryRoute | null;
+  /** Lỗi của request (khi `route` là `null`). */
+  error?: Error;
+}
 
 /** Màu các đường tuyến khi xem lại lịch sử. Field nào bỏ trống dùng mặc định. */
 export interface HistoryRouteColors {
@@ -129,8 +148,27 @@ export interface LiveMapProps {
   showStatusFilter?: boolean;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Tự mở bảng lộ trình (bên phải) của member **đứng đầu sidebar** ngay khi
+   * dữ liệu tải lần đầu — sau khi áp `userIds`/`statusFilter`, theo thứ tự
+   * sidebar (đang chạy → dừng → mất tín hiệu). Chỉ mở một lần; người dùng đóng
+   * thì không tự mở lại. Default `false`.
+   */
+  autoOpenHistory?: boolean;
   onMemberClick?: (member: MemberStatus) => void | boolean;
   onMarkerClick?: (member: MemberStatus) => void | boolean;
+  /**
+   * Gọi mỗi khi bảng lộ trình của một member được mở — nút "Xem lộ trình" trên
+   * popup, bấm member khác khi đang xem lộ trình, hoặc tự mở qua
+   * `autoOpenHistory`. Return `false` để chặn không mở bảng (tự xử lý ngoài).
+   */
+  onViewHistory?: (member: MemberStatus) => void | boolean;
+  /**
+   * Gọi mỗi khi bảng lộ trình tải xong dữ liệu: lần mở đầu, đổi ngày, đổi
+   * `dataSource`/`historyTrackBy`. Nhận đúng object lịch sử mà bảng đang hiển
+   * thị (xem {@link HistoryLoadEvent}) — không cần gọi API lần nữa.
+   */
+  onHistoryLoad?: (event: HistoryLoadEvent) => void;
   onMapClick?: (lngLat: [number, number]) => void;
   onMapReady?: (map: MapInstance) => void;
   renderMemberItem?: (

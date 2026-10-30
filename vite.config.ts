@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
 import dts from 'vite-plugin-dts'
@@ -8,7 +8,7 @@ import { readFileSync } from 'fs'
 // Emit a stub `.d.ts` for the side-effect CSS import so consumers using
 // `moduleResolution: bundler` don't get TS2882 on
 // `import '@vietmap/tracking-sdk-react/styles.css'`.
-const cssTypesPlugin = () => ({
+const cssTypesPlugin = (): Plugin => ({
   name: 'sdk-css-types',
   generateBundle() {
     this.emitFile({
@@ -23,7 +23,7 @@ const cssTypesPlugin = () => ({
 // `dist/src/index.d.ts`. Without this, consumers see the awkward
 // `./dist/src/index.d.ts` path and some IDEs / TS plugins fail to pick up
 // IntelliSense even though the types resolve correctly.
-const dtsBarrelPlugin = () => ({
+const dtsBarrelPlugin = (): Plugin => ({
   name: 'sdk-dts-barrel',
   generateBundle() {
     this.emitFile({
