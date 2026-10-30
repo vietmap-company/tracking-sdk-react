@@ -206,7 +206,7 @@ Bản đồ fleet real-time dùng VietmapGL (CDN loader) với GPU-accelerated c
 />
 ```
 - `ref` API: `flyTo`, `fitBounds`, `focusMember`, `getMembers`, `getMap`, `setStatusFilter`, `getStatusFilter`
-- Bảng lộ trình: `autoOpenHistory` tự mở member đầu tiên, `onViewHistory` báo khi mở, `onHistoryLoad` trả dữ liệu lịch sử đã tải
+- Bảng lộ trình: `autoOpenHistory` tự mở member đầu tiên, `onViewHistory` thay hành động "Xem lộ trình", `onHistoryLoad` trả dữ liệu lịch sử đã tải
 
 ```tsx
 import { useRef } from "react"
@@ -259,7 +259,7 @@ const mapRef = useRef<LiveMapRef>(null)
 | `onMapClick`        | `([lng, lat]) => void`      | —               | Click nền bản đồ                           |
 | `onMapReady`        | `(map) => void`             | —               | Fires sau khi bản đồ load xong             |
 | `autoOpenHistory`   | `boolean`                   | `false`         | Tự mở bảng lộ trình của member **đứng đầu sidebar** (sau khi áp `userIds`/`statusFilter`) ngay khi dữ liệu tải lần đầu. Chỉ mở một lần |
-| `onViewHistory`     | `(m) => void \| boolean`    | —               | Gọi khi mở bảng lộ trình (nút "Xem lộ trình", đổi member khi đang xem, hoặc `autoOpenHistory`). Return `false` để chặn |
+| `onViewHistory`     | `(m, openDefault) => void`  | —               | **Thay hẳn** hành động "Xem lộ trình" (nút trên popup, đổi member khi đang xem, `autoOpenHistory`): SDK không tự mở bảng lộ trình nữa. Gọi `openDefault()` để vẫn mở bảng mặc định |
 | `onHistoryLoad`     | `(e: HistoryLoadEvent) => void` | —           | Gọi mỗi khi bảng lộ trình tải xong (mở, đổi ngày, đổi `dataSource`/`historyTrackBy`) — nhận object lịch sử đầy đủ |
 | `renderMarkerPopup` | `(m) => ReactNode`          | —               | Tuỳ chỉnh nội dung popup                   |
 | `renderMemberItem`  | `(m, default) => ReactNode` | —               | Tuỳ chỉnh hàng sidebar                     |
@@ -305,7 +305,7 @@ mapRef.current?.setStatusFilter([])              // xoá lọc
 
 > Khi truyền prop `statusFilter`, nó **thắng** `setStatusFilter` của ref (controlled). Bỏ prop thì ref điều khiển (uncontrolled). Status hợp lệ: `"moving"`, `"stopped"`, `"signal_lost"`.
 
-**Bảng lộ trình — tự mở, callback & lấy dữ liệu**
+**Bảng lộ trình — tự mở, thay hành động "Xem lộ trình" & lấy dữ liệu**
 
 ```tsx
 import { LiveMap, type HistoryLoadEvent } from "@vietmap/tracking-sdk-react"
@@ -314,10 +314,6 @@ import { LiveMap, type HistoryLoadEvent } from "@vietmap/tracking-sdk-react"
   apiKeyTilemap="..."
   userIds={["driver-01"]}   // lọc danh sách nhân viên (server-side)
   autoOpenHistory           // vào trang là mở luôn lộ trình của member đầu sidebar
-  onViewHistory={(m) => {
-    analytics.track("view_route", { userId: m.userId })
-    // return false  → chặn không mở bảng (vd. tự điều hướng sang trang riêng)
-  }}
   onHistoryLoad={(e: HistoryLoadEvent) => {
     if (e.error) return console.error(e.error)
     // e.route: { points, rawPoints, enrichedPoints, enrichedSegments, routeSummary, dataSource, enriched }
@@ -326,7 +322,35 @@ import { LiveMap, type HistoryLoadEvent } from "@vietmap/tracking-sdk-react"
 />
 ```
 
-- `onViewHistory` chạy **trước** khi bảng mở, với mọi đường mở (nút "Xem lộ trình" trên popup, bấm member khác khi đang xem lộ trình, `autoOpenHistory`).
+**Thay hành động "Xem lộ trình" — `onViewHistory(member, openDefault)`**
+
+Truyền `onViewHistory` thì hành động "Xem lộ trình" **do bạn quyết định**: SDK **không** tự mở bảng lộ trình nữa mà gọi hàm này. Muốn vẫn mở bảng mặc định của SDK thì gọi `openDefault()`.
+
+```tsx
+// 1) Thay hẳn — mở trang / modal lộ trình riêng, bảng của SDK không mở
+<LiveMap apiKeyTilemap="..." onViewHistory={(m) => navigate(`/routes/${m.userId}`)} />
+
+// 2) Làm thêm việc rồi vẫn mở bảng lộ trình của SDK
+<LiveMap
+  apiKeyTilemap="..."
+  onViewHistory={(m, openDefault) => {
+    analytics.track("view_route", { userId: m.userId })
+    openDefault()
+  }}
+/>
+
+// 3) Tuỳ member — xe thuê ngoài mở trang riêng, còn lại dùng bảng SDK
+<LiveMap
+  apiKeyTilemap="..."
+  onViewHistory={(m, openDefault) =>
+    m.metadata?.partner ? window.open(`/partner/${m.userId}`) : openDefault()
+  }
+/>
+```
+
+- Áp cho **mọi đường mở** bảng lộ trình: nút "Xem lộ trình" trên popup, bấm member khác khi đang xem lộ trình, và `autoOpenHistory` (vào trang sẽ gọi `onViewHistory` cho member đầu sidebar thay vì tự mở).
+- `openDefault()` gọi được bất cứ lúc nào (kể cả sau `await`, sau khi người dùng xác nhận dialog…).
+- Không truyền `onViewHistory` → hành vi mặc định: bấm "Xem lộ trình" là mở bảng lộ trình bên phải.
 - `onHistoryLoad` chạy **sau** mỗi lần bảng tải xong — đúng dữ liệu đang hiển thị, không gọi API lần nữa. `e.date` / `e.from` / `e.to` là ngày đang xem; `e.route` là kết quả của `LiveMapController.getHistoryComparison` (`null` khi lỗi, kèm `e.error`).
 - Muốn lấy lịch sử **không qua LiveMap** (trang riêng, export, script…) dùng thẳng controller / hook — xem [Lịch sử hành trình](#lịch-sử-hành-trình--datasource).
 

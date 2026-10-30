@@ -152,17 +152,23 @@ export interface LiveMapProps {
    * Tự mở bảng lộ trình (bên phải) của member **đứng đầu sidebar** ngay khi
    * dữ liệu tải lần đầu — sau khi áp `userIds`/`statusFilter`, theo thứ tự
    * sidebar (đang chạy → dừng → mất tín hiệu). Chỉ mở một lần; người dùng đóng
-   * thì không tự mở lại. Default `false`.
+   * thì không tự mở lại. Có `onViewHistory` thì gọi hàm đó thay vì tự mở bảng.
+   * Default `false`.
    */
   autoOpenHistory?: boolean;
   onMemberClick?: (member: MemberStatus) => void | boolean;
   onMarkerClick?: (member: MemberStatus) => void | boolean;
   /**
-   * Gọi mỗi khi bảng lộ trình của một member được mở — nút "Xem lộ trình" trên
-   * popup, bấm member khác khi đang xem lộ trình, hoặc tự mở qua
-   * `autoOpenHistory`. Return `false` để chặn không mở bảng (tự xử lý ngoài).
+   * **Thay hẳn** hành động "Xem lộ trình". Khi truyền prop này, SDK KHÔNG tự
+   * mở bảng lộ trình nữa mà gọi hàm này — áp cho mọi đường mở: nút "Xem lộ
+   * trình" trên popup, bấm member khác khi đang xem lộ trình, và
+   * `autoOpenHistory`. Muốn vẫn mở bảng lộ trình mặc định của SDK (vd. sau khi
+   * tự xử lý, hoặc chỉ cho một số member) thì gọi `openDefault()`.
+   *
+   *     onViewHistory={(m) => navigate(`/routes/${m.userId}`)}      // trang riêng
+   *     onViewHistory={(m, openDefault) => { track(m); openDefault() }} // làm thêm rồi mở bảng SDK
    */
-  onViewHistory?: (member: MemberStatus) => void | boolean;
+  onViewHistory?: (member: MemberStatus, openDefault: () => void) => void;
   /**
    * Gọi mỗi khi bảng lộ trình tải xong dữ liệu: lần mở đầu, đổi ngày, đổi
    * `dataSource`/`historyTrackBy`. Nhận đúng object lịch sử mà bảng đang hiển
